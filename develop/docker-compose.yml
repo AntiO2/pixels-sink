@@ -21,7 +21,7 @@ services:
       - pixels_network
 
   postgres:
-    image: postgres:17
+    image:  quay.io/debezium/postgres:17  # This image install plugin: postgres-decoderbufs and configure wal_level = logical  
     container_name: pixels_postgres_source_db
     environment:
       POSTGRES_DB: pixels_realtime_crud
@@ -43,10 +43,67 @@ services:
     container_name: pixels_kafka
     environment:
       CLUSTER_ID: pixels_kafka_01
+      TRACE: true
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://pixels_kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@pixels_kafka:9093 
+      KAFKA_NUM_PARTITIONS: 1
+      KAFKA_NODE_ID: 1  
     ports:
       - "9092:9092"
     networks:
       - pixels_network
+
+  kafka_ui:
+    image: obsidiandynamics/kafdrop:latest
+    container_name: kafka_ui
+    ports:
+      - "9000:9000"
+    environment:
+      KAFKA_BROKERCONNECT: pixels_kafka:9092
+      JVM_OPTS: "-Xms32M -Xmx64M"
+    networks:
+      - pixels_network
+
+  pg_debezium:
+    image: pixels-debezium:${PIXELS_SINK_VERSION}
+    ports:
+     - 8084:8083
+    depends_on:
+     - kafka
+     - postgres
+    environment:
+      CONNECT_BOOTSTRAP_SERVERS: pixels_kafka:9092
+      BOOTSTRAP_CONTROLLERS: pixels_kafka:9092
+      BOOTSTRAP_SERVERS: pixels_kafka:9092
+      GROUP_ID: 1
+      CONFIG_STORAGE_TOPIC: postgres_connect_configs
+      OFFSET_STORAGE_TOPIC: postgres_connect_offsets
+      STATUS_STORAGE_TOPIC: postgres_connect_statuses
+    networks:
+      - pixels_network
+
+  mysql_debezium:
+    image: pixels-debezium:${PIXELS_SINK_VERSION}
+    ports:
+     - 8083:8083
+    depends_on:
+     - kafka
+     - mysql
+    environment:
+      CONNECT_BOOTSTRAP_SERVERS: pixels_kafka:9092
+      BOOTSTRAP_CONTROLLERS: pixels_kafka:9092
+      BOOTSTRAP_SERVERS: pixels_kafka:9092
+      GROUP_ID: 1
+      CONFIG_STORAGE_TOPIC: mysql_connect_configs
+      OFFSET_STORAGE_TOPIC: mysql_connect_offsets
+      STATUS_STORAGE_TOPIC: mysql_connect_statuses
+    networks:
+      - pixels_network
+
 volumes:
   mysql_data:
   postgres_data:
