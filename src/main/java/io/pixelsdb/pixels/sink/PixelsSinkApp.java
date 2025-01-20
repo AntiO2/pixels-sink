@@ -15,7 +15,9 @@
  */
 package io.pixelsdb.pixels.sink;
 
+import io.pixelsdb.pixels.sink.config.CommandLineConfig;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
+import io.pixelsdb.pixels.sink.deserializer.DebeziumJsonMessageDeserializer;
 import io.pixelsdb.pixels.sink.monitor.TopicMonitor;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.StringDeserializer;
@@ -29,11 +31,11 @@ import java.util.Properties;
 public class PixelsSinkApp {
 
     public static void main(String[] args) throws IOException {
-        PixelsSinkConfig pixelsSinkConfig = new PixelsSinkConfig("pixels-sink.properties");
+        CommandLineConfig cmdLineConfig = new CommandLineConfig(args);
+
+        PixelsSinkConfig pixelsSinkConfig = new PixelsSinkConfig(cmdLineConfig.getConfigPath());
 
         Properties kafkaProperties = getProperties(pixelsSinkConfig);
-
-
         TopicMonitor topicMonitor = new TopicMonitor(pixelsSinkConfig, kafkaProperties);
         topicMonitor.start();
     }
@@ -41,9 +43,8 @@ public class PixelsSinkApp {
     private static Properties getProperties(PixelsSinkConfig config) {
         Properties kafkaProperties = new Properties();
         kafkaProperties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, config.getBootstrapServers());
-        kafkaProperties.put(ConsumerConfig.GROUP_ID_CONFIG, config.getGroupId());
-        kafkaProperties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
-        kafkaProperties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+        kafkaProperties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, config.getKeyDeserializer());
+        kafkaProperties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, config.getValueDeserializer());
         kafkaProperties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
         return kafkaProperties;
     }

@@ -39,12 +39,13 @@ source ${SCRIPT_DIR}/common_func.sh
 
 if [[ x${need_build} == x"on" ]]; then 
   build_image ${IMAGE_DIR}/debezium-source-connector pixels-debezium
+  build_pixels_sink_image
 fi
 
 
 if [[ x${need_init} == x"on" ]]; then
   log_info "Init Container"
-  docker-compose -f ${PROJECT_DIR}/docker-compose.yml up -d
+  docker-compose -f ${DEVELOP_DIR}/docker-compose.yml up -d
   check_fatal_exit "docker-compose up failed."
 fi
 
@@ -56,7 +57,7 @@ log_info "Start Register Debezium Connectors"
 log_info "Start Register MySQL Debezium Connector"
 gen_config_by_template mysql_password $(cat "${SECRETS_DIR}/mysql-pixels-password.txt") ${CONFIG_DIR}/register-mysql.json.template
 [[ -f ${CONFIG_DIR}/register-mysql.json ]] || { log_fatal_exit "Can't generate mysql debezium connector config"; }
-wait_for_url http://localhost:8083/connectors
+wait_for_url http://localhost:8083/connectors 20
 check_fatal_exit "MySQL Source Kafka Connector Server Fail"
 # register mysql connector
 try_command curl -f -X POST -H "Content-Type: application/json" -d @${CONFIG_DIR}/register-mysql.json http://localhost:8083/connectors -w '\n'
@@ -72,5 +73,3 @@ check_fatal_exit "Register PostgreSQL Source Connector Fail"
 
 log_info "Visit http://localhost:9000 to check kafka status"
 
-
-## TODO sink connector / crud example

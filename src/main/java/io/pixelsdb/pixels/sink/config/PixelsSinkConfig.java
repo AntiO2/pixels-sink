@@ -15,7 +15,9 @@
  */
 package io.pixelsdb.pixels.sink.config;
 
+import java.io.FileNotFoundException;
 import java.io.FileInputStream;
+import java.io.InputStream;
 import java.io.IOException;
 import java.util.Properties;
 
@@ -24,8 +26,21 @@ public class PixelsSinkConfig {
 
     public PixelsSinkConfig(String configFilePath) throws IOException {
         properties = new Properties();
-        try (FileInputStream input = new FileInputStream(configFilePath)) {
-            properties.load(input);
+        if (configFilePath != null && !configFilePath.isEmpty()) {
+            try (InputStream input = new FileInputStream(configFilePath)) {
+                properties.load(input);
+            } catch (FileNotFoundException e) {
+                throw new FileNotFoundException("Configuration file not found: " + configFilePath);
+            } catch (IOException e) {
+                throw new IOException("Error reading configuration file: " + configFilePath, e);
+            }
+        } else {
+            try (InputStream input = getClass().getClassLoader().getResourceAsStream(PixelsSinkDefaultConfig.PROPERTIES_PATH)) {
+                if (input == null) {
+                    throw new FileNotFoundException("Resource file not found: " + configFilePath);
+                }
+                properties.load(input);
+            }
         }
     }
 
@@ -48,5 +63,16 @@ public class PixelsSinkConfig {
 
     public String getGroupId() {
         return properties.getProperty("group.id");
+    }
+
+    public String getKeyDeserializer() {
+        return properties.getProperty("key.deserializer", PixelsSinkDefaultConfig.KEY_DESERIALIZER);
+    }
+    public String getValueDeserializer() {
+        return properties.getProperty("value.deserializer", PixelsSinkDefaultConfig.VALUE_DESERIALIZER);
+    }
+
+    public String getCsvSinkPath() {
+        return properties.getProperty("csv.sink_path", PixelsSinkDefaultConfig.CSV_SINK_PATH);
     }
 }

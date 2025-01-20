@@ -1,6 +1,7 @@
 {
   "name": "pixels-postgres-connector",  
-  "config": {  
+  "config": {
+    "provide.transaction.metadata": true,
     "connector.class": "io.debezium.connector.postgresql.PostgresConnector", 
     "tasks.max": "1",  
     "database.hostname": "pixels_postgres_source_db",  

@@ -82,6 +82,6 @@ try_command() {
         count=$((count + 1))
         sleep $INTERVAL
     done
-
     log_fatal "Max retries ($MAX_RETRIES) reached. Command failed."
+    return 1
 }

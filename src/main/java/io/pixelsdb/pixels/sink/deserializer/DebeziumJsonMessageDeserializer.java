@@ -13,10 +13,13 @@ public class DebeziumJsonMessageDeserializer implements Deserializer<Map<String,
     public Map<String, Object> deserialize(String topic, byte[] data) {
         try {
             Map<String, Object> message = objectMapper.readValue(data, Map.class);
-
-            Map<String, Object> after = (Map<String, Object>) message.get("after");
-
-            if (after == null) {
+            // TODO: Watch Schema Change
+            Map<String, Object> payload = (Map<String, Object>) message.get("payload");
+            if(payload == null) {
+                return null;
+            }
+            Map<String, Object> after = (Map<String, Object>) payload.get("after");
+            if(after == null) {
                 return null;
             }
             return after;
