@@ -1,9 +1,0 @@
-3555bbfc2a724d5d99eabb5c1a90f470  example/tpch_data/part.tbl
-764c14c5f513e94195c5744249abe748  example/tpch_data/md5sum.txt
-01ab9bc150261c9918ce9636be80ea15  example/tpch_data/nation.tbl
-21facd7dbefed34dbe35e6209ae364db  example/tpch_data/orders.tbl
-46b4495e1bd909191698c1764ffc9c08  example/tpch_data/lineitem.tbl
-ff6bded0272cd3748e12b2fefc4cb931  example/tpch_data/partsupp.tbl
-d1c494f597244c77001246888185e3e3  example/tpch_data/region.tbl
-fdb5b8673ae81db63bbc5044c88b83b3  example/tpch_data/customer.tbl
-0531428655ec36664f7bf4c8d25f48c0  example/tpch_data/supplier.tbl
