@@ -1,5 +1,5 @@
 tpch_data=${DEVELOP_DIR}/example/tpch_data
-dbgen_path=${tpch_data}/tpch-dbgen
+dbgen_path=${DEVELOP_DIR}/example/tpch-dbgen
 
 function  build_generator() {
   [[ -d ${dbgen_path} ]] || { log_fatal_exit "Failed to clone tpch_data into ${dbgen_path}. Please update submodule manually"; }
@@ -23,10 +23,14 @@ function generate_tpch_data() {
   [[ -x ${DBGEN} ]] || { log_fatal_exit "Failed to execute ${DBGEN}. Check build process"; }
   eval `${DBGEN} -vf -s ${SCALE}`
   check_fatal_exit "Failed to generate data"
-  mv -f *.tbl ${tpch_data}
+  mv -f *.tbl ${tpch_data} # TODO:Solve the tbl permission issues
 
   cd ${tpch_data}
   ls *.tbl | xargs md5sum >tpch_data.md5sum
-  check_fatal_exit "Failed to calculate the md5sum of TPCH DATA"
+  check_warning "Failed to calculate the md5sum of TPCH DATA" # If run it repeatedly, this may fail
   cd ${WORK_PATH}
+}
+
+function clean_tpch_data() {
+  rm -f ${tpch_data}/*.tbl ${tpch_data}/tpch_data.md5sum
 }

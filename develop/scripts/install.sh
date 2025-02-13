@@ -66,7 +66,7 @@ gen_config_by_template mysql_password $(cat "${SECRETS_DIR}/mysql-pixels-passwor
 wait_for_url http://localhost:8083/connectors 20
 check_fatal_exit "MySQL Source Kafka Connector Server Fail"
 # register mysql connector
-try_command curl -f -X POST -H "Content-Type: application/json" -d @${CONFIG_DIR}/register-mysql.json http://localhost:8083/connectors -w '\n'
+try_command curl -f -X POST -H "Content-Type: application/json" -d @${CONFIG_DIR}/register-mysql.json http://localhost:8083/connectors -w '\n' # We need to wait here for MySQL to load all the data
 check_fatal_exit "Register MySQL Source Connector Fail"
 
 log_info "Start Register PostgreSQL Debezium Connector"

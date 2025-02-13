@@ -3,6 +3,11 @@ check_fatal_exit() {
     return 0
 }
 
+check_warning() {
+    [[ $? -ne 0 ]] && { log_warning "$@"; }
+    return 0
+}
+
 check_return() {
     [[ $? -ne 0 ]] && { log_warning "$@" && exit 1; }
     return 0
@@ -61,8 +66,8 @@ wait_for_url() {
 }
 
 try_command() {
-    local MAX_RETRIES=5
-    local INTERVAL=3
+    local MAX_RETRIES=10
+    local INTERVAL=6
     local COMMAND="$@"
     local count=0
     local STATUS
