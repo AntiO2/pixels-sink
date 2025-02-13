@@ -12,6 +12,8 @@ EOF
 develop_debug=off
 need_init=on
 need_build=on
+load_example_data=on
+example_data_scale=0.1
 
 for arg do
   val=`echo "$arg" | sed -e 's;^--[^=]*=;;'`
@@ -42,10 +44,14 @@ if [[ x${need_build} == x"on" ]]; then
   build_pixels_sink_image
 fi
 
+if [[ x${load_example_data} == x"on" ]]; then
+  build_generator
+  generate_tpch_data ${example_data_scale}
+fi
 
 if [[ x${need_init} == x"on" ]]; then
   log_info "Init Container"
-  docker-compose -f ${DEVELOP_DIR}/docker-compose.yml up -d
+  docker compose -f ${DEVELOP_DIR}/docker-compose.yml up -d
   check_fatal_exit "docker-compose up failed."
 fi
 

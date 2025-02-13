@@ -1,5 +1,12 @@
 ## Quick Start
 
+
+Prerequisites:
+- Install Docker Engine and Docker Compose
+Ensure Docker Engine and Docker Compose are installed and configured.
+- Ensure Pixels is installed and configured in your local or remote Maven repository.
+
+
 ```bash
 ./install # or your relative/full path
 ```

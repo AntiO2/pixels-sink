@@ -1,6 +1,5 @@
 #!/bin/bash
 
-# 定义日志函数
 log() {
     local level="$1"
     shift
@@ -22,7 +21,6 @@ log() {
     esac
 }
 
-# 封装不同日志级别的函数
 log_debug() {
     log DEBUG "$@"
 }

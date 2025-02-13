@@ -1,5 +1,5 @@
 shutdown_containers() {
-    docker-compose  -f ${DEVELOP_DIR}/docker-compose.yml down -v
+    docker compose  -f ${DEVELOP_DIR}/docker-compose.yml down -v
 }
 
 clean_images() {

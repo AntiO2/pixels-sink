@@ -21,3 +21,4 @@ source ${SCRIPT_DIR}/build_func.sh
 source ${SCRIPT_DIR}/log_func.sh
 source ${SCRIPT_DIR}/docker_func.sh
 source ${SCRIPT_DIR}/util_func.sh
+source ${SCRIPT_DIR}/gen_data.sh
