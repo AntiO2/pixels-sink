@@ -15,15 +15,15 @@
  */
 package io.pixelsdb.pixels.sink.config;
 
-import java.io.FileNotFoundException;
 import java.io.FileInputStream;
-import java.io.InputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Properties;
 
 public class PixelsSinkConfig {
-    private Properties properties;
-
+    private final Properties properties;
+    private final Long transactionTimeout;
     public PixelsSinkConfig(String configFilePath) throws IOException {
         properties = new Properties();
         if (configFilePath != null && !configFilePath.isEmpty()) {
@@ -40,8 +40,10 @@ public class PixelsSinkConfig {
                     throw new FileNotFoundException("Resource file not found: " + configFilePath);
                 }
                 properties.load(input);
+
             }
         }
+        transactionTimeout = Long.valueOf(properties.getProperty("transaction.timeout", TransactionConfig.DEFAULT_TRANSACTION_TIME_OUT));
     }
 
     public String getTopicPrefix() {
@@ -74,5 +76,21 @@ public class PixelsSinkConfig {
 
     public String getCsvSinkPath() {
         return properties.getProperty("csv.sink_path", PixelsSinkDefaultConfig.CSV_SINK_PATH);
+    }
+
+    public String getTransactionTopicSuffix() {
+        return properties.getProperty("transaction.topic.suffix", TransactionConfig.DEFAULT_TRANSACTION_TOPIC_SUFFIX);
+    }
+
+    public String getTransactionTopicValueDeserializer() {
+        return properties.getProperty("transaction.topic.key.deserializer", TransactionConfig.DEFAULT_TRANSACTION_TOPIC_KEY_DESERIALIZER);
+    }
+
+    public String getTransactionTopicGroupId() {
+        return properties.getProperty("transaction.topic.group_id", TransactionConfig.DEFAULT_TRANSACTION_TOPIC_GROUP_ID);
+    }
+
+    public Long getTransactionTimeout() {
+        return transactionTimeout;
     }
 }
