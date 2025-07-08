@@ -37,10 +37,12 @@ public class TableMetadata {
         this.table = table;
         this.index = index;
         this.columns = columns;
-        keyColumnNames = new LinkedList<>();
-        List<Integer> keyColumnIds = index.getKeyColumns().getKeyColumnIds();
-        for (Integer keyColumnId : keyColumnIds) {
-            keyColumnNames.add(columns.get(keyColumnId).getName());
+        this.keyColumnNames = new LinkedList<>();
+        if(index != null) {
+            List<Integer> keyColumnIds = index.getKeyColumns().getKeyColumnIds();
+            for (Integer keyColumnId : keyColumnIds) {
+                keyColumnNames.add(columns.get(keyColumnId).getName());
+            }
         }
     }
 

@@ -129,7 +129,7 @@ public class RowChangeEventAvroDeserializer implements Deserializer<RowChangeEve
 
     private void parseTransactionInfo(GenericRecord transaction,
                                       SinkProto.TransactionInfo.Builder builder) {
-        builder.setId(DeserializerUtil.getStringSafely(transaction, "id"))
+        builder.setId(DeserializerUtil.getTransIdPrefix(DeserializerUtil.getStringSafely(transaction, "id")))
                 .setTotalOrder(DeserializerUtil.getLongSafely(transaction, "total_order"))
                 .setDataCollectionOrder(DeserializerUtil.getLongSafely(transaction, "data_collection_order"));
     }

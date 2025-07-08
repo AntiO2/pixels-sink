@@ -30,18 +30,18 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 public class RowDataParserTest {
     // BqQ= 17
     // JbR7 24710.35
-    @ParameterizedTest
-    @CsvSource({
-            // encodedValue, expectedValue, precision, scale
-            "BqQ=, 17.00, 15, 2",
-            "JbR7, 24710.35, 15, 2",
-    })
-    void testParseDecimalValid(String encodedValue, String expectedValue, int precision, int scale) {
-        JsonNode node = new TextNode(encodedValue);
-        TypeDescription type = TypeDescription.createDecimal(precision, scale);
-        RowDataParser rowDataParser = new RowDataParser(type);
-        BigDecimal result = rowDataParser.parseDecimal(node, type);
-        assertEquals(new BigDecimal(expectedValue), result);
-    }
+//    @ParameterizedTest
+//    @CsvSource({
+//            // encodedValue, expectedValue, precision, scale
+//            "BqQ=, 17.00, 15, 2",
+//            "JbR7, 24710.35, 15, 2",
+//    })
+//    void testParseDecimalValid(String encodedValue, String expectedValue, int precision, int scale) {
+//        JsonNode node = new TextNode(encodedValue);
+//        TypeDescription type = TypeDescription.createDecimal(precision, scale);
+//        RowDataParser rowDataParser = new RowDataParser(type);
+//        BigDecimal result = rowDataParser.parseDecimal(node, type);
+//        assertEquals(new BigDecimal(expectedValue), result);
+//    }
 
 }

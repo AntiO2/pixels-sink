@@ -18,9 +18,9 @@
 package io.pixelsdb.pixels.sink.deserializer;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.google.protobuf.ByteString;
 import io.pixelsdb.pixels.core.PixelsProto;
 import io.pixelsdb.pixels.core.TypeDescription;
-import io.pixelsdb.pixels.retina.RetinaProto;
 import io.pixelsdb.pixels.sink.SinkProto;
 import org.apache.avro.generic.GenericRecord;
 
@@ -28,10 +28,10 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.Base64;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 class RowDataParser {
     private final TypeDescription schema;
@@ -40,99 +40,153 @@ class RowDataParser {
         this.schema = schema;
     }
 
-    public Map<String, Object> parse(JsonNode dataNode, SinkProto.OperationType operation) {
-        if (dataNode.isNull() && operation == SinkProto.OperationType.DELETE) {
-            return parseDeleteRecord();
-        }
-        return parseNode(dataNode, schema);
-    }
 
     public void parse(GenericRecord record, SinkProto.RowValue.Builder builder) {
         for (int i = 0; i < schema.getFieldNames().size(); i++) {
             String fieldName = schema.getFieldNames().get(i);
             TypeDescription fieldType = schema.getChildren().get(i);
             builder.addValues(parseValue(record, fieldName, fieldType).build());
-            // result.put(fieldName, parseValue(node.get(fieldName), fieldType));
         }
     }
 
-    private Map<String, Object> parseNode(JsonNode node, TypeDescription schema) {
-        Map<String, Object> result = new HashMap<>();
+    public void parse(JsonNode node, SinkProto.RowValue.Builder builder) {
         for (int i = 0; i < schema.getFieldNames().size(); i++) {
             String fieldName = schema.getFieldNames().get(i);
             TypeDescription fieldType = schema.getChildren().get(i);
-            result.put(fieldName, parseValue(node.get(fieldName), fieldType));
-        }
-        return result;
-    }
-
-    private Object parseValue(JsonNode valueNode, TypeDescription type) {
-        if (valueNode.isNull()) return null;
-
-        switch (type.getCategory()) {
-            case INT:
-                return valueNode.asInt();
-            case LONG:
-                return valueNode.asLong();
-            case STRING:
-                return valueNode.asText().trim();
-            case DECIMAL:
-                return parseDecimal(valueNode, type);
-            case DATE:
-                return parseDate(valueNode);
-            case STRUCT:
-                return parseNode(valueNode, type);
-            case BINARY:
-                return parseBinary(valueNode);
-            default:
-                throw new IllegalArgumentException("Unsupported type: " + type);
+            builder.addValues(parseValue(node.get(fieldName), fieldName, fieldType).build());
         }
     }
 
-    private SinkProto.ColumnValue.Builder parseValue(GenericRecord record, String filedName, TypeDescription filedType) {
+
+    private SinkProto.ColumnValue.Builder parseValue(JsonNode valueNode, String fieldName, TypeDescription type) {
+        if (valueNode == null || valueNode.isNull()) {
+            return SinkProto.ColumnValue.newBuilder()
+                    .setName(fieldName)
+                    .setValue(ByteString.EMPTY);
+        }
 
         SinkProto.ColumnValue.Builder columnValueBuilder = SinkProto.ColumnValue.newBuilder();
-        columnValueBuilder.setName(filedName);
-        switch (filedType.getCategory()) {
+        columnValueBuilder.setName(fieldName);
+
+        switch (type.getCategory()) {
             case INT: {
-                int value = (int) record.get(filedName);
-                columnValueBuilder.setValue(RetinaProto.ColumnValue.newBuilder().setNumberVal(Integer.toString(value)));
+                int value = valueNode.asInt();
+                columnValueBuilder.setValue(ByteString.copyFrom(Integer.toString(value), StandardCharsets.UTF_8));
+                columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.INT));
+                break;
+            }
+            case LONG: {
+                long value = valueNode.asLong();
+                columnValueBuilder.setValue(ByteString.copyFrom(Long.toString(value), StandardCharsets.UTF_8));
+                columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.LONG));
+                break;
+            }
+            case CHAR:
+            case VARCHAR:
+            case STRING:
+            case VARBINARY: {
+                String value = valueNode.asText().trim();
+                columnValueBuilder.setValue(ByteString.copyFrom(value, StandardCharsets.UTF_8));
+                columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.STRING));
+                break;
+            }
+            case DECIMAL: {
+                String value = parseDecimal(valueNode, type).toString();
+                columnValueBuilder.setValue(ByteString.copyFrom(value, StandardCharsets.UTF_8));
+                columnValueBuilder.setType(PixelsProto.Type.newBuilder()
+                        .setKind(PixelsProto.Type.Kind.DECIMAL)
+                        .setDimension(type.getPrecision())
+                        .setScale(type.getScale()));
+                break;
+            }
+            case DATE: {
+                // expect date in format "yyyy-MM-dd"
+                String isoDate = valueNode.asText();
+                columnValueBuilder.setValue(ByteString.copyFrom(isoDate, StandardCharsets.UTF_8));
+                columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.DATE));
+                break;
+            }
+            case BINARY: {
+                String base64 = valueNode.asText(); // assume already base64 encoded
+                columnValueBuilder.setValue(ByteString.copyFrom(base64, StandardCharsets.UTF_8));
+                columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.BINARY));
+                break;
+            }
+            case STRUCT: {
+                // You can recursively parse fields in a struct here
+                throw new UnsupportedOperationException("STRUCT parsing not yet implemented");
+            }
+            default:
+                throw new IllegalArgumentException("Unsupported type: " + type.getCategory());
+        }
+
+        return columnValueBuilder;
+    }
+
+
+    private SinkProto.ColumnValue.Builder parseValue(GenericRecord record, String fieldName, TypeDescription fieldType) {
+        SinkProto.ColumnValue.Builder columnValueBuilder = SinkProto.ColumnValue.newBuilder();
+        columnValueBuilder.setName(fieldName);
+
+        Object raw = record.get(fieldName);
+        if (raw == null) {
+            columnValueBuilder.setValue(ByteString.EMPTY);
+            return columnValueBuilder;
+        }
+
+        switch (fieldType.getCategory()) {
+            case INT: {
+                int value = (int) raw;
+                columnValueBuilder.setValue(ByteString.copyFrom(Integer.toString(value), StandardCharsets.UTF_8));
                 columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.INT));
                 break;
             }
 
             case LONG: {
-                long value = (long) record.get(filedName);
-                columnValueBuilder.setValue(RetinaProto.ColumnValue.newBuilder().setNumberVal(Long.toString(value)));
+                long value = (long) raw;
+                columnValueBuilder.setValue(ByteString.copyFrom(Long.toString(value), StandardCharsets.UTF_8));
                 columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.LONG));
                 break;
             }
 
             case STRING: {
-                String value = (String) record.get(filedName).toString();
-                columnValueBuilder.setValue(RetinaProto.ColumnValue.newBuilder().setStringVal(value));
+                String value = raw.toString();
+                columnValueBuilder.setValue(ByteString.copyFrom(value, StandardCharsets.UTF_8));
                 columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.STRING));
                 break;
             }
+
             case DECIMAL: {
+                ByteBuffer buffer = (ByteBuffer) raw;
+                String decimalStr = new String(buffer.array(), StandardCharsets.UTF_8).trim();
+                columnValueBuilder.setValue(ByteString.copyFrom(decimalStr, StandardCharsets.UTF_8));
                 columnValueBuilder.setType(PixelsProto.Type.newBuilder()
                         .setKind(PixelsProto.Type.Kind.DECIMAL)
-                        .setDimension(filedType.getDimension())
-                        .setScale(filedType.getScale())
-                        .build());
-                columnValueBuilder.setValue(RetinaProto.ColumnValue.newBuilder().setNumberVal(
-                        new String(((ByteBuffer) record.get(filedName)).array())));
+                        .setDimension(fieldType.getPrecision())
+                        .setScale(fieldType.getScale()));
                 break;
             }
-//            case DATE:
-//                return parseDate(valueNode);
-//            case STRUCT:
-//                return parseNode(valueNode, type);
-//            case BINARY:
-//                return parseBinary(valueNode);
+
+            case DATE: {
+                int epochDay = (int) raw;
+                String isoDate = LocalDate.ofEpochDay(epochDay).toString(); // e.g., "2025-07-03"
+                columnValueBuilder.setValue(ByteString.copyFrom(isoDate, StandardCharsets.UTF_8));
+                columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.DATE));
+                break;
+            }
+
+            case BINARY: {
+                ByteBuffer buffer = (ByteBuffer) raw;
+                // encode as hex or base64 if needed, otherwise just dump as UTF-8 string if it's meant to be readable
+                String base64 = Base64.getEncoder().encodeToString(buffer.array());
+                columnValueBuilder.setValue(ByteString.copyFrom(base64, StandardCharsets.UTF_8));
+                columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.BINARY));
+                break;
+            }
             default:
-                throw new IllegalArgumentException("Unsupported type: " + filedType.getCategory());
+                throw new IllegalArgumentException("Unsupported type: " + fieldType.getCategory());
         }
+
         return columnValueBuilder;
     }
 

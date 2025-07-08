@@ -21,8 +21,8 @@ import com.google.protobuf.ByteString;
 import io.pixelsdb.pixels.common.metadata.domain.SecondaryIndex;
 import io.pixelsdb.pixels.core.TypeDescription;
 import io.pixelsdb.pixels.index.IndexProto;
-import io.pixelsdb.pixels.retina.RetinaProto;
 import io.pixelsdb.pixels.sink.SinkProto;
+import io.pixelsdb.pixels.sink.exception.SinkException;
 import io.pixelsdb.pixels.sink.metadata.TableMetadata;
 import io.pixelsdb.pixels.sink.metadata.TableMetadataRegistry;
 import io.pixelsdb.pixels.sink.monitor.MetricsFacade;
@@ -31,6 +31,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -100,14 +101,14 @@ public class RowChangeEvent {
         this.indexInfo = indexInfo;
     }
 
-    public IndexProto.IndexKey getIndexKey() {
+    public IndexProto.IndexKey getIndexKey() throws SinkException {
         if (!isIndexKeyInited) {
             initIndexKey();
         }
         return indexKey;
     }
 
-    public void initIndexKey() {
+    public void initIndexKey() throws SinkException {
         if (!hasAfterData()) {
             // We do not need to generate an index key for insert request
             return;
@@ -116,9 +117,13 @@ public class RowChangeEvent {
         this.tableMetadata = TableMetadataRegistry.Instance().getMetadata(
                 this.rowRecord.getSource().getDb(),
                 this.rowRecord.getSource().getTable());
+
+        if(this.tableMetadata.getIndex()==null) {
+            return;
+        }
+
         List<String> keyColumnNames = tableMetadata.getKeyColumnNames();
         ByteBuffer byteBuffer = ByteBuffer.allocate(1024);
-
 
         for (int i = 0; i < keyColumnNames.size(); i++) {
             String name = keyColumnNames.get(i);
@@ -137,14 +142,14 @@ public class RowChangeEvent {
     }
 
 
-    // TODO change
-    public RetinaProto.ColumnValue getBeforePk() {
-        return rowRecord.getBefore().getValues(0).getValue();
-    }
-
-    public RetinaProto.ColumnValue getAfterPk() {
-        return rowRecord.getBefore().getValues(0).getValue();
-    }
+    // TODO Maybe useful
+//    public SinkProto.ColumnValue getBeforePk() {
+//        return rowRecord.getBefore().getValues(0).getValue();
+//    }
+//
+//    public SinkProto.ColumnValue getAfterPk() {
+//        return rowRecord.getBefore().getValues(0).getValue();
+//    }
 
     public String getSourceTable() {
         return rowRecord.getSource().getTable();
@@ -159,7 +164,9 @@ public class RowChangeEvent {
     }
 
     public String getFullTableName() {
-        return getSchemaName() + "." + getTable();
+        // TODO(AntiO2): In postgresql, data collection uses schemaName as prefix, while MySQL uses DB as prefix.
+        return rowRecord.getSource().getSchema() + "." + rowRecord.getSource().getTable();
+        // return getSchemaName() + "." + getTable();
     }
     // TODO(AntiO2): How to Map Schema Names Between Source DB and Pixels
     public String getSchemaName() {
@@ -225,11 +232,29 @@ public class RowChangeEvent {
         return rowRecord.getOp();
     }
 
-    public SinkProto.RowValue getBeforeData() {
+    public SinkProto.RowValue getBefore() {
         return rowRecord.getBefore();
     }
 
-    public SinkProto.RowValue getAfterData() {
+    public SinkProto.RowValue getAfter() {
         return rowRecord.getAfter();
+    }
+
+    public List<ByteString> getAfterData() {
+        List<SinkProto.ColumnValue> colValues = rowRecord.getAfter().getValuesList();
+        List<ByteString> colValueList = new ArrayList<>(colValues.size());
+        for (SinkProto.ColumnValue col : colValues) {
+            colValueList.add(col.getValue());
+        }
+        return colValueList;
+    }
+
+    @Override
+    public String toString() {
+        String sb = "RowChangeEvent{" +
+                rowRecord.getSource().getDb() +
+                "." + rowRecord.getSource().getTable() +
+                rowRecord.getTransaction().getId();
+        return sb;
     }
 }

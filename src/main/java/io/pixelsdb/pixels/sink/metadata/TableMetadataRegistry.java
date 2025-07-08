@@ -24,6 +24,7 @@ import io.pixelsdb.pixels.common.metadata.domain.SecondaryIndex;
 import io.pixelsdb.pixels.common.metadata.domain.Table;
 import io.pixelsdb.pixels.core.TypeDescription;
 import io.pixelsdb.pixels.sink.deserializer.SchemaDeserializer;
+import io.pixelsdb.pixels.sink.exception.SinkException;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
@@ -31,6 +32,7 @@ import org.apache.avro.generic.GenericRecord;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.stream.Collectors;
 
 public class TableMetadataRegistry {
     private static final MetadataService metadataService = MetadataService.Instance();
@@ -53,30 +55,49 @@ public class TableMetadataRegistry {
         return instance;
     }
 
-    public TableMetadata getMetadata(String schema, String table) {
+    public TableMetadata getMetadata(String schema, String table) throws SinkException {
         TableMetadataKey key = new TableMetadataKey(schema, table);
-        return registry.computeIfAbsent(key, k -> loadTableMetadata(schema, table));
+        if (!registry.containsKey(key)) {
+            TableMetadata metadata = loadTableMetadata(schema, table);
+            registry.put(key, metadata);
+        }
+        return registry.get(key);
     }
 
-    public TableMetadata loadTableMetadata(String schemaName, String tableName) {
+
+
+    public TypeDescription getTypeDescription(String schema, String table) {
+        TableMetadataKey key = new TableMetadataKey(schema, table);
+        return typeDescriptionConcurrentMap.computeIfAbsent(key, k -> {
+            try {
+                return loadTypeDescription(schema, table);
+            } catch (MetadataException e) {
+                throw new RuntimeException(e);
+            }
+        });
+    }
+
+    public TableMetadata loadTableMetadata(String schemaName, String tableName) throws SinkException {
         try {
             Table table = metadataService.getTable(schemaName, tableName);
-            SecondaryIndex index = metadataService.getSecondaryIndex(table.getId());
-            /*
-              TODO(Lizn): we only use unique index?
-             */
-            if (!index.isUnique()) {
-                throw new MetadataException("Non Unique Index is not supported");
+            SecondaryIndex index = null;
+            try {
+                index = metadataService.getSecondaryIndex(table.getId());
+                /*
+                  TODO(Lizn): just test;
+                 */
+                if (!index.isUnique()) {
+                    throw new MetadataException("Non Unique Index is not supported");
+                }
+            } catch (MetadataException ignored) {
+
             }
+
             List<Column> tableColumns = metadataService.getColumns(schemaName, tableName, false);
             return new TableMetadata(table, index, tableColumns);
         } catch (MetadataException e) {
-            throw new RuntimeException(e);
+            throw new SinkException(e);
         }
-    }
-
-    public TypeDescription getTypeDescription(String schema, String table) {
-        return typeDescriptionConcurrentMap.get(new TableMetadataKey(schema, table));
     }
 
     /**
@@ -93,5 +114,12 @@ public class TableMetadataRegistry {
                 key -> SchemaDeserializer.parseFromAvroSchema(schema)
         );
         return typeDescription;
+    }
+
+    private TypeDescription loadTypeDescription(String schemaName, String tableName) throws MetadataException {
+        List<Column> columns = metadataService.getColumns(schemaName, tableName, false);
+        List<String> columnNames = columns.stream().map(Column::getName).collect(Collectors.toList());
+        List<String> columnTypes = columns.stream().map(Column::getType).collect(Collectors.toList());
+        return TypeDescription.createSchemaFromStrings(columnNames, columnTypes);
     }
 }

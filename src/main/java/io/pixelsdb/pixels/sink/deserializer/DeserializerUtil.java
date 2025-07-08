@@ -96,4 +96,18 @@ public class DeserializerUtil {
             default -> throw new IllegalArgumentException(String.format("Can't convert %s to operation type", op));
         };
     }
+
+    static public boolean hasBeforeValue(SinkProto.OperationType op) {
+        return op == SinkProto.OperationType.DELETE ||  op == SinkProto.OperationType.UPDATE;
+    }
+
+    static public boolean hasAfterValue(SinkProto.OperationType op) {
+        return op != SinkProto.OperationType.DELETE;
+    }
+
+    static public String  getTransIdPrefix(String  originTransID) {
+        return originTransID.contains(":")
+                ? originTransID.substring(0, originTransID.indexOf(":"))
+                : originTransID;
+    }
 }

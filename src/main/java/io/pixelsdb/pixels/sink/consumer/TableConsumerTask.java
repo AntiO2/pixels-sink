@@ -76,10 +76,11 @@ public class TableConsumerTask implements Runnable {
                     if (!records.isEmpty()) {
                         log.debug("{} Consumer poll returned {} records", tableName, records.count());
                         records.forEach(record -> {
-                            executor.execute(() -> {
+                            log.info("{} Consumer record: {}", tableName, record.value());
+//                            executor.execute(() -> {
                                 RowChangeEvent event = record.value();
                                 transactionCoordinator.processRowEvent(event);
-                            });
+//                            });
                         });
                     }
                 } catch (InterruptException ignored) {

@@ -63,11 +63,11 @@ public class AvroConsumerTest {
     }
 
     private static void processRecord(RowChangeEvent event) {
-        RetinaProto.RowValue.Builder builder = RetinaProto.RowValue.newBuilder();
-        for (SinkProto.ColumnValue value : event.getRowRecord().getAfter().getValuesList()) {
-            builder.addValues(value.getValue());
-        }
-        builder.build();
+//        RetinaProto.RowValue.Builder builder = RetinaProto.RowValue.newBuilder();
+//        for (SinkProto.ColumnValue value : event.getRowRecord().getAfter().getValuesList()) {
+//            builder.addValues(value.getValue());
+//        }
+//        builder.build();
     }
 
     private static KafkaConsumer<String, GenericRecord> getStringGenericRecordKafkaConsumer() {

@@ -210,7 +210,7 @@ public class TransactionCoordinator {
                                     LOGGER.debug("Waiting for events in TX {}: {}", txId,
                                             txEnd.getDataCollectionsList().stream()
                                                     .map(dc -> dc.getDataCollection() + "=" +
-                                                            ctx.tableCursors.getOrDefault(dc.getDataCollection(), 0L) +
+                                                            ctx.tableCounters.getOrDefault(dc.getDataCollection(), 0L) +
                                                             "/" + dc.getEventCount())
                                                     .collect(Collectors.joining(", ")));
 
@@ -347,7 +347,6 @@ public class TransactionCoordinator {
                 } else {
                     // TODO retry?
                 }
-
             } finally {
                 if (ctx != null) {
                     ctx.updateCounter(event.getFullTableName());

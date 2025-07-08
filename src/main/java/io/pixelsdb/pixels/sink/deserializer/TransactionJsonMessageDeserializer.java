@@ -54,6 +54,8 @@ public class TransactionJsonMessageDeserializer implements Deserializer<SinkProt
         String json = OBJECT_MAPPER.writeValueAsString(rawMessage.get("payload"));
         PROTO_PARSER.merge(json, builder);
 
+        builder.setId(DeserializerUtil.getTransIdPrefix(builder.getId()));
+
         return builder.build();
     }
 }
