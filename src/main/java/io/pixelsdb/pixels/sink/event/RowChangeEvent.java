@@ -18,7 +18,7 @@
 package io.pixelsdb.pixels.sink.event;
 
 import com.google.protobuf.ByteString;
-import io.pixelsdb.pixels.common.metadata.domain.SecondaryIndex;
+import io.pixelsdb.pixels.common.metadata.domain.SinglePointIndex;
 import io.pixelsdb.pixels.core.TypeDescription;
 import io.pixelsdb.pixels.index.IndexProto;
 import io.pixelsdb.pixels.sink.SinkProto;
@@ -41,17 +41,12 @@ public class RowChangeEvent {
     private final SinkProto.RowRecord rowRecord;
     private IndexProto.IndexKey indexKey;
     private boolean isIndexKeyInited;
-    @Setter
-    private SecondaryIndex indexInfo;
     /**
      * timestamp from pixels transaction server
      */
     @Setter
     @Getter
     private long timeStamp;
-
-    @Getter
-    private final TypeDescription schema;
 
     @Getter
     private String topic;
@@ -64,15 +59,14 @@ public class RowChangeEvent {
     private Map<String, SinkProto.ColumnValue> beforeValueMap;
     private Map<String, SinkProto.ColumnValue> afterValueMap;
 
+    @Getter
+    private IndexProto.IndexKey beforeKey;
+    @Getter
+    private IndexProto.IndexKey afterKey;
+
+
     public RowChangeEvent(SinkProto.RowRecord rowRecord) {
         this.rowRecord = rowRecord;
-        this.schema = null;
-    }
-
-
-    public RowChangeEvent(SinkProto.RowRecord rowRecord, TypeDescription schema) {
-        this.rowRecord = rowRecord;
-        this.schema = schema;
     }
 
     private void initColumnValueMap() {
@@ -97,10 +91,6 @@ public class RowChangeEvent {
         this.timeStamp = timeStamp;
     }
 
-    public void setIndexInfo(SecondaryIndex indexInfo) {
-        this.indexInfo = indexInfo;
-    }
-
     public IndexProto.IndexKey getIndexKey() throws SinkException {
         if (!isIndexKeyInited) {
             initIndexKey();
@@ -109,47 +99,52 @@ public class RowChangeEvent {
     }
 
     public void initIndexKey() throws SinkException {
-        if (!hasAfterData()) {
-            // We do not need to generate an index key for insert request
-            return;
-        }
-
         this.tableMetadata = TableMetadataRegistry.Instance().getMetadata(
                 this.rowRecord.getSource().getDb(),
                 this.rowRecord.getSource().getTable());
 
-        if(this.tableMetadata.getIndex()==null) {
+        if(!this.tableMetadata.hasPrimaryIndex()) {
             return;
         }
-
-        List<String> keyColumnNames = tableMetadata.getKeyColumnNames();
-        ByteBuffer byteBuffer = ByteBuffer.allocate(1024);
-
-        for (int i = 0; i < keyColumnNames.size(); i++) {
-            String name = keyColumnNames.get(i);
-            byteBuffer.put(afterValueMap.get(name).getValue().toByteArray());
-            if (i < keyColumnNames.size() - 1) {
-                byteBuffer.putChar(':');
-            }
+        if(hasBeforeData()) {
+            this.beforeKey = generateIndexKey(tableMetadata, beforeValueMap);
         }
 
-        this.indexKey = IndexProto.IndexKey.newBuilder()
-                .setTimestamp(timeStamp)
-                .setKey(ByteString.copyFrom(byteBuffer))
-                .setIndexId(indexInfo.getId())
-                .build();
+        if(hasAfterData()) {
+            this.afterKey = generateIndexKey(tableMetadata, afterValueMap);
+        }
+
         isIndexKeyInited = true;
     }
 
+    private IndexProto.IndexKey generateIndexKey(TableMetadata tableMetadata, Map<String, SinkProto.ColumnValue> rowValue) {
+        List<String> keyColumnNames = tableMetadata.getKeyColumnNames();
+        SinglePointIndex index = tableMetadata.getIndex();
+        int len = keyColumnNames.size();
+        List<ByteString> keyColumnValues = new ArrayList<>(len);
+        int keySize = 0;
+        for(String keyColumnName: keyColumnNames) {
+            ByteString value = rowValue.get(keyColumnName).getValue();
+            keyColumnValues.add(value);
+            value.size();
+            keySize +=value.size();
+        }
+        keySize += Long.BYTES + len +  Long.BYTES; // table id + index key + timestamp
 
-    // TODO Maybe useful
-//    public SinkProto.ColumnValue getBeforePk() {
-//        return rowRecord.getBefore().getValues(0).getValue();
-//    }
-//
-//    public SinkProto.ColumnValue getAfterPk() {
-//        return rowRecord.getBefore().getValues(0).getValue();
-//    }
+        ByteBuffer byteBuffer = ByteBuffer.allocate(keySize);
+
+        byteBuffer.putLong(index.getTableId()).putChar(':');
+        for (ByteString value: keyColumnValues) {
+            byteBuffer.put(value.toByteArray());
+            byteBuffer.putChar(':');
+        }
+        byteBuffer.putLong(timeStamp);
+        return IndexProto.IndexKey.newBuilder()
+                .setTimestamp(timeStamp)
+                .setKey(ByteString.copyFrom(byteBuffer))
+                .setIndexId(index.getId())
+                .build();
+    }
 
     public String getSourceTable() {
         return rowRecord.getSource().getTable();

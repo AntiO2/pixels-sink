@@ -92,7 +92,10 @@ public class RetinaWriter implements PixelsSinkWriter {
     }
 
     private boolean sendInsertRequest(RowChangeEvent event) throws RetinaException {
-        return retinaService.insertRecord(event.getSchemaName(), event.getTable(), event.getAfterData(), event.getTimeStamp());
+        // Insert retina
+        boolean retinaServiceResult = retinaService.insertRecord(event.getSchemaName(), event.getTable(), event.getAfterData(), event.getTimeStamp());
+
+        return false;
     }
 
 

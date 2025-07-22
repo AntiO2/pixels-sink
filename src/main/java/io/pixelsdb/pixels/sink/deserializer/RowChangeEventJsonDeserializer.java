@@ -70,7 +70,7 @@ public class RowChangeEventJsonDeserializer implements Deserializer<RowChangeEve
     }
 
     private RowChangeEvent buildRowRecord(JsonNode payloadNode,
-                                          SinkProto.OperationType opType) {
+                                          SinkProto.OperationType opType) throws SinkException {
 
         SinkProto.RowRecord.Builder builder = SinkProto.RowRecord.newBuilder();
 
@@ -109,7 +109,7 @@ public class RowChangeEventJsonDeserializer implements Deserializer<RowChangeEve
             builder.setBefore(afterBuilder);
         }
 
-        RowChangeEvent event = new RowChangeEvent(builder.build(), typeDescription);
+        RowChangeEvent event = new RowChangeEvent(builder.build());
         try {
             event.initIndexKey();
         } catch (SinkException e) {

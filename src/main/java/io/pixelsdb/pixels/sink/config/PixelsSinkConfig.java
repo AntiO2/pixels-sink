@@ -40,6 +40,7 @@ public class PixelsSinkConfig {
     private boolean rpcEnable;
     private int mockRpcDelay;
     private int transBatchSize;
+    private boolean retinaEmbedded;
 
     public PixelsSinkConfig(String configFilePath) throws IOException {
         this.config = ConfigFactory.Instance();
@@ -66,6 +67,7 @@ public class PixelsSinkConfig {
         this.rpcEnable = parseBoolean(getProperty("sink.rpc.enable"), PixelsSinkDefaultConfig.SINK_RPC_ENABLED);
         this.mockRpcDelay = parseInt(getProperty("sink.rpc.mock.delay"), PixelsSinkDefaultConfig.MOCK_RPC_DELAY);
         this.transBatchSize = parseInt(getProperty("sink.trans.batch.size"), PixelsSinkDefaultConfig.TRANSACTION_BATCH_SIZE);
+        this.retinaEmbedded = false;
     }
 
     public String getTopicPrefix() {
@@ -92,6 +94,7 @@ public class PixelsSinkConfig {
     public String getKeyDeserializer() {
         return getProperty("key.deserializer", PixelsSinkDefaultConfig.KEY_DESERIALIZER);
     }
+
     public String getValueDeserializer() {
         return getProperty("value.deserializer", PixelsSinkDefaultConfig.VALUE_DESERIALIZER);
     }
@@ -105,7 +108,8 @@ public class PixelsSinkConfig {
     }
 
     public String getTransactionTopicValueDeserializer() {
-        return getProperty("transaction.topic.value.deserializer", TransactionConfig.DEFAULT_TRANSACTION_TOPIC_VALUE_DESERIALIZER);
+        return getProperty("transaction.topic.value.deserializer",
+                TransactionConfig.DEFAULT_TRANSACTION_TOPIC_VALUE_DESERIALIZER);
     }
 
     public String getTransactionTopicGroupId() {

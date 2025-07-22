@@ -91,7 +91,7 @@ public class RowChangeEventAvroDeserializer implements Deserializer<RowChangeEve
                     recordBuilder.getTransactionBuilder());
         }
 
-        return new RowChangeEvent(recordBuilder.build(), typeDescription);
+        return new RowChangeEvent(recordBuilder.build());
     }
 
     private SinkProto.OperationType parseOperationType(GenericRecord record) {

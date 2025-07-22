@@ -19,27 +19,24 @@ package io.pixelsdb.pixels.sink.metadata;
 
 import io.pixelsdb.pixels.common.exception.MetadataException;
 import io.pixelsdb.pixels.common.metadata.MetadataService;
+import io.pixelsdb.pixels.common.metadata.SchemaTableName;
 import io.pixelsdb.pixels.common.metadata.domain.Column;
-import io.pixelsdb.pixels.common.metadata.domain.SecondaryIndex;
+import io.pixelsdb.pixels.common.metadata.domain.SinglePointIndex;
 import io.pixelsdb.pixels.common.metadata.domain.Table;
 import io.pixelsdb.pixels.core.TypeDescription;
-import io.pixelsdb.pixels.sink.deserializer.SchemaDeserializer;
 import io.pixelsdb.pixels.sink.exception.SinkException;
-import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericData;
-import org.apache.avro.generic.GenericRecord;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.stream.Collectors;
 
 public class TableMetadataRegistry {
+    private static final Logger logger = LoggerFactory.getLogger(TableMetadataRegistry.class);
     private static final MetadataService metadataService = MetadataService.Instance();
     private static volatile TableMetadataRegistry instance;
-    private final ConcurrentMap<TableMetadataKey, TableMetadata> registry = new ConcurrentHashMap<>();
-    private final ConcurrentMap<TableMetadataKey, TypeDescription> typeDescriptionConcurrentMap = new ConcurrentHashMap<>();
-    private final SchemaCache schemaCache = SchemaCache.getInstance();
+    private final ConcurrentMap<SchemaTableName, TableMetadata> registry = new ConcurrentHashMap<>();
 
     private TableMetadataRegistry() {
     }
@@ -56,7 +53,7 @@ public class TableMetadataRegistry {
     }
 
     public TableMetadata getMetadata(String schema, String table) throws SinkException {
-        TableMetadataKey key = new TableMetadataKey(schema, table);
+        SchemaTableName key = new SchemaTableName(schema, table);
         if (!registry.containsKey(key)) {
             TableMetadata metadata = loadTableMetadata(schema, table);
             registry.put(key, metadata);
@@ -66,60 +63,32 @@ public class TableMetadataRegistry {
 
 
 
-    public TypeDescription getTypeDescription(String schema, String table) {
-        TableMetadataKey key = new TableMetadataKey(schema, table);
-        return typeDescriptionConcurrentMap.computeIfAbsent(key, k -> {
-            try {
-                return loadTypeDescription(schema, table);
-            } catch (MetadataException e) {
-                throw new RuntimeException(e);
-            }
-        });
+    public TypeDescription getTypeDescription(String schemaName, String tableName) throws SinkException {
+        return loadTableMetadata(schemaName, tableName).getTypeDescription();
+    }
+
+    public List<String> getKeyColumnsName(String schemaName, String tableName) throws SinkException {
+        return loadTableMetadata(schemaName, tableName).getKeyColumnNames();
     }
 
     public TableMetadata loadTableMetadata(String schemaName, String tableName) throws SinkException {
         try {
             Table table = metadataService.getTable(schemaName, tableName);
-            SecondaryIndex index = null;
+            SinglePointIndex index = null;
             try {
-                index = metadataService.getSecondaryIndex(table.getId());
-                /*
-                  TODO(Lizn): just test;
-                 */
-                if (!index.isUnique()) {
-                    throw new MetadataException("Non Unique Index is not supported");
-                }
-            } catch (MetadataException ignored) {
+                index = metadataService.getPrimaryIndex(table.getId());
+            } catch (MetadataException e) {
+                logger.warn("Could not get primary index for table {}", tableName, e);
 
             }
 
+            if (!index.isUnique()) {
+                throw new MetadataException("Non Unique Index is not supported, Schema:" + schemaName + " Table: " + tableName);
+            }
             List<Column> tableColumns = metadataService.getColumns(schemaName, tableName, false);
             return new TableMetadata(table, index, tableColumns);
         } catch (MetadataException e) {
             throw new SinkException(e);
         }
-    }
-
-    /**
-     * parse typeDescription from avro record and cache it.
-     *
-     * @param record
-     * @return
-     */
-    public TypeDescription parseTypeDescription(GenericRecord record, String sourceSchema, String sourceTable) {
-        Schema schema = ((GenericData.Record) record).getSchema().getField("before").schema().getTypes().get(1);
-        TableMetadataKey tableMetadataKey = new TableMetadataKey(sourceSchema, sourceTable);
-        TypeDescription typeDescription = typeDescriptionConcurrentMap.computeIfAbsent(
-                tableMetadataKey,
-                key -> SchemaDeserializer.parseFromAvroSchema(schema)
-        );
-        return typeDescription;
-    }
-
-    private TypeDescription loadTypeDescription(String schemaName, String tableName) throws MetadataException {
-        List<Column> columns = metadataService.getColumns(schemaName, tableName, false);
-        List<String> columnNames = columns.stream().map(Column::getName).collect(Collectors.toList());
-        List<String> columnTypes = columns.stream().map(Column::getType).collect(Collectors.toList());
-        return TypeDescription.createSchemaFromStrings(columnNames, columnTypes);
     }
 }
