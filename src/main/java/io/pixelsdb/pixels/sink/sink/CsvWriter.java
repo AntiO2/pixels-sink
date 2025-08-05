@@ -154,6 +154,7 @@ public class CsvWriter implements PixelsSinkWriter {
     }
 
     private List<String> getHeaderFields(RowChangeEvent event) {
+
         return event.getSchema().getFieldNames();
     }
 

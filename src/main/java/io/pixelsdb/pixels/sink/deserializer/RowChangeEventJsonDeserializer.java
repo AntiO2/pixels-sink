@@ -51,7 +51,7 @@ public class RowChangeEventJsonDeserializer implements Deserializer<RowChangeEve
             return buildRowRecord(payloadNode, opType);
         } catch (Exception e) {
             logger.error("Failed to deserialize message from topic {}: {}", topic, e.getMessage());
-            return DeserializerUtil.buildErrorEvent(topic, data, e);
+            return null;
         }
     }
 
@@ -109,7 +109,7 @@ public class RowChangeEventJsonDeserializer implements Deserializer<RowChangeEve
             builder.setBefore(afterBuilder);
         }
 
-        RowChangeEvent event = new RowChangeEvent(builder.build());
+        RowChangeEvent event = new RowChangeEvent(builder.build(), typeDescription);
         try {
             event.initIndexKey();
         } catch (SinkException e) {

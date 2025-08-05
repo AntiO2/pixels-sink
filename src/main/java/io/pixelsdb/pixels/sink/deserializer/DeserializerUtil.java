@@ -20,13 +20,14 @@ package io.pixelsdb.pixels.sink.deserializer;
 import com.google.protobuf.ByteString;
 import io.pixelsdb.pixels.sink.SinkProto;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
+import io.pixelsdb.pixels.sink.exception.SinkException;
 import org.apache.avro.AvroRuntimeException;
 import org.apache.avro.generic.GenericRecord;
 
 import java.util.Arrays;
 
 public class DeserializerUtil {
-    static RowChangeEvent buildErrorEvent(String topic, byte[] rawData, Exception error) {
+    static RowChangeEvent buildErrorEvent(String topic, byte[] rawData, Exception error) throws SinkException {
         SinkProto.ErrorInfo errorInfo = SinkProto.ErrorInfo.newBuilder()
                 .setMessage(error.getMessage())
                 .setStackTrace(Arrays.toString(error.getStackTrace()))
@@ -38,7 +39,7 @@ public class DeserializerUtil {
                 .setTsMs(System.currentTimeMillis())
                 .build();
 
-        return new RowChangeEvent(record) {
+        return new RowChangeEvent(record, null) {
             @Override
             public boolean hasError() {
                 return true;

@@ -21,6 +21,7 @@ import io.pixelsdb.pixels.sink.SinkProto;
 import io.pixelsdb.pixels.sink.TestUtils;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
+import io.pixelsdb.pixels.sink.exception.SinkException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -79,9 +80,8 @@ class TransactionCoordinatorTest {
                 .build();
     }
 
-    private RowChangeEvent buildEvent(String txId, String table, long collectionOrder, long totalOrder) {
+    private RowChangeEvent buildEvent(String txId, String table, long collectionOrder, long totalOrder) throws SinkException {
         return new RowChangeEvent(
-
                 SinkProto.RowRecord.newBuilder().setTransaction(
                                 SinkProto.TransactionInfo.newBuilder()
                                         .setId(txId)
@@ -94,7 +94,7 @@ class TransactionCoordinatorTest {
                                 .setDb("test_db")
                                 .build()
                         ).setOp(SinkProto.OperationType.INSERT)
-                        .build()
+                        .build(), null
         );
     }
 
@@ -112,7 +112,7 @@ class TransactionCoordinatorTest {
     }
 
     @Test
-    void shouldHandleOutOfOrderEvents() {
+    void shouldHandleOutOfOrderEvents()  throws SinkException{
         coordinator.processTransactionEvent(buildBeginTx("tx2"));
         coordinator.processRowEvent(buildEvent("tx2", "users", 3, 3));
         coordinator.processRowEvent(buildEvent("tx2", "users", 2, 2));
@@ -124,7 +124,7 @@ class TransactionCoordinatorTest {
     }
 
     @Test
-    void shouldRecoverOrphanedEvents() {
+    void shouldRecoverOrphanedEvents()  throws SinkException{
         coordinator.processRowEvent(buildEvent("tx3", "logs", 1, 1)); // orphan event
         coordinator.processTransactionEvent(buildBeginTx("tx3"));     // recover
         coordinator.processTransactionEvent(buildEndTx("tx3"));
@@ -133,11 +133,11 @@ class TransactionCoordinatorTest {
 
     @ParameterizedTest
     @EnumSource(value = SinkProto.OperationType.class, names = {"INSERT", "UPDATE", "DELETE", "SNAPSHOT"})
-    void shouldProcessNonTransactionalEvents(SinkProto.OperationType opType) throws InterruptedException {
+    void shouldProcessNonTransactionalEvents(SinkProto.OperationType opType) throws InterruptedException, SinkException {
         RowChangeEvent event = new RowChangeEvent(
                 SinkProto.RowRecord.newBuilder()
                         .setOp(opType)
-                        .build()
+                        .build(), null
         );
         coordinator.processRowEvent(event);
         TimeUnit.MILLISECONDS.sleep(10);
@@ -159,7 +159,7 @@ class TransactionCoordinatorTest {
 
     @ParameterizedTest
     @ValueSource(ints = {1, 3, 9, 16})
-    void shouldHandleConcurrentEvents(int threadCount) throws Exception {
+    void shouldHandleConcurrentEvents(int threadCount) throws SinkException, IOException, InterruptedException {
         PixelsSinkConfigFactory.reset();
         PixelsSinkConfigFactory.initialize("");
 
@@ -169,7 +169,11 @@ class TransactionCoordinatorTest {
         for (int i = 0; i < threadCount; i++) {
             int order = i + 1;
             new Thread(() -> {
-                coordinator.processRowEvent(buildEvent("tx5", "concurrent", order, order));
+                try {
+                    coordinator.processRowEvent(buildEvent("tx5", "concurrent", order, order));
+                } catch (SinkException e) {
+                    throw new RuntimeException(e);
+                }
                 latch.countDown();
             }).start();
         }

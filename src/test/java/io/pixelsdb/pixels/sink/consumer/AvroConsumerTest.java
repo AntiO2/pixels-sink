@@ -26,6 +26,7 @@ import io.pixelsdb.pixels.sink.SinkProto;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.deserializer.RowChangeEventAvroDeserializer;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
+import io.pixelsdb.pixels.sink.exception.SinkException;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -85,8 +86,8 @@ public class AvroConsumerTest {
         return consumer;
     }
 
-    private static RowChangeEvent convertToRowChangeEvent(GenericRecord record, Schema schema) {
-        return new RowChangeEvent(SinkProto.RowRecord.newBuilder().build());
+    private static RowChangeEvent convertToRowChangeEvent(GenericRecord record, Schema schema) throws SinkException {
+        return new RowChangeEvent(SinkProto.RowRecord.newBuilder().build(), null);
     }
 
     @Test

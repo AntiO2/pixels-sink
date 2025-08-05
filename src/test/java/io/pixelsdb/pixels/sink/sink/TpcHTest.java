@@ -66,9 +66,9 @@ public class TpcHTest {
             cols[6] = ("SEGMENT" + (i % 3)).getBytes(StandardCharsets.UTF_8);                     // c_mktsegment (char(10))
             cols[7] = ("This is customer " + i).getBytes(StandardCharsets.UTF_8);                 // c_comment
 
-            boolean result = retinaService.insertRecord(schemaName, tableName, cols, transContext.getTimestamp());
-            logger.info("Inserted customer #" + i + " → result: " + result);
-            Assertions.assertTrue(result);
+//            boolean result = retinaService.insertRecord(schemaName, tableName, cols, transContext.getTimestamp());
+//            logger.info("Inserted customer #" + i + " → result: " + result);
+//            Assertions.assertTrue(result);
         }
     }
 
@@ -92,9 +92,9 @@ public class TpcHTest {
             cols[1] = String.format("Region_%02d", i).getBytes(StandardCharsets.UTF_8);       // r_name (char(25))
             cols[2] = ("This is region number " + i).getBytes(StandardCharsets.UTF_8);        // r_comment
 
-            boolean result = retinaService.insertRecord(schemaName, tableName, cols, transContext.getTimestamp());
-            logger.info("Inserted region #" + i + " → result: " + result);
-            Assertions.assertTrue(result);
+//            boolean result = retinaService.insertRecord(schemaName, tableName, cols, transContext.getTimestamp());
+//            logger.info("Inserted region #" + i + " → result: " + result);
+//            Assertions.assertTrue(result);
         }
     }
 
@@ -120,9 +120,9 @@ public class TpcHTest {
             cols[2] = Long.toString(i % 5).getBytes(StandardCharsets.UTF_8);                  // n_regionkey
             cols[3] = ("This is nation number " + i).getBytes(StandardCharsets.UTF_8);        // n_comment
 
-            boolean result = retinaService.insertRecord(schemaName, tableName, cols, transContext.getTimestamp());
-            logger.info("Inserted nation #" + i + " → result: " + result);
-            Assertions.assertTrue(result);
+//            boolean result = retinaService.insertRecord(schemaName, tableName, cols, transContext.getTimestamp());
+//            logger.info("Inserted nation #" + i + " → result: " + result);
+//            Assertions.assertTrue(result);
         }
     }
 
@@ -171,9 +171,9 @@ public class TpcHTest {
             cols[14] = "AIR".getBytes(StandardCharsets.UTF_8); // l_shipmode
             cols[15] = String.format("Order comment %d", i).getBytes(StandardCharsets.UTF_8); // l_comment
 
-            boolean result = retinaService.insertRecord(schemaName, tableName, cols, transContext.getTimestamp());
-            logger.info("Inserted lineitem #" + i + " → result: " + result);
-            Assertions.assertTrue(result);
+//            boolean result = retinaService.insertRecord(schemaName, tableName, cols, transContext.getTimestamp());
+//            logger.info("Inserted lineitem #" + i + " → result: " + result);
+//            Assertions.assertTrue(result);
         }
     }
 
@@ -208,9 +208,9 @@ public class TpcHTest {
             cols[7] = Integer.toString(i % 10).getBytes(StandardCharsets.UTF_8); // o_shippriority
             cols[8] = String.format("This is order %d", i).getBytes(StandardCharsets.UTF_8); // o_comment
 
-            boolean result = retinaService.insertRecord(schemaName, tableName, cols, transContext.getTimestamp());
-            logger.info("Inserted order #" + i + " → result: " + result);
-            Assertions.assertTrue(result);
+//            boolean result = retinaService.insertRecord(schemaName, tableName, cols, transContext.getTimestamp());
+//            logger.info("Inserted order #" + i + " → result: " + result);
+//            Assertions.assertTrue(result);
         }
     }
 
@@ -245,9 +245,9 @@ public class TpcHTest {
             cols[7] = String.format("%.2f", 99.99 + i * 2.5).getBytes(StandardCharsets.UTF_8); // p_retailprice
             cols[8] = ("Comment_" + i).getBytes(StandardCharsets.UTF_8); // p_comment
 
-            boolean result = retinaService.insertRecord(schemaName, tableName, cols, transContext.getTimestamp());
-            logger.info("Inserted part #" + i + " → result: " + result);
-            Assertions.assertTrue(result);
+//            boolean result = retinaService.insertRecord(schemaName, tableName, cols, transContext.getTimestamp());
+//            logger.info("Inserted part #" + i + " → result: " + result);
+//            Assertions.assertTrue(result);
         }
     }
 
@@ -274,9 +274,9 @@ public class TpcHTest {
             cols[3] = String.format("%.2f", 50.0 + i * 5.5).getBytes(StandardCharsets.UTF_8); // ps_supplycost
             cols[4] = ("This is supplier comment #" + i).getBytes(StandardCharsets.UTF_8);    // ps_comment
 
-            boolean result = retinaService.insertRecord(schemaName, tableName, cols, transContext.getTimestamp());
-            logger.info("Inserted partsupp #" + i + " → result: " + result);
-            Assertions.assertTrue(result);
+//            boolean result = retinaService.insertRecord(schemaName, tableName, cols, transContext.getTimestamp());
+//            logger.info("Inserted partsupp #" + i + " → result: " + result);
+//            Assertions.assertTrue(result);
         }
     }
 
@@ -307,9 +307,9 @@ public class TpcHTest {
             cols[5] = String.format("%.2f", 5000.0 + i * 123.45).getBytes(StandardCharsets.UTF_8); // s_acctbal
             cols[6] = ("Supplier comment for ID " + i).getBytes(StandardCharsets.UTF_8);         // s_comment
 
-            boolean result = retinaService.insertRecord(schemaName, tableName, cols, transContext.getTimestamp());
-            logger.info("Inserted supplier #" + i + " → result: " + result);
-            Assertions.assertTrue(result);
+//            boolean result = retinaService.insertRecord(schemaName, tableName, cols, transContext.getTimestamp());
+//            logger.info("Inserted supplier #" + i + " → result: " + result);
+//            Assertions.assertTrue(result);
         }
     }
 

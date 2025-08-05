@@ -18,6 +18,7 @@
 package io.pixelsdb.pixels.sink.event;
 
 import com.google.protobuf.ByteString;
+import com.google.protobuf.Type;
 import io.pixelsdb.pixels.common.metadata.domain.SinglePointIndex;
 import io.pixelsdb.pixels.core.TypeDescription;
 import io.pixelsdb.pixels.index.IndexProto;
@@ -32,6 +33,7 @@ import lombok.Setter;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -39,7 +41,6 @@ public class RowChangeEvent {
 
     @Getter
     private final SinkProto.RowRecord rowRecord;
-    private IndexProto.IndexKey indexKey;
     private boolean isIndexKeyInited;
     /**
      * timestamp from pixels transaction server
@@ -64,17 +65,31 @@ public class RowChangeEvent {
     @Getter
     private IndexProto.IndexKey afterKey;
 
+    @Getter
+    private TypeDescription schema;
 
-    public RowChangeEvent(SinkProto.RowRecord rowRecord) {
+    public RowChangeEvent(SinkProto.RowRecord rowRecord) throws SinkException {
         this.rowRecord = rowRecord;
+        this.schema = TableMetadataRegistry.Instance().getTypeDescription(getSchemaName(), getTable());
+        initColumnValueMap();
+        initIndexKey();
+    }
+
+    public RowChangeEvent(SinkProto.RowRecord rowRecord, TypeDescription schema) throws SinkException {
+        this.rowRecord = rowRecord;
+        this.schema = schema;
+        initColumnValueMap();
+        initIndexKey();
     }
 
     private void initColumnValueMap() {
         if (hasBeforeData()) {
+            this.beforeValueMap = new HashMap<>();
             initColumnValueMap(rowRecord.getBefore(), beforeValueMap);
         }
 
         if (hasAfterData()) {
+            this.afterValueMap = new HashMap<>();
             initColumnValueMap(rowRecord.getAfter(), afterValueMap);
         }
     }
@@ -89,13 +104,6 @@ public class RowChangeEvent {
 
     public void setTimeStamp(long timeStamp) {
         this.timeStamp = timeStamp;
-    }
-
-    public IndexProto.IndexKey getIndexKey() throws SinkException {
-        if (!isIndexKeyInited) {
-            initIndexKey();
-        }
-        return indexKey;
     }
 
     public void initIndexKey() throws SinkException {
@@ -113,8 +121,6 @@ public class RowChangeEvent {
         if(hasAfterData()) {
             this.afterKey = generateIndexKey(tableMetadata, afterValueMap);
         }
-
-        isIndexKeyInited = true;
     }
 
     private IndexProto.IndexKey generateIndexKey(TableMetadata tableMetadata, Map<String, SinkProto.ColumnValue> rowValue) {
@@ -126,10 +132,9 @@ public class RowChangeEvent {
         for(String keyColumnName: keyColumnNames) {
             ByteString value = rowValue.get(keyColumnName).getValue();
             keyColumnValues.add(value);
-            value.size();
             keySize +=value.size();
         }
-        keySize += Long.BYTES + len +  Long.BYTES; // table id + index key + timestamp
+        keySize += Long.BYTES + (len + 1) * 2 +  Long.BYTES; // table id + index key + timestamp
 
         ByteBuffer byteBuffer = ByteBuffer.allocate(keySize);
 
@@ -143,6 +148,7 @@ public class RowChangeEvent {
                 .setTimestamp(timeStamp)
                 .setKey(ByteString.copyFrom(byteBuffer))
                 .setIndexId(index.getId())
+                .setTableId(tableMetadata.getTable().getId())
                 .build();
     }
 

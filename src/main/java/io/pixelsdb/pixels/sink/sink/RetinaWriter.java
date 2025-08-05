@@ -91,9 +91,11 @@ public class RetinaWriter implements PixelsSinkWriter {
         return false;
     }
 
+
+    @Deprecated
     private boolean sendInsertRequest(RowChangeEvent event) throws RetinaException {
         // Insert retina
-        boolean retinaServiceResult = retinaService.insertRecord(event.getSchemaName(), event.getTable(), event.getAfterData(), event.getTimeStamp());
+        // boolean retinaServiceResult = retinaService.insertRecord(event.getSchemaName(), event.getTable(), event.getAfterData(), event.getTimeStamp());
 
         return false;
     }
@@ -118,21 +120,6 @@ public class RetinaWriter implements PixelsSinkWriter {
 //                throw new IOException("Channel shutdown interrupted", e);
 //            }
         }
-    }
-
-
-    @Deprecated
-    private RetinaProto.DeleteRecordRequest getDeleteRecordRequest(RowChangeEvent event) {
-        // Step1. Look up unique index to find row location
-        // 3cIndexProto.RowLocation rowLocation = indexService.lookupUniqueIndex(event.getIndexKey());
-
-        // Step2. Build Delete Request
-        RetinaProto.DeleteRecordRequest.Builder builder = RetinaProto.DeleteRecordRequest.newBuilder();
-        return builder
-                // .setRow(builder.getRowBuilder().setRgRowId(rowLocation.getRgRowId()).setFileId(rowLocation.getFileId()).setRgId(rowLocation.getRgId()))
-                .setTimestamp(event.getTimeStamp())
-                // .setTransInfo(getTransinfo(event))
-                .build();
     }
 
     private boolean sendUpdateRequest(RowChangeEvent event) {

@@ -24,6 +24,7 @@ import io.pixelsdb.pixels.sink.SinkProto;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
+import io.pixelsdb.pixels.sink.exception.SinkException;
 import io.pixelsdb.pixels.sink.metadata.TableMetadataRegistry;
 import io.pixelsdb.pixels.sink.monitor.MetricsFacade;
 import org.apache.avro.Schema;
@@ -67,7 +68,7 @@ public class RowChangeEventAvroDeserializer implements Deserializer<RowChangeEve
 
     }
 
-    private RowChangeEvent convertToRowChangeEvent(GenericRecord avroRecord, Schema schema) {
+    private RowChangeEvent convertToRowChangeEvent(GenericRecord avroRecord, Schema schema) throws SinkException{
         SinkProto.OperationType op = parseOperationType(avroRecord);
         SinkProto.RowRecord.Builder recordBuilder = SinkProto.RowRecord.newBuilder()
                 .setOp(op)
@@ -80,7 +81,12 @@ public class RowChangeEventAvroDeserializer implements Deserializer<RowChangeEve
 
         String sourceSchema = recordBuilder.getSource().getDb();
         String sourceTable = recordBuilder.getSource().getTable();
-        TypeDescription typeDescription = tableMetadataRegistry.parseTypeDescription(avroRecord, sourceSchema, sourceTable);
+        TypeDescription typeDescription = null;
+        try {
+            typeDescription = tableMetadataRegistry.getTypeDescription(sourceSchema, sourceTable);
+        } catch (SinkException e) {
+            throw new RuntimeException(e);
+        }
         // TableMetadata tableMetadata = tableMetadataRegistry.loadTableMetadata(sourceSchema, sourceTable);
 
         recordBuilder.setBefore(parseRowData(avroRecord.get("before"), typeDescription));
@@ -91,7 +97,7 @@ public class RowChangeEventAvroDeserializer implements Deserializer<RowChangeEve
                     recordBuilder.getTransactionBuilder());
         }
 
-        return new RowChangeEvent(recordBuilder.build());
+        return new RowChangeEvent(recordBuilder.build(), typeDescription);
     }
 
     private SinkProto.OperationType parseOperationType(GenericRecord record) {
