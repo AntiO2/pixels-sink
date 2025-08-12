@@ -17,6 +17,7 @@
 package io.pixelsdb.pixels.sink.sink;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import io.pixelsdb.pixels.retina.RetinaProto;
 import io.pixelsdb.pixels.sink.SinkProto;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.PixelsSinkDefaultConfig;
@@ -121,6 +122,12 @@ public class CsvWriter implements PixelsSinkWriter {
         } finally {
             writeLock.unlock();
         }
+    }
+
+    @Override
+    public boolean writeTrans(String schemaName, List<RetinaProto.TableUpdateData> tableUpdateData, long timestamp)
+    {
+        throw new UnsupportedOperationException("CSV Writer doesn't implement batch write trans");
     }
 
     private FileChannel getOrCreateChannel(RowChangeEvent event) throws IOException {

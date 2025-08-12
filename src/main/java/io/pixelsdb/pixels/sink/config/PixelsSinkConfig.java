@@ -17,6 +17,7 @@
 package io.pixelsdb.pixels.sink.config;
 
 import io.pixelsdb.pixels.common.utils.ConfigFactory;
+import io.pixelsdb.pixels.sink.concurrent.TransactionMode;
 import io.pixelsdb.pixels.sink.sink.PixelsSinkMode;
 import lombok.Getter;
 
@@ -29,6 +30,7 @@ public class PixelsSinkConfig {
 
     private Long transactionTimeout;
     private PixelsSinkMode pixelsSinkMode;
+    private TransactionMode transactionMode;
     private short remotePort;
     private int batchSize;
     private int timeoutMs;
@@ -67,6 +69,7 @@ public class PixelsSinkConfig {
         this.rpcEnable = parseBoolean(getProperty("sink.rpc.enable"), PixelsSinkDefaultConfig.SINK_RPC_ENABLED);
         this.mockRpcDelay = parseInt(getProperty("sink.rpc.mock.delay"), PixelsSinkDefaultConfig.MOCK_RPC_DELAY);
         this.transBatchSize = parseInt(getProperty("sink.trans.batch.size"), PixelsSinkDefaultConfig.TRANSACTION_BATCH_SIZE);
+        this.transactionMode = TransactionMode.fromValue(getProperty("sink.trans.mode", TransactionConfig.DEFAULT_TRANSACTION_MODE));
         this.retinaEmbedded = false;
     }
 

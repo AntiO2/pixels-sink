@@ -15,19 +15,20 @@
  *
  */
 
-package io.pixelsdb.pixels.sink.sink;
+package io.pixelsdb.pixels.sink.concurrent;
 
-import io.pixelsdb.pixels.retina.RetinaProto;
-import io.pixelsdb.pixels.sink.event.RowChangeEvent;
-import io.pixelsdb.pixels.sink.concurrent.TransactionMode;
-import java.io.Closeable;
-import java.util.List;
+import io.pixelsdb.pixels.sink.sink.PixelsSinkMode;
 
-public interface PixelsSinkWriter extends Closeable {
-    void flush();
+public enum TransactionMode {
+    BATCH,
+    RECORD;
 
-    boolean write(RowChangeEvent rowChangeEvent);
-
-    boolean writeTrans(String schemaName, List<RetinaProto.TableUpdateData> tableUpdateData, long timestamp);
-    // boolean write(RowChangeEvent rowChangeEvent, ByteBuffer byteBuffer);
+    public static TransactionMode fromValue(String value) {
+        for (TransactionMode mode : values()) {
+            if (mode.name().equalsIgnoreCase(value)) {
+                return mode;
+            }
+        }
+        throw new RuntimeException(String.format("Can't convert %s to transaction mode", value));
+    }
 }

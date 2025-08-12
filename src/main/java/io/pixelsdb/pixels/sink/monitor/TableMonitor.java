@@ -15,18 +15,17 @@
  *
  */
 
-package io.pixelsdb.pixels.sink.consumer;
+package io.pixelsdb.pixels.sink.monitor;
 
 import io.pixelsdb.pixels.sink.concurrent.TransactionCoordinator;
 import io.pixelsdb.pixels.sink.concurrent.TransactionCoordinatorFactory;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
-import io.pixelsdb.pixels.sink.config.PixelsSinkDefaultConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
+import io.pixelsdb.pixels.sink.exception.SinkException;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
-import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.InterruptException;
 import org.apache.kafka.common.errors.WakeupException;
 import org.slf4j.Logger;
@@ -38,11 +37,10 @@ import java.util.Collections;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class TableConsumerTask implements Runnable {
-    private static final Logger log = LoggerFactory.getLogger(TableConsumerTask.class);
+public class TableMonitor implements Runnable {
+    private static final Logger log = LoggerFactory.getLogger(TableMonitor.class);
     private static final TransactionCoordinator transactionCoordinator = TransactionCoordinatorFactory.getCoordinator();
     private final Properties kafkaProperties;
     private final String topic;
@@ -50,7 +48,7 @@ public class TableConsumerTask implements Runnable {
     private final String tableName;
     private KafkaConsumer<String, RowChangeEvent> consumer;
     private final ExecutorService executor = Executors.newCachedThreadPool();
-    public TableConsumerTask(Properties kafkaProperties, String topic) throws IOException {
+    public TableMonitor(Properties kafkaProperties, String topic) throws IOException {
         PixelsSinkConfig config = PixelsSinkConfigFactory.getInstance();
         this.kafkaProperties = kafkaProperties;
         this.topic = topic;
@@ -66,10 +64,6 @@ public class TableConsumerTask implements Runnable {
             consumer = new KafkaConsumer<>(kafkaProperties);
             consumer.subscribe(Collections.singleton(topic));
 
-//            TopicPartition partition = new TopicPartition(topic, 0);
-//            consumer.poll(Duration.ofSeconds(1));
-//            consumer.seek(partition, 0);
-
             while (running.get()) {
                 try {
                     ConsumerRecords<String, RowChangeEvent> records = consumer.poll(Duration.ofSeconds(5));
@@ -77,10 +71,17 @@ public class TableConsumerTask implements Runnable {
                         log.debug("{} Consumer poll returned {} records", tableName, records.count());
                         records.forEach(record -> {
                             log.info("{} Consumer record: {}", tableName, record.value());
-//                            executor.execute(() -> {
+                            executor.execute(() ->
+                            {
                                 RowChangeEvent event = record.value();
-                                transactionCoordinator.processRowEvent(event);
-//                            });
+                                try
+                                {
+                                    transactionCoordinator.processRowEvent(event);
+                                } catch (SinkException e)
+                                {
+                                    throw new RuntimeException(e);
+                                }
+                            });
                         });
                     }
                 } catch (InterruptException ignored) {

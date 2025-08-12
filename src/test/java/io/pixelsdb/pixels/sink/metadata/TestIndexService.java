@@ -40,15 +40,14 @@ public class TestIndexService {
 
     private final MetadataService metadataService = MetadataService.Instance();
     private final IndexService indexService = IndexService.Instance();
+
     @Test
-    public void testCreateIndex() throws MetadataException {
-        String testSchemaName = "pixels_index";
-        String testTblName = "ray_index";
-        String keyColumn = "{\"keyColumnIds\":[11]}";
+    public void testCreateFreshnessIndex() throws MetadataException {
+        String testSchemaName = "pixels_bench_sf1x";
+        String testTblName = "freshness";
+        String keyColumn = "{\"keyColumnIds\":[15]}";
         Table table = metadataService.getTable(testSchemaName, testTblName);
-        long id = table.getId();
-        long schemaId = table.getSchemaId();
-        List<Layout> layouts = metadataService.getLayouts(testSchemaName, testTblName);
+        Layout layout = metadataService.getLatestLayout(testSchemaName, testTblName);
 
         MetadataProto.SinglePointIndex.Builder singlePointIndexbuilder = MetadataProto.SinglePointIndex.newBuilder();
         singlePointIndexbuilder.setId(0L)
@@ -57,7 +56,32 @@ public class TestIndexService {
                 .setUnique(true)
                 .setIndexScheme("rocksdb")
                 .setTableId(table.getId())
-                .setSchemaVersionId(layouts.get(0).getSchemaVersionId());
+                .setSchemaVersionId(layout.getSchemaVersionId());
+
+        SinglePointIndex index = new SinglePointIndex(singlePointIndexbuilder.build());
+        boolean result = metadataService.createSinglePointIndex(index);
+        Assertions.assertTrue(result);
+        boolean pause = true;
+    }
+
+    @Test
+    public void testCreateIndex() throws MetadataException {
+        String testSchemaName = "pixels_index";
+        String testTblName = "ray_index";
+        String keyColumn = "{\"keyColumnIds\":[11]}";
+        Table table = metadataService.getTable(testSchemaName, testTblName);
+        long id = table.getId();
+        long schemaId = table.getSchemaId();
+        Layout layout = metadataService.getLatestLayout(testSchemaName, testTblName);
+
+        MetadataProto.SinglePointIndex.Builder singlePointIndexbuilder = MetadataProto.SinglePointIndex.newBuilder();
+        singlePointIndexbuilder.setId(0L)
+                .setKeyColumns(keyColumn)
+                .setPrimary(true)
+                .setUnique(true)
+                .setIndexScheme("rocksdb")
+                .setTableId(table.getId())
+                .setSchemaVersionId(layout.getSchemaVersionId());
 
         SinglePointIndex index = new SinglePointIndex(singlePointIndexbuilder.build());
         boolean result = metadataService.createSinglePointIndex(index);
@@ -79,8 +103,9 @@ public class TestIndexService {
 
     @Test
     public void testGetRowID() throws MetadataException {
-        IndexProto.RowIdBatch rowIdBatch = indexService.allocateRowIdBatch(4, 10);
-        Assertions.assertEquals(rowIdBatch.getLength(), 10);
+        int numRowIds = 10000;
+        IndexProto.RowIdBatch rowIdBatch = indexService.allocateRowIdBatch(4, numRowIds);
+        Assertions.assertEquals(rowIdBatch.getLength(), numRowIds);
         boolean pause = true;
     }
 }

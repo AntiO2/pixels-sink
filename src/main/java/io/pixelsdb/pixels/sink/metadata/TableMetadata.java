@@ -74,4 +74,9 @@ public class TableMetadata {
     {
         return index.getKeyColumns().getKeyColumnIds().get(0);
     }
+
+    public long getPrimaryIndexKeyId()
+    {
+        return index.getId();
+    }
 }

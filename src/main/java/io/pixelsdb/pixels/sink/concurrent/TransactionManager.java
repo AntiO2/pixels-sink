@@ -20,10 +20,14 @@ package io.pixelsdb.pixels.sink.concurrent;
 import io.pixelsdb.pixels.common.exception.TransException;
 import io.pixelsdb.pixels.common.transaction.TransContext;
 import io.pixelsdb.pixels.common.transaction.TransService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * This class if for
@@ -31,14 +35,25 @@ import java.util.concurrent.ConcurrentLinkedDeque;
  * @author AntiO2
  */
 public class TransactionManager {
+    private static final Logger LOGGER = LoggerFactory.getLogger(TransactionManager.class);
     private final static TransactionManager instance = new TransactionManager();
     private final TransService transService;
     private final Queue<TransContext> transContextQueue;
     private final Object batchLock = new Object();
-
+    private final ExecutorService commitExecutor;
     TransactionManager() {
         this.transService = TransService.Instance();
         this.transContextQueue = new ConcurrentLinkedDeque<>();
+
+        this.commitExecutor = Executors.newFixedThreadPool(
+                Runtime.getRuntime().availableProcessors(),
+                r -> {
+                    Thread t = new Thread(r);
+                    t.setName("commit-trans-thread");
+                    t.setDaemon(true);
+                    return t;
+                }
+        );
     }
 
     public static TransactionManager Instance() {
@@ -70,5 +85,20 @@ public class TransactionManager {
             }
             return ctx;
         }
+    }
+
+    public void commitTransAsync(TransContext transContext) {
+        commitExecutor.submit(() -> {
+            try {
+                transService.commitTrans(
+                        transContext.getTransId(),
+                        transContext.getTimestamp()
+                );
+                LOGGER.info("Success Commit {} {}", transContext.getTransId(), transContext.getTimestamp());
+            } catch (TransException e) {
+                LOGGER.error("Async commit failed: transId=%s%n", transContext.getTransId());
+                e.printStackTrace();
+            }
+        });
     }
 }

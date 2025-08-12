@@ -27,4 +27,5 @@ public class TransactionConfig {
     public static final String DEFAULT_TRANSACTION_TIME_OUT = "300";
 
     public static final String DEFAULT_TRANSACTION_BATCH_SIZE = "100";
+    public static final String DEFAULT_TRANSACTION_MODE = "batch";
 }

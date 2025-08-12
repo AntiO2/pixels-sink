@@ -27,6 +27,7 @@ import io.pixelsdb.pixels.index.IndexProto;
 import io.pixelsdb.pixels.retina.RetinaProto;
 import io.pixelsdb.pixels.retina.RetinaWorkerServiceGrpc;
 import io.pixelsdb.pixels.sink.SinkProto;
+import io.pixelsdb.pixels.sink.concurrent.TransactionMode;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
@@ -38,6 +39,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -54,8 +56,15 @@ public class RetinaWriter implements PixelsSinkWriter {
     private final RetinaService retinaService = RetinaService.Instance();
 
     private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
-
+    private final RetinaService.StreamHandle retinaStream;
     public RetinaWriter() {
+        if(config.getTransactionMode() == TransactionMode.BATCH)
+        {
+             retinaStream = retinaService.startUpdateStream();
+        } else {
+            retinaStream = null;
+        }
+
     }
 
     @Override
@@ -91,6 +100,21 @@ public class RetinaWriter implements PixelsSinkWriter {
         return false;
     }
 
+    @Override
+    public boolean writeTrans(String schemaName, List<RetinaProto.TableUpdateData> tableUpdateData, long timestamp)
+    {
+        // retinaStream.updateRecord(schemaName, tableUpdateData, timestamp);
+        try
+        {
+            LOGGER.info("Retina Writer update record {}, {}", schemaName, timestamp);
+            retinaService.updateRecord(schemaName, tableUpdateData, timestamp);
+        } catch (RetinaException e)
+        {
+            e.printStackTrace();
+            return false;
+        }
+        return true;
+    }
 
     @Deprecated
     private boolean sendInsertRequest(RowChangeEvent event) throws RetinaException {
@@ -119,6 +143,11 @@ public class RetinaWriter implements PixelsSinkWriter {
 //                Thread.currentThread().interrupt();
 //                throw new IOException("Channel shutdown interrupted", e);
 //            }
+        }
+
+        if(config.getTransactionMode() == TransactionMode.BATCH)
+        {
+            retinaStream.close();
         }
     }
 

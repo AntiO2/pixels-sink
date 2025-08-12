@@ -71,6 +71,10 @@ public class TableMetadataRegistry {
         return loadTableMetadata(schemaName, tableName).getKeyColumnNames();
     }
 
+    public long getPrimaryIndexKeyId(String schemaName, String tableName) throws SinkException {
+        return loadTableMetadata(schemaName, tableName).getPrimaryIndexKeyId();
+    }
+
     public TableMetadata loadTableMetadata(String schemaName, String tableName) throws SinkException {
         try {
             Table table = metadataService.getTable(schemaName, tableName);

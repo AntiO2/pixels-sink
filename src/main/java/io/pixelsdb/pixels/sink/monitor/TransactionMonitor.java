@@ -21,6 +21,7 @@ import io.pixelsdb.pixels.sink.SinkProto;
 import io.pixelsdb.pixels.sink.concurrent.TransactionCoordinator;
 import io.pixelsdb.pixels.sink.concurrent.TransactionCoordinatorFactory;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
+import io.pixelsdb.pixels.sink.exception.SinkException;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -67,6 +68,9 @@ public class TransactionMonitor implements Runnable, StoppableMonitor {
                     if (running.get()) {
                         LOGGER.warn("Consumer wakeup unexpectedly", e);
                     }
+                } catch (SinkException e)
+                {
+                    throw new RuntimeException(e);
                 }
             }
         } finally {
