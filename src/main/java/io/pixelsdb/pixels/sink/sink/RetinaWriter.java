@@ -103,10 +103,10 @@ public class RetinaWriter implements PixelsSinkWriter {
     @Override
     public boolean writeTrans(String schemaName, List<RetinaProto.TableUpdateData> tableUpdateData, long timestamp)
     {
-        // retinaStream.updateRecord(schemaName, tableUpdateData, timestamp);
         try
         {
             LOGGER.info("Retina Writer update record {}, {}", schemaName, timestamp);
+            // retinaStream.updateRecord(schemaName, tableUpdateData, timestamp);
             retinaService.updateRecord(schemaName, tableUpdateData, timestamp);
         } catch (RetinaException e)
         {
