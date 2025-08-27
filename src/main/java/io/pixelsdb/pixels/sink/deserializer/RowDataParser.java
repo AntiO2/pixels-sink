@@ -22,6 +22,7 @@ import com.google.protobuf.ByteString;
 import io.pixelsdb.pixels.core.PixelsProto;
 import io.pixelsdb.pixels.core.TypeDescription;
 import io.pixelsdb.pixels.sink.SinkProto;
+import io.pixelsdb.pixels.sink.util.DateUtil;
 import org.apache.avro.generic.GenericRecord;
 
 import java.io.IOException;
@@ -32,6 +33,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.Base64;
 import java.util.Collections;
+import java.util.Date;
 import java.util.Map;
 class RowDataParser {
     private final TypeDescription schema;
@@ -101,8 +103,10 @@ class RowDataParser {
             }
             case DATE: {
                 // expect date in format "yyyy-MM-dd"
-                String isoDate = valueNode.asText();
-                columnValueBuilder.setValue(ByteString.copyFrom(isoDate, StandardCharsets.UTF_8));
+                Integer isoDate = valueNode.asInt();
+                Date date = DateUtil.fromDebeziumDate(isoDate);
+                String dayString = DateUtil.convertDateToDayString(date);
+                columnValueBuilder.setValue(ByteString.copyFrom(dayString, StandardCharsets.UTF_8));
                 columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.DATE));
                 break;
             }
@@ -115,6 +119,21 @@ class RowDataParser {
             case STRUCT: {
                 // You can recursively parse fields in a struct here
                 throw new UnsupportedOperationException("STRUCT parsing not yet implemented");
+            }
+            case DOUBLE:
+            case FLOAT: {
+                Double value = valueNode.asDouble();
+                columnValueBuilder.setValue(ByteString.copyFrom(Double.toString(value), StandardCharsets.UTF_8));
+                columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.DOUBLE));
+                break;
+            }
+            case TIMESTAMP: {
+                long timestamp = valueNode.asLong();
+                Date date = DateUtil.fromDebeziumTimestamp(timestamp);
+                String tsString = DateUtil.convertDateToString(date);
+                columnValueBuilder.setValue(ByteString.copyFrom(tsString, StandardCharsets.UTF_8));
+                columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.DATE));
+                break;
             }
             default:
                 throw new IllegalArgumentException("Unsupported type: " + type.getCategory());

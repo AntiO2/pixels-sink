@@ -72,7 +72,7 @@ class SinkContext
         return tableUpdateDataMap.values()
                 .stream()
                 .map(RetinaProto.TableUpdateData.Builder::build)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     void addUpdateData(RowChangeEvent rowChangeEvent) throws SinkException

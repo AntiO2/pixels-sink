@@ -80,7 +80,7 @@ public class RowChangeEvent
         this.rowRecord = rowRecord;
         this.schema = schema;
         initColumnValueMap();
-        initIndexKey();
+        // initIndexKey();
     }
 
     private void initColumnValueMap()
@@ -106,11 +106,6 @@ public class RowChangeEvent
                     map.put(column.getName(), column);
                 }
         );
-    }
-
-    public void setTimeStamp(long timeStamp)
-    {
-        this.timeStamp = timeStamp;
     }
 
     public void initIndexKey() throws SinkException
@@ -147,7 +142,7 @@ public class RowChangeEvent
             keyColumnValues.add(value);
             keySize += value.size();
         }
-        keySize += Long.BYTES + (len + 1) * 2 + Long.BYTES; // table id + index key + timestamp
+        keySize += Long.BYTES + (len + 1) * 2; // table id + index key
 
         ByteBuffer byteBuffer = ByteBuffer.allocate(keySize);
 
@@ -157,7 +152,7 @@ public class RowChangeEvent
             byteBuffer.put(value.toByteArray());
             byteBuffer.putChar(':');
         }
-        byteBuffer.putLong(timeStamp);
+
         return IndexProto.IndexKey.newBuilder()
                 .setTimestamp(timeStamp)
                 .setKey(ByteString.copyFrom(byteBuffer.rewind()))
@@ -243,11 +238,6 @@ public class RowChangeEvent
     public Long getTimeStampUs()
     {
         return rowRecord.getTsUs();
-    }
-
-    public int getPkId()
-    {
-        return tableMetadata.getPkId();
     }
 
     public void startLatencyTimer()

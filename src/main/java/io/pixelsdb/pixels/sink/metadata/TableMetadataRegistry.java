@@ -83,7 +83,6 @@ public class TableMetadataRegistry {
                 index = metadataService.getPrimaryIndex(table.getId());
             } catch (MetadataException e) {
                 logger.warn("Could not get primary index for table {}", tableName, e);
-
             }
 
             if (!index.isUnique()) {

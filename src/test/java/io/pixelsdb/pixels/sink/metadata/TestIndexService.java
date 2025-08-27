@@ -17,6 +17,8 @@
 
 
 package io.pixelsdb.pixels.sink.metadata;
+import com.google.protobuf.ByteString;
+import io.pixelsdb.pixels.common.exception.IndexException;
 import io.pixelsdb.pixels.common.exception.MetadataException;
 import io.pixelsdb.pixels.common.index.IndexService;
 import io.pixelsdb.pixels.common.metadata.MetadataService;
@@ -28,6 +30,7 @@ import io.pixelsdb.pixels.index.IndexProto;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
+import java.nio.ByteBuffer;
 import java.util.List;
 
 /**
@@ -107,5 +110,54 @@ public class TestIndexService {
         IndexProto.RowIdBatch rowIdBatch = indexService.allocateRowIdBatch(4, numRowIds);
         Assertions.assertEquals(rowIdBatch.getLength(), numRowIds);
         boolean pause = true;
+    }
+
+    @Test
+    public void testPutAndDelete() throws MetadataException, IndexException
+    {
+        String table = "customer";
+        String db = "pixels_bench_sf1x";
+        Table table1 = metadataService.getTable(db, table);
+        long tableId = table1.getId();
+        SinglePointIndex index = metadataService.getPrimaryIndex(tableId);
+
+        String id = "2294222";
+
+        int len = 1;
+        int keySize = 0;
+        keySize += id.length();
+        keySize += Long.BYTES + (len + 1) * 2; // table id + index key
+
+        ByteBuffer byteBuffer = ByteBuffer.allocate(keySize);
+
+        byteBuffer.putLong(index.getTableId()).putChar(':');
+        byteBuffer.put(id.getBytes());
+        byteBuffer.putChar(':');
+
+
+        IndexProto.PrimaryIndexEntry.Builder builder = IndexProto.PrimaryIndexEntry.newBuilder();
+        long ts1 = 200000;
+        long ts2 = 100000;
+        int rgId = 100;
+        int rgoffset = 10;
+
+        builder.getIndexKeyBuilder()
+                .setTimestamp(ts1)
+                .setKey(ByteString.copyFrom((ByteBuffer) byteBuffer.rewind()))
+                .setIndexId(index.getId())
+                .setTableId(index.getTableId());
+        builder.setRowId(100);
+        builder.getRowLocationBuilder()
+                .setRgId(rgId)
+                .setFileId(0)
+                .setRgRowOffset(rgoffset);
+
+        boolean b = indexService.putPrimaryIndexEntry(builder.build());
+
+        builder.getIndexKeyBuilder().setTimestamp(ts2);
+
+        IndexProto.RowLocation rowLocation = indexService.deletePrimaryIndexEntry(builder.getIndexKey());
+
+        boolean pause = false;
     }
 }

@@ -20,10 +20,17 @@ package io.pixelsdb.pixels.sink.deserializer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 import io.pixelsdb.pixels.core.TypeDescription;
+import io.pixelsdb.pixels.sink.util.DateUtil;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.util.Date;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -44,4 +51,14 @@ public class RowDataParserTest {
 //        assertEquals(new BigDecimal(expectedValue), result);
 //    }
 
+    @Test
+    void testParseDate() {
+        int day = 17059;
+        Date debeziumDate = DateUtil.fromDebeziumDate(day);
+        String dayString = DateUtil.convertDateToDayString(debeziumDate);
+        long ts = 1473927308302000L;
+        LocalDateTime localDateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(ts / 1000), ZoneOffset.UTC);
+        ZonedDateTime zonedDateTime = Instant.ofEpochMilli(ts).atZone(ZoneOffset.UTC);
+        boolean pause = true;
+    }
 }

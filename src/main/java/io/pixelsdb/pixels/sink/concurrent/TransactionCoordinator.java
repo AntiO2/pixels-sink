@@ -20,6 +20,7 @@ package io.pixelsdb.pixels.sink.concurrent;
 import io.pixelsdb.pixels.common.exception.TransException;
 import io.pixelsdb.pixels.common.transaction.TransContext;
 import io.pixelsdb.pixels.common.transaction.TransService;
+import io.pixelsdb.pixels.index.IndexProto;
 import io.pixelsdb.pixels.retina.RetinaProto;
 import io.pixelsdb.pixels.sink.SinkProto;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
@@ -58,7 +59,7 @@ public class TransactionCoordinator
     private final PixelsSinkConfig pixelsSinkConfig = PixelsSinkConfigFactory.getInstance();
     // private final BlockingQueue<RowChangeEvent> nonTxQueue = new LinkedBlockingQueue<>();
     private long TX_TIMEOUT_MS = PixelsSinkConfigFactory.getInstance().getTransactionTimeout();
-
+    private long timestamp = 0L;
 
     TransactionCoordinator()
     {
@@ -174,6 +175,7 @@ public class TransactionCoordinator
         transLatencyTimer.close();
         ctx.pixelsTransCtx = pixelsTransContext;
         List<RowChangeEvent> buffered = getBufferedEvents(sourceTxId);
+        this.timestamp = pixelsTransContext.getTimestamp();
         if (buffered != null)
         {
             for (RowChangeEvent event : buffered)
@@ -204,7 +206,6 @@ public class TransactionCoordinator
                 );
             }
         }
-
     }
 
     private void processTxCommit(SinkProto.TransactionMetadata txEnd, String txId, SinkContext ctx)
@@ -293,6 +294,8 @@ public class TransactionCoordinator
     private void processRowChangeEvent(SinkContext ctx, RowChangeEvent event) throws SinkException
     {
         String table = event.getTable();
+        event.setTimeStamp(timestamp);
+        event.initIndexKey();
         switch (pixelsSinkConfig.getTransactionMode())
         {
             case BATCH ->
@@ -483,8 +486,8 @@ public class TransactionCoordinator
                 SinkContext sinkContext = new SinkContext("-1");
                 sinkContext.addUpdateData(event);
                 TransContext transContext = transactionManager.getTransContext();
-
-                writer.writeTrans(pixelsSinkConfig.getCaptureDatabase(), sinkContext.getTableUpdateDataList(), transContext.getTimestamp());
+                List<RetinaProto.TableUpdateData> tableUpdateDataList = sinkContext.getTableUpdateDataList();
+                writer.writeTrans(pixelsSinkConfig.getCaptureDatabase(), tableUpdateDataList, transContext.getTimestamp());
                 transactionManager.commitTransAsync(transContext);
             }
             case RECORD ->

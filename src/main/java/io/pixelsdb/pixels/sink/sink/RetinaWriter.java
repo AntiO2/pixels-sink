@@ -60,7 +60,7 @@ public class RetinaWriter implements PixelsSinkWriter {
     public RetinaWriter() {
         if(config.getTransactionMode() == TransactionMode.BATCH)
         {
-             retinaStream = retinaService.startUpdateStream();
+            retinaStream = retinaService.startUpdateStream();
         } else {
             retinaStream = null;
         }
@@ -106,13 +106,14 @@ public class RetinaWriter implements PixelsSinkWriter {
         try
         {
             LOGGER.info("Retina Writer update record {}, {}", schemaName, timestamp);
-            // retinaStream.updateRecord(schemaName, tableUpdateData, timestamp);
+
             retinaService.updateRecord(schemaName, tableUpdateData, timestamp);
         } catch (RetinaException e)
         {
             e.printStackTrace();
             return false;
         }
+//        retinaStream.updateRecord(schemaName, tableUpdateData, timestamp);
         return true;
     }
 
