@@ -19,8 +19,6 @@
 package io.pixelsdb.pixels.sink.util;
 
 
-import io.debezium.time.Timestamp;
-
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -35,7 +33,8 @@ import java.util.Date;
 public class DateUtil
 {
 
-    public static Date fromDebeziumDate(int epochDay) {
+    public static Date fromDebeziumDate(int epochDay)
+    {
         Calendar cal = Calendar.getInstance();
         cal.clear();
         cal.set(1970, Calendar.JANUARY, 1); // epoch 起点
@@ -44,7 +43,8 @@ public class DateUtil
     }
 
     // TIMESTAMP(1), TIMESTAMP(2), TIMESTAMP(3)
-    public static Date fromDebeziumTimestamp(long epochTs) {
+    public static Date fromDebeziumTimestamp(long epochTs)
+    {
         return new Date(epochTs / 1000);
     }
 

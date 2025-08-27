@@ -27,7 +27,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
-public class TransactionState {
+
+public class TransactionState
+{
     private final String txId;
     private final long beginTs;
     private final Map<String, AtomicInteger> receivedCounts = new ConcurrentHashMap<>();
@@ -35,40 +37,49 @@ public class TransactionState {
     private Map<String, Long> expectedCounts; // update this when receive END message
     private volatile boolean endReceived = false;
 
-    public TransactionState(String txId) {
+    public TransactionState(String txId)
+    {
         this.txId = txId;
         this.beginTs = System.currentTimeMillis();
         this.expectedCounts = new HashMap<>();
     }
 
-    public void addRowEvent(RowChangeEvent event) {
+    public void addRowEvent(RowChangeEvent event)
+    {
         rowEvents.add(event);
         String table = event.getTable();
-        receivedCounts.compute(table, (k, v) -> {
-            if (v == null) {
+        receivedCounts.compute(table, (k, v) ->
+        {
+            if (v == null)
+            {
                 return new AtomicInteger(1);
-            } else {
+            } else
+            {
                 v.incrementAndGet();
                 return v;
             }
         });
     }
 
-    public boolean isComplete() {
+    public boolean isComplete()
+    {
         return endReceived &&
                 expectedCounts.entrySet().stream()
                         .allMatch(e -> receivedCounts.getOrDefault(e.getKey(), new AtomicInteger(0)).get() >= e.getValue());
     }
 
-    public void markEndReceived() {
+    public void markEndReceived()
+    {
         this.endReceived = true;
     }
 
-    public boolean isExpired(long timeoutMs) {
+    public boolean isExpired(long timeoutMs)
+    {
         return System.currentTimeMillis() - beginTs > timeoutMs;
     }
 
-    public void setExpectedCounts(List<SinkProto.DataCollection> dataCollectionList) {
+    public void setExpectedCounts(List<SinkProto.DataCollection> dataCollectionList)
+    {
         this.expectedCounts = dataCollectionList.stream()
                 .collect(Collectors.toMap(
                         SinkProto.DataCollection::getDataCollection,
@@ -76,11 +87,13 @@ public class TransactionState {
                 ));
     }
 
-    public void setExpectedCounts(Map<String, Long> dataCollectionMap) {
+    public void setExpectedCounts(Map<String, Long> dataCollectionMap)
+    {
         this.expectedCounts = dataCollectionMap;
     }
 
-    public List<RowChangeEvent> getRowEvents() {
+    public List<RowChangeEvent> getRowEvents()
+    {
         return rowEvents;
     }
 }

@@ -34,20 +34,24 @@ import java.util.concurrent.Executors;
  *
  * @author AntiO2
  */
-public class TransactionManager {
+public class TransactionManager
+{
     private static final Logger LOGGER = LoggerFactory.getLogger(TransactionManager.class);
     private final static TransactionManager instance = new TransactionManager();
     private final TransService transService;
     private final Queue<TransContext> transContextQueue;
     private final Object batchLock = new Object();
     private final ExecutorService commitExecutor;
-    TransactionManager() {
+
+    TransactionManager()
+    {
         this.transService = TransService.Instance();
         this.transContextQueue = new ConcurrentLinkedDeque<>();
 
         this.commitExecutor = Executors.newFixedThreadPool(
                 Runtime.getRuntime().availableProcessors(),
-                r -> {
+                r ->
+                {
                     Thread t = new Thread(r);
                     t.setName("commit-trans-thread");
                     t.setDaemon(true);
@@ -56,30 +60,39 @@ public class TransactionManager {
         );
     }
 
-    public static TransactionManager Instance() {
+    public static TransactionManager Instance()
+    {
         return instance;
     }
 
-    private void requestTransactions() {
-        try {
+    private void requestTransactions()
+    {
+        try
+        {
             List<TransContext> newContexts = transService.beginTransBatch(100, false);
             transContextQueue.addAll(newContexts);
-        } catch (TransException e) {
+        } catch (TransException e)
+        {
             throw new RuntimeException("Batch request failed", e);
         }
     }
 
-    public TransContext getTransContext() {
+    public TransContext getTransContext()
+    {
         TransContext ctx = transContextQueue.poll();
-        if (ctx != null) {
+        if (ctx != null)
+        {
             return ctx;
         }
-        synchronized (batchLock) {
+        synchronized (batchLock)
+        {
             ctx = transContextQueue.poll();
-            if (ctx == null) {
+            if (ctx == null)
+            {
                 requestTransactions();
                 ctx = transContextQueue.poll();
-                if (ctx == null) {
+                if (ctx == null)
+                {
                     throw new IllegalStateException("No contexts available");
                 }
             }
@@ -87,15 +100,19 @@ public class TransactionManager {
         }
     }
 
-    public void commitTransAsync(TransContext transContext) {
-        commitExecutor.submit(() -> {
-            try {
+    public void commitTransAsync(TransContext transContext)
+    {
+        commitExecutor.submit(() ->
+        {
+            try
+            {
                 transService.commitTrans(
                         transContext.getTransId(),
                         transContext.getTimestamp()
                 );
                 LOGGER.info("Success Commit {} {}", transContext.getTransId(), transContext.getTimestamp());
-            } catch (TransException e) {
+            } catch (TransException e)
+            {
                 LOGGER.error("Async commit failed: transId=%s%n", transContext.getTransId());
                 e.printStackTrace();
             }

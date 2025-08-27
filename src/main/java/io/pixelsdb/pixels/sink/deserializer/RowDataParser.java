@@ -35,24 +35,31 @@ import java.util.Base64;
 import java.util.Collections;
 import java.util.Date;
 import java.util.Map;
-class RowDataParser {
+
+class RowDataParser
+{
     private final TypeDescription schema;
 
-    public RowDataParser(TypeDescription schema) {
+    public RowDataParser(TypeDescription schema)
+    {
         this.schema = schema;
     }
 
 
-    public void parse(GenericRecord record, SinkProto.RowValue.Builder builder) {
-        for (int i = 0; i < schema.getFieldNames().size(); i++) {
+    public void parse(GenericRecord record, SinkProto.RowValue.Builder builder)
+    {
+        for (int i = 0; i < schema.getFieldNames().size(); i++)
+        {
             String fieldName = schema.getFieldNames().get(i);
             TypeDescription fieldType = schema.getChildren().get(i);
             builder.addValues(parseValue(record, fieldName, fieldType).build());
         }
     }
 
-    public void parse(JsonNode node, SinkProto.RowValue.Builder builder) {
-        for (int i = 0; i < schema.getFieldNames().size(); i++) {
+    public void parse(JsonNode node, SinkProto.RowValue.Builder builder)
+    {
+        for (int i = 0; i < schema.getFieldNames().size(); i++)
+        {
             String fieldName = schema.getFieldNames().get(i);
             TypeDescription fieldType = schema.getChildren().get(i);
             builder.addValues(parseValue(node.get(fieldName), fieldName, fieldType).build());
@@ -60,8 +67,10 @@ class RowDataParser {
     }
 
 
-    private SinkProto.ColumnValue.Builder parseValue(JsonNode valueNode, String fieldName, TypeDescription type) {
-        if (valueNode == null || valueNode.isNull()) {
+    private SinkProto.ColumnValue.Builder parseValue(JsonNode valueNode, String fieldName, TypeDescription type)
+    {
+        if (valueNode == null || valueNode.isNull())
+        {
             return SinkProto.ColumnValue.newBuilder()
                     .setName(fieldName)
                     .setValue(ByteString.EMPTY);
@@ -70,14 +79,17 @@ class RowDataParser {
         SinkProto.ColumnValue.Builder columnValueBuilder = SinkProto.ColumnValue.newBuilder();
         columnValueBuilder.setName(fieldName);
 
-        switch (type.getCategory()) {
-            case INT: {
+        switch (type.getCategory())
+        {
+            case INT:
+            {
                 int value = valueNode.asInt();
                 columnValueBuilder.setValue(ByteString.copyFrom(Integer.toString(value), StandardCharsets.UTF_8));
                 columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.INT));
                 break;
             }
-            case LONG: {
+            case LONG:
+            {
                 long value = valueNode.asLong();
                 columnValueBuilder.setValue(ByteString.copyFrom(Long.toString(value), StandardCharsets.UTF_8));
                 columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.LONG));
@@ -86,13 +98,15 @@ class RowDataParser {
             case CHAR:
             case VARCHAR:
             case STRING:
-            case VARBINARY: {
+            case VARBINARY:
+            {
                 String value = valueNode.asText().trim();
                 columnValueBuilder.setValue(ByteString.copyFrom(value, StandardCharsets.UTF_8));
                 columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.STRING));
                 break;
             }
-            case DECIMAL: {
+            case DECIMAL:
+            {
                 String value = parseDecimal(valueNode, type).toString();
                 columnValueBuilder.setValue(ByteString.copyFrom(value, StandardCharsets.UTF_8));
                 columnValueBuilder.setType(PixelsProto.Type.newBuilder()
@@ -101,7 +115,8 @@ class RowDataParser {
                         .setScale(type.getScale()));
                 break;
             }
-            case DATE: {
+            case DATE:
+            {
                 // expect date in format "yyyy-MM-dd"
                 Integer isoDate = valueNode.asInt();
                 Date date = DateUtil.fromDebeziumDate(isoDate);
@@ -110,24 +125,28 @@ class RowDataParser {
                 columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.DATE));
                 break;
             }
-            case BINARY: {
+            case BINARY:
+            {
                 String base64 = valueNode.asText(); // assume already base64 encoded
                 columnValueBuilder.setValue(ByteString.copyFrom(base64, StandardCharsets.UTF_8));
                 columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.BINARY));
                 break;
             }
-            case STRUCT: {
+            case STRUCT:
+            {
                 // You can recursively parse fields in a struct here
                 throw new UnsupportedOperationException("STRUCT parsing not yet implemented");
             }
             case DOUBLE:
-            case FLOAT: {
+            case FLOAT:
+            {
                 Double value = valueNode.asDouble();
                 columnValueBuilder.setValue(ByteString.copyFrom(Double.toString(value), StandardCharsets.UTF_8));
                 columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.DOUBLE));
                 break;
             }
-            case TIMESTAMP: {
+            case TIMESTAMP:
+            {
                 long timestamp = valueNode.asLong();
                 Date date = DateUtil.fromDebeziumTimestamp(timestamp);
                 String tsString = DateUtil.convertDateToString(date);
@@ -143,39 +162,46 @@ class RowDataParser {
     }
 
 
-    private SinkProto.ColumnValue.Builder parseValue(GenericRecord record, String fieldName, TypeDescription fieldType) {
+    private SinkProto.ColumnValue.Builder parseValue(GenericRecord record, String fieldName, TypeDescription fieldType)
+    {
         SinkProto.ColumnValue.Builder columnValueBuilder = SinkProto.ColumnValue.newBuilder();
         columnValueBuilder.setName(fieldName);
 
         Object raw = record.get(fieldName);
-        if (raw == null) {
+        if (raw == null)
+        {
             columnValueBuilder.setValue(ByteString.EMPTY);
             return columnValueBuilder;
         }
 
-        switch (fieldType.getCategory()) {
-            case INT: {
+        switch (fieldType.getCategory())
+        {
+            case INT:
+            {
                 int value = (int) raw;
                 columnValueBuilder.setValue(ByteString.copyFrom(Integer.toString(value), StandardCharsets.UTF_8));
                 columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.INT));
                 break;
             }
 
-            case LONG: {
+            case LONG:
+            {
                 long value = (long) raw;
                 columnValueBuilder.setValue(ByteString.copyFrom(Long.toString(value), StandardCharsets.UTF_8));
                 columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.LONG));
                 break;
             }
 
-            case STRING: {
+            case STRING:
+            {
                 String value = raw.toString();
                 columnValueBuilder.setValue(ByteString.copyFrom(value, StandardCharsets.UTF_8));
                 columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.STRING));
                 break;
             }
 
-            case DECIMAL: {
+            case DECIMAL:
+            {
                 ByteBuffer buffer = (ByteBuffer) raw;
                 String decimalStr = new String(buffer.array(), StandardCharsets.UTF_8).trim();
                 columnValueBuilder.setValue(ByteString.copyFrom(decimalStr, StandardCharsets.UTF_8));
@@ -186,7 +212,8 @@ class RowDataParser {
                 break;
             }
 
-            case DATE: {
+            case DATE:
+            {
                 int epochDay = (int) raw;
                 String isoDate = LocalDate.ofEpochDay(epochDay).toString(); // e.g., "2025-07-03"
                 columnValueBuilder.setValue(ByteString.copyFrom(isoDate, StandardCharsets.UTF_8));
@@ -194,7 +221,8 @@ class RowDataParser {
                 break;
             }
 
-            case BINARY: {
+            case BINARY:
+            {
                 ByteBuffer buffer = (ByteBuffer) raw;
                 // encode as hex or base64 if needed, otherwise just dump as UTF-8 string if it's meant to be readable
                 String base64 = Base64.getEncoder().encodeToString(buffer.array());
@@ -209,24 +237,30 @@ class RowDataParser {
         return columnValueBuilder;
     }
 
-    private Map<String, Object> parseDeleteRecord() {
+    private Map<String, Object> parseDeleteRecord()
+    {
         return Collections.singletonMap("__deleted", true);
     }
 
-    BigDecimal parseDecimal(JsonNode node, TypeDescription type) {
+    BigDecimal parseDecimal(JsonNode node, TypeDescription type)
+    {
         byte[] bytes = Base64.getDecoder().decode(node.asText());
         int scale = type.getScale();
         return new BigDecimal(new BigInteger(bytes), scale);
     }
 
-    private LocalDate parseDate(JsonNode node) {
+    private LocalDate parseDate(JsonNode node)
+    {
         return LocalDate.ofEpochDay(node.asLong());
     }
 
-    private byte[] parseBinary(JsonNode node) {
-        try {
+    private byte[] parseBinary(JsonNode node)
+    {
+        try
+        {
             return node.binaryValue();
-        } catch (IOException e) {
+        } catch (IOException e)
+        {
             throw new RuntimeException("Binary parsing failed", e);
         }
     }

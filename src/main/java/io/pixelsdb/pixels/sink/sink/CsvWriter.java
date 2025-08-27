@@ -43,12 +43,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
-public class CsvWriter implements PixelsSinkWriter {
+public class CsvWriter implements PixelsSinkWriter
+{
     private static final Logger log = LoggerFactory.getLogger(CsvWriter.class);
-    private Long recordCnt = 0L;
-
     @Getter
     private static final PixelsSinkMode pixelsSinkMode = PixelsSinkMode.CSV;
+    private static final PixelsSinkConfig config = PixelsSinkConfigFactory.getInstance();
     private final ReentrantLock lock = new ReentrantLock();
     private final ConcurrentMap<String, FileChannel> tableWriters = new ConcurrentHashMap<>();
     private final ScheduledExecutorService flushScheduler;
@@ -58,16 +58,17 @@ public class CsvWriter implements PixelsSinkWriter {
     private final ReentrantLock globalLock = new ReentrantLock();
     private final ReentrantLock writeLock = new ReentrantLock(true);
     private final AtomicInteger writeCounter = new AtomicInteger(0);
-
-    private static final PixelsSinkConfig config = PixelsSinkConfigFactory.getInstance();
     private final String CSV_DELIMITER = "|";
+    private final Long recordCnt = 0L;
 
-    public CsvWriter() throws IOException {
+    public CsvWriter() throws IOException
+    {
         this.databaseName = config.getCaptureDatabase();
         this.baseOutputPath = Paths.get(config.getCsvSinkPath(), databaseName);
         this.enableHeader = config.isSinkCsvEnableHeader();
 
-        if (!Files.exists(baseOutputPath)) {
+        if (!Files.exists(baseOutputPath))
+        {
             Files.createDirectories(baseOutputPath);
         }
 
@@ -78,48 +79,61 @@ public class CsvWriter implements PixelsSinkWriter {
     }
 
     @Override
-    public void flush() {
+    public void flush()
+    {
         writeLock.lock();
-        try {
-            for (FileChannel channel : tableWriters.values()) {
-                try {
+        try
+        {
+            for (FileChannel channel : tableWriters.values())
+            {
+                try
+                {
                     channel.force(true);
-                } catch (IOException e) {
+                } catch (IOException e)
+                {
                     log.error("Failed to flush channel {}", channel, e);
                 }
             }
             writeCounter.set(0);
-        } finally {
+        } finally
+        {
             writeLock.unlock();
         }
     }
 
     @Override
-    public boolean write(RowChangeEvent event) {
+    public boolean write(RowChangeEvent event)
+    {
         final String tableName = event.getTable();
-        if (event.getOp() == SinkProto.OperationType.DELETE) {
+        if (event.getOp() == SinkProto.OperationType.DELETE)
+        {
             return true;
         }
 //        Map<String, Object> message = event.getAfterData();
         Map<String, Object> message = null;
         writeLock.lock();
-        try {
+        try
+        {
             FileChannel channel = getOrCreateChannel(event);
             String csvLine = convertToCSV(message);
 
             ByteBuffer buffer = ByteBuffer.wrap((csvLine + "\n").getBytes(StandardCharsets.UTF_8));
-            while (buffer.hasRemaining()) {
+            while (buffer.hasRemaining())
+            {
                 channel.write(buffer);
             }
 
-            if (writeCounter.incrementAndGet() % PixelsSinkDefaultConfig.SINK_CSV_RECORD_FLUSH == 0) {
+            if (writeCounter.incrementAndGet() % PixelsSinkDefaultConfig.SINK_CSV_RECORD_FLUSH == 0)
+            {
                 channel.force(false);
             }
             return true;
-        } catch (IOException e) {
+        } catch (IOException e)
+        {
             log.error("Write failed for table {}: {}", tableName, e.getMessage());
             return false;
-        } finally {
+        } finally
+        {
             writeLock.unlock();
         }
     }
@@ -130,59 +144,74 @@ public class CsvWriter implements PixelsSinkWriter {
         throw new UnsupportedOperationException("CSV Writer doesn't implement batch write trans");
     }
 
-    private FileChannel getOrCreateChannel(RowChangeEvent event) throws IOException {
+    private FileChannel getOrCreateChannel(RowChangeEvent event) throws IOException
+    {
         String tableName = event.getTable();
-        return tableWriters.computeIfAbsent(tableName, key -> {
-            try {
+        return tableWriters.computeIfAbsent(tableName, key ->
+        {
+            try
+            {
                 Path tablePath = baseOutputPath.resolve(tableName + ".csv");
                 FileChannel channel = FileChannel.open(tablePath,
                         StandardOpenOption.CREATE,
                         StandardOpenOption.APPEND,
                         StandardOpenOption.WRITE);
 
-                if (channel.size() == 0) {
+                if (channel.size() == 0)
+                {
                     String header = String.join(CSV_DELIMITER, getHeaderFields(event));
                     channel.write(ByteBuffer.wrap((header + "\n").getBytes()));
                 }
                 return channel;
-            } catch (IOException e) {
+            } catch (IOException e)
+            {
                 throw new UncheckedIOException("Failed to create channel for " + tableName, e);
             }
         });
     }
 
-    private String convertToCSV(Map<String, Object> message) {
+    private String convertToCSV(Map<String, Object> message)
+    {
         return message.values().stream()
-                .map(obj -> {
+                .map(obj ->
+                {
                     if (obj == null) return "";
                     return obj.toString();
                 })
                 .collect(Collectors.joining(CSV_DELIMITER));
     }
 
-    private List<String> getHeaderFields(RowChangeEvent event) {
+    private List<String> getHeaderFields(RowChangeEvent event)
+    {
 
         return event.getSchema().getFieldNames();
     }
 
     @Override
-    public void close() throws IOException {
+    public void close() throws IOException
+    {
         flushScheduler.shutdown();
-        try {
-            if (!flushScheduler.awaitTermination(5, TimeUnit.SECONDS)) {
+        try
+        {
+            if (!flushScheduler.awaitTermination(5, TimeUnit.SECONDS))
+            {
                 flushScheduler.shutdownNow();
             }
-        } catch (InterruptedException e) {
+        } catch (InterruptedException e)
+        {
             Thread.currentThread().interrupt();
         }
 
         globalLock.lock();
-        try {
-            for (FileChannel channel : tableWriters.values()) {
+        try
+        {
+            for (FileChannel channel : tableWriters.values())
+            {
                 channel.close();
             }
             tableWriters.clear();
-        } finally {
+        } finally
+        {
             globalLock.unlock();
         }
     }

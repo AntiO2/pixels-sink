@@ -3,7 +3,6 @@ package io.pixelsdb.pixels.sink.sink;
 import com.google.protobuf.ByteString;
 import io.pixelsdb.pixels.common.exception.RetinaException;
 import io.pixelsdb.pixels.common.exception.TransException;
-import io.pixelsdb.pixels.common.metadata.MetadataService;
 import io.pixelsdb.pixels.common.retina.RetinaService;
 import io.pixelsdb.pixels.common.transaction.TransContext;
 import io.pixelsdb.pixels.common.transaction.TransService;
@@ -23,14 +22,17 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
 
-public class TestRetinaWriter {
+public class TestRetinaWriter
+{
 
     static Logger logger = Logger.getLogger(TestRetinaWriter.class.getName());
     static RetinaService retinaService;
     static TableMetadataRegistry metadataRegistry;
-    static  TransService transService;
+    static TransService transService;
+
     @BeforeAll
-    public static void setUp() throws IOException {
+    public static void setUp() throws IOException
+    {
         PixelsSinkConfigFactory.initialize("/home/pixels/projects/pixels-sink/src/main/resources/pixels-sink.local.properties");
         retinaService = RetinaService.Instance();
         metadataRegistry = TableMetadataRegistry.Instance();
@@ -38,11 +40,11 @@ public class TestRetinaWriter {
     }
 
     @Test
-    public  void insertSingleRecord() throws RetinaException, SinkException, TransException
+    public void insertSingleRecord() throws RetinaException, SinkException, TransException
     {
 
         TransContext ctx = transService.beginTrans(false);
-        long timeStamp=ctx.getTimestamp();
+        long timeStamp = ctx.getTimestamp();
         String schemaName = "pixels_index";
         String tableName = "ray_index";
         List<RetinaProto.TableUpdateData> tableUpdateData = new ArrayList<>();
@@ -50,7 +52,8 @@ public class TestRetinaWriter {
         tableUpdateDataBuilder.setTableName(tableName);
         tableUpdateDataBuilder.setPrimaryIndexId(metadataRegistry.getPrimaryIndexKeyId(schemaName, tableName));
         // <int, long, string>
-        for(int i = 0; i < 10; ++i) {
+        for (int i = 0; i < 10; ++i)
+        {
             byte[][] cols = new byte[3][];
 
             cols[0] = Integer.toString(i).getBytes(StandardCharsets.UTF_8);
@@ -59,7 +62,7 @@ public class TestRetinaWriter {
             SinkProto.RowValue.Builder afterValueBuilder = SinkProto.RowValue.newBuilder();
             afterValueBuilder
                     .addValues(
-                    SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom((cols[0]))).setName("id").build())
+                            SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom((cols[0]))).setName("id").build())
                     .addValues(
                             SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom((cols[1]))).setName("age").build())
                     .addValues(
@@ -92,10 +95,10 @@ public class TestRetinaWriter {
     }
 
     @Test
-    public  void updateSingleRecord() throws RetinaException, SinkException, TransException
+    public void updateSingleRecord() throws RetinaException, SinkException, TransException
     {
         TransContext ctx = transService.beginTrans(false);
-        long timeStamp=ctx.getTimestamp();
+        long timeStamp = ctx.getTimestamp();
         String schemaName = "pixels_index";
         String tableName = "ray_index";
 
@@ -105,7 +108,8 @@ public class TestRetinaWriter {
         tableUpdateDataBuilder.setTableName(tableName);
         tableUpdateDataBuilder.setPrimaryIndexId(metadataRegistry.getPrimaryIndexKeyId(schemaName, tableName));
         // <int, long, string>
-        for(int i = 0; i < 10; ++i) {
+        for (int i = 0; i < 10; ++i)
+        {
             byte[][] cols = new byte[4][];
             cols[0] = Integer.toString(i).getBytes(StandardCharsets.UTF_8);
             cols[1] = Long.toString(i * 1000L).getBytes(StandardCharsets.UTF_8);

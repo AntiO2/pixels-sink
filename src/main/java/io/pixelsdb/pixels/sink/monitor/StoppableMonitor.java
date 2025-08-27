@@ -17,7 +17,8 @@
 
 package io.pixelsdb.pixels.sink.monitor;
 
-public interface StoppableMonitor {
+public interface StoppableMonitor
+{
 
     void stopMonitor();
 }

@@ -17,33 +17,24 @@
 
 package io.pixelsdb.pixels.sink.sink;
 
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
-import io.grpc.StatusRuntimeException;
 import io.pixelsdb.pixels.common.exception.RetinaException;
-import io.pixelsdb.pixels.common.index.IndexService;
 import io.pixelsdb.pixels.common.retina.RetinaService;
-import io.pixelsdb.pixels.index.IndexProto;
 import io.pixelsdb.pixels.retina.RetinaProto;
-import io.pixelsdb.pixels.retina.RetinaWorkerServiceGrpc;
-import io.pixelsdb.pixels.sink.SinkProto;
 import io.pixelsdb.pixels.sink.concurrent.TransactionMode;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
 import io.pixelsdb.pixels.sink.monitor.MetricsFacade;
-import io.pixelsdb.pixels.sink.util.LatencySimulator;
-import io.prometheus.client.Summary;
 import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class RetinaWriter implements PixelsSinkWriter {
+public class RetinaWriter implements PixelsSinkWriter
+{
     private static final Logger LOGGER = LoggerFactory.getLogger(RetinaWriter.class);
     @Getter
     private static final PixelsSinkMode pixelsSinkMode = PixelsSinkMode.RETINA;
@@ -57,29 +48,37 @@ public class RetinaWriter implements PixelsSinkWriter {
 
     private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
     private final RetinaService.StreamHandle retinaStream;
-    public RetinaWriter() {
-        if(config.getTransactionMode() == TransactionMode.BATCH)
+
+    public RetinaWriter()
+    {
+        if (config.getTransactionMode() == TransactionMode.BATCH)
         {
             retinaStream = retinaService.startUpdateStream();
-        } else {
+        } else
+        {
             retinaStream = null;
         }
 
     }
 
     @Override
-    public void flush() {
+    public void flush()
+    {
     }
 
     @Override
-    public boolean write(RowChangeEvent event) {
-        if (isClosed.get()) {
+    public boolean write(RowChangeEvent event)
+    {
+        if (isClosed.get())
+        {
             LOGGER.warn("Attempted to write to closed writer");
             return false;
         }
 
-        try {
-            switch (event.getOp()) {
+        try
+        {
+            switch (event.getOp())
+            {
                 case INSERT:
                 case SNAPSHOT:
                     return sendInsertRequest(event);
@@ -90,11 +89,10 @@ public class RetinaWriter implements PixelsSinkWriter {
                 case UNRECOGNIZED:
                     break;
             }
-        } catch (RetinaException e) {
-            LOGGER.error("Retina write failed for event {}", event.toString());
+        } catch (RetinaException e)
+        {
+            LOGGER.error("Retina write failed for event {}", event);
             return false;
-        } finally {
-
         }
         // TODO: error handle
         return false;
@@ -118,7 +116,8 @@ public class RetinaWriter implements PixelsSinkWriter {
     }
 
     @Deprecated
-    private boolean sendInsertRequest(RowChangeEvent event) throws RetinaException {
+    private boolean sendInsertRequest(RowChangeEvent event) throws RetinaException
+    {
         // Insert retina
         // boolean retinaServiceResult = retinaService.insertRecord(event.getSchemaName(), event.getTable(), event.getAfterData(), event.getTimeStamp());
 
@@ -126,15 +125,18 @@ public class RetinaWriter implements PixelsSinkWriter {
     }
 
 
-    private boolean sendDeleteRequest(RowChangeEvent event) {
-         return false;
+    private boolean sendDeleteRequest(RowChangeEvent event)
+    {
+        return false;
 //        RetinaProto.DeleteRecordResponse deleteRecordResponse = blockingStub.deleteRecord(getDeleteRecordRequest(event));
 //        return deleteRecordResponse.getHeader().getErrorCode() == 0;
     }
 
     @Override
-    public void close() throws IOException {
-        if (isClosed.compareAndSet(false, true)) {
+    public void close() throws IOException
+    {
+        if (isClosed.compareAndSet(false, true))
+        {
 //            try {
 //                channel.shutdown();
 //                if (!channel.awaitTermination(5, TimeUnit.SECONDS)) {
@@ -146,13 +148,14 @@ public class RetinaWriter implements PixelsSinkWriter {
 //            }
         }
 
-        if(config.getTransactionMode() == TransactionMode.BATCH)
+        if (config.getTransactionMode() == TransactionMode.BATCH)
         {
             retinaStream.close();
         }
     }
 
-    private boolean sendUpdateRequest(RowChangeEvent event) {
+    private boolean sendUpdateRequest(RowChangeEvent event)
+    {
         // Delete & Insert
 //        RetinaProto.DeleteRecordResponse deleteRecordResponse = blockingStub.deleteRecord(getDeleteRecordRequest(event));
 //        if (deleteRecordResponse.getHeader().getErrorCode() != 0) {

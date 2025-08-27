@@ -17,6 +17,7 @@
 
 
 package io.pixelsdb.pixels.sink.metadata;
+
 import com.google.protobuf.ByteString;
 import io.pixelsdb.pixels.common.exception.IndexException;
 import io.pixelsdb.pixels.common.exception.MetadataException;
@@ -31,7 +32,6 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
-import java.util.List;
 
 /**
  * @package: io.pixelsdb.pixels.sink.metadata
@@ -39,13 +39,15 @@ import java.util.List;
  * @author: AntiO2
  * @date: 2025/8/5 04:34
  */
-public class TestIndexService {
+public class TestIndexService
+{
 
     private final MetadataService metadataService = MetadataService.Instance();
     private final IndexService indexService = IndexService.Instance();
 
     @Test
-    public void testCreateFreshnessIndex() throws MetadataException {
+    public void testCreateFreshnessIndex() throws MetadataException
+    {
         String testSchemaName = "pixels_bench_sf1x";
         String testTblName = "freshness";
         String keyColumn = "{\"keyColumnIds\":[15]}";
@@ -68,7 +70,8 @@ public class TestIndexService {
     }
 
     @Test
-    public void testCreateIndex() throws MetadataException {
+    public void testCreateIndex() throws MetadataException
+    {
         String testSchemaName = "pixels_index";
         String testTblName = "ray_index";
         String keyColumn = "{\"keyColumnIds\":[11]}";
@@ -93,7 +96,8 @@ public class TestIndexService {
     }
 
     @Test
-    public void testGetIndex() throws MetadataException {
+    public void testGetIndex() throws MetadataException
+    {
         String testSchemaName = "pixels_index";
         String testTblName = "ray_index";
         Table table = metadataService.getTable(testSchemaName, testTblName);
@@ -105,7 +109,8 @@ public class TestIndexService {
     }
 
     @Test
-    public void testGetRowID() throws MetadataException {
+    public void testGetRowID() throws MetadataException
+    {
         int numRowIds = 10000;
         IndexProto.RowIdBatch rowIdBatch = indexService.allocateRowIdBatch(4, numRowIds);
         Assertions.assertEquals(rowIdBatch.getLength(), numRowIds);
@@ -143,7 +148,7 @@ public class TestIndexService {
 
         builder.getIndexKeyBuilder()
                 .setTimestamp(ts1)
-                .setKey(ByteString.copyFrom((ByteBuffer) byteBuffer.rewind()))
+                .setKey(ByteString.copyFrom(byteBuffer.rewind()))
                 .setIndexId(index.getId())
                 .setTableId(index.getTableId());
         builder.setRowId(100);

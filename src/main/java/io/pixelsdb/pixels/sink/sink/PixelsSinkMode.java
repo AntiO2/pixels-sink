@@ -18,13 +18,17 @@
 package io.pixelsdb.pixels.sink.sink;
 
 
-public enum PixelsSinkMode {
+public enum PixelsSinkMode
+{
     CSV,
     RETINA;
 
-    public static PixelsSinkMode fromValue(String value) {
-        for (PixelsSinkMode mode : values()) {
-            if (mode.name().equalsIgnoreCase(value)) {
+    public static PixelsSinkMode fromValue(String value)
+    {
+        for (PixelsSinkMode mode : values())
+        {
+            if (mode.name().equalsIgnoreCase(value))
+            {
                 return mode;
             }
         }

@@ -25,26 +25,32 @@ import io.pixelsdb.pixels.common.metadata.domain.SinglePointIndex;
 import io.pixelsdb.pixels.common.metadata.domain.Table;
 import io.pixelsdb.pixels.core.TypeDescription;
 import io.pixelsdb.pixels.sink.exception.SinkException;
-import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-public class TableMetadataRegistry {
+public class TableMetadataRegistry
+{
     private static final Logger logger = LoggerFactory.getLogger(TableMetadataRegistry.class);
     private static final MetadataService metadataService = MetadataService.Instance();
     private static volatile TableMetadataRegistry instance;
     private final ConcurrentMap<SchemaTableName, TableMetadata> registry = new ConcurrentHashMap<>();
 
-    private TableMetadataRegistry() {
+    private TableMetadataRegistry()
+    {
     }
 
-    public static TableMetadataRegistry Instance() {
-        if (instance == null) {
-            synchronized (TableMetadataRegistry.class) {
-                if (instance == null) {
+    public static TableMetadataRegistry Instance()
+    {
+        if (instance == null)
+        {
+            synchronized (TableMetadataRegistry.class)
+            {
+                if (instance == null)
+                {
                     instance = new TableMetadataRegistry();
                 }
             }
@@ -52,9 +58,11 @@ public class TableMetadataRegistry {
         return instance;
     }
 
-    public TableMetadata getMetadata(String schema, String table) throws SinkException {
+    public TableMetadata getMetadata(String schema, String table) throws SinkException
+    {
         SchemaTableName key = new SchemaTableName(schema, table);
-        if (!registry.containsKey(key)) {
+        if (!registry.containsKey(key))
+        {
             TableMetadata metadata = loadTableMetadata(schema, table);
             registry.put(key, metadata);
         }
@@ -62,35 +70,43 @@ public class TableMetadataRegistry {
     }
 
 
-
-    public TypeDescription getTypeDescription(String schemaName, String tableName) throws SinkException {
+    public TypeDescription getTypeDescription(String schemaName, String tableName) throws SinkException
+    {
         return loadTableMetadata(schemaName, tableName).getTypeDescription();
     }
 
-    public List<String> getKeyColumnsName(String schemaName, String tableName) throws SinkException {
+    public List<String> getKeyColumnsName(String schemaName, String tableName) throws SinkException
+    {
         return loadTableMetadata(schemaName, tableName).getKeyColumnNames();
     }
 
-    public long getPrimaryIndexKeyId(String schemaName, String tableName) throws SinkException {
+    public long getPrimaryIndexKeyId(String schemaName, String tableName) throws SinkException
+    {
         return loadTableMetadata(schemaName, tableName).getPrimaryIndexKeyId();
     }
 
-    public TableMetadata loadTableMetadata(String schemaName, String tableName) throws SinkException {
-        try {
+    public TableMetadata loadTableMetadata(String schemaName, String tableName) throws SinkException
+    {
+        try
+        {
             Table table = metadataService.getTable(schemaName, tableName);
             SinglePointIndex index = null;
-            try {
+            try
+            {
                 index = metadataService.getPrimaryIndex(table.getId());
-            } catch (MetadataException e) {
+            } catch (MetadataException e)
+            {
                 logger.warn("Could not get primary index for table {}", tableName, e);
             }
 
-            if (!index.isUnique()) {
+            if (!index.isUnique())
+            {
                 throw new MetadataException("Non Unique Index is not supported, Schema:" + schemaName + " Table: " + tableName);
             }
             List<Column> tableColumns = metadataService.getColumns(schemaName, tableName, false);
             return new TableMetadata(table, index, tableColumns);
-        } catch (MetadataException e) {
+        } catch (MetadataException e)
+        {
             throw new SinkException(e);
         }
     }

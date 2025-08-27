@@ -29,12 +29,15 @@ import java.io.IOException;
 /**
  * Run PixelsSink as a server
  */
-public class PixelsSinkApp {
+public class PixelsSinkApp
+{
     private static final Logger LOGGER = LoggerFactory.getLogger(PixelsSinkApp.class);
-    private static SinkMonitor sinkMonitor = new SinkMonitor();
+    private static final SinkMonitor sinkMonitor = new SinkMonitor();
 
-    public static void main(String[] args) throws IOException {
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+    public static void main(String[] args) throws IOException
+    {
+        Runtime.getRuntime().addShutdownHook(new Thread(() ->
+        {
             sinkMonitor.stopMonitor();
             TransactionCoordinatorFactory.reset();
             LOGGER.info("Pixels Sink Server shutdown complete");
@@ -44,7 +47,8 @@ public class PixelsSinkApp {
         sinkMonitor.startSinkMonitor();
     }
 
-    private static void init(String[] args) throws IOException {
+    private static void init(String[] args) throws IOException
+    {
         CommandLineConfig cmdLineConfig = new CommandLineConfig(args);
         PixelsSinkConfigFactory.initialize(cmdLineConfig.getConfigPath());
         MetricsFacade.initialize();

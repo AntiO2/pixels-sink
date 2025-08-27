@@ -23,10 +23,12 @@ import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.monitor.MetricsFacade;
 import io.pixelsdb.pixels.sink.monitor.SinkMonitor;
 
-public class PixelsSinkProvider implements SinkProvider {
+public class PixelsSinkProvider implements SinkProvider
+{
     private SinkMonitor sinkMonitor;
 
-    public void start(ConfigFactory config) {
+    public void start(ConfigFactory config)
+    {
         PixelsSinkConfigFactory.initialize(config);
         MetricsFacade.initialize();
         sinkMonitor = new SinkMonitor();
@@ -34,12 +36,14 @@ public class PixelsSinkProvider implements SinkProvider {
     }
 
     @Override
-    public void shutdown() {
+    public void shutdown()
+    {
         sinkMonitor.stopMonitor();
     }
 
     @Override
-    public boolean isRunning() {
+    public boolean isRunning()
+    {
         return sinkMonitor.isRunning();
     }
 }

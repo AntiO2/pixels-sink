@@ -39,16 +39,19 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class TableMonitor implements Runnable {
+public class TableMonitor implements Runnable
+{
     private static final Logger log = LoggerFactory.getLogger(TableMonitor.class);
     private static final TransactionCoordinator transactionCoordinator = TransactionCoordinatorFactory.getCoordinator();
     private final Properties kafkaProperties;
     private final String topic;
     private final AtomicBoolean running = new AtomicBoolean(true);
     private final String tableName;
-    private KafkaConsumer<String, RowChangeEvent> consumer;
     private final ExecutorService executor = Executors.newCachedThreadPool();
-    public TableMonitor(Properties kafkaProperties, String topic) throws IOException {
+    private KafkaConsumer<String, RowChangeEvent> consumer;
+
+    public TableMonitor(Properties kafkaProperties, String topic) throws IOException
+    {
         PixelsSinkConfig config = PixelsSinkConfigFactory.getInstance();
         this.kafkaProperties = kafkaProperties;
         this.topic = topic;
@@ -59,17 +62,23 @@ public class TableMonitor implements Runnable {
     }
 
     @Override
-    public void run() {
-        try {
+    public void run()
+    {
+        try
+        {
             consumer = new KafkaConsumer<>(kafkaProperties);
             consumer.subscribe(Collections.singleton(topic));
 
-            while (running.get()) {
-                try {
+            while (running.get())
+            {
+                try
+                {
                     ConsumerRecords<String, RowChangeEvent> records = consumer.poll(Duration.ofSeconds(5));
-                    if (!records.isEmpty()) {
+                    if (!records.isEmpty())
+                    {
                         log.debug("{} Consumer poll returned {} records", tableName, records.count());
-                        records.forEach(record -> {
+                        records.forEach(record ->
+                        {
                             log.info("{} Consumer record: {}", tableName, record.value());
                             executor.execute(() ->
                             {
@@ -84,33 +93,41 @@ public class TableMonitor implements Runnable {
                             });
                         });
                     }
-                } catch (InterruptException ignored) {
+                } catch (InterruptException ignored)
+                {
 
                 }
             }
-        } catch (WakeupException e) {
+        } catch (WakeupException e)
+        {
             // shutdown normally
             log.info("Consumer wakeup triggered for {}", tableName);
-        } catch (Exception e) {
+        } catch (Exception e)
+        {
             e.printStackTrace();
             log.info("Exception: {}", e.getMessage());
-        } finally {
-            if (consumer != null) {
+        } finally
+        {
+            if (consumer != null)
+            {
                 consumer.close(Duration.ofSeconds(5));
                 log.info("Kafka consumer closed for {}", tableName);
             }
         }
     }
 
-    public void shutdown() {
+    public void shutdown()
+    {
         running.set(false);
         log.info("Shutting down consumer for table: {}", tableName);
-        if (consumer != null) {
+        if (consumer != null)
+        {
             consumer.wakeup();
         }
     }
 
-    private String extractTableName(String topic) {
+    private String extractTableName(String topic)
+    {
         String[] parts = topic.split("\\.");
         return parts[parts.length - 1];
     }

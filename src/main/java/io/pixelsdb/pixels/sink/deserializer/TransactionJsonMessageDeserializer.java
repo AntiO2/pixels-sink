@@ -28,28 +28,34 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.Map;
 
-public class TransactionJsonMessageDeserializer implements Deserializer<SinkProto.TransactionMetadata> {
+public class TransactionJsonMessageDeserializer implements Deserializer<SinkProto.TransactionMetadata>
+{
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TransactionJsonMessageDeserializer.class);
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final JsonFormat.Parser PROTO_PARSER = JsonFormat.parser().ignoringUnknownFields();
 
     @Override
-    public SinkProto.TransactionMetadata deserialize(String topic, byte[] data) {
-        if (data == null || data.length == 0) {
+    public SinkProto.TransactionMetadata deserialize(String topic, byte[] data)
+    {
+        if (data == null || data.length == 0)
+        {
             return null;
         }
         MetricsFacade.getInstance().addRawData(data.length);
-        try {
+        try
+        {
             Map<String, Object> rawMessage = OBJECT_MAPPER.readValue(data, Map.class);
             return parseTransactionMetadata(rawMessage);
-        } catch (IOException e) {
+        } catch (IOException e)
+        {
             LOGGER.error("Failed to deserialize transaction message", e);
             throw new RuntimeException("Deserialization error", e);
         }
     }
 
-    private SinkProto.TransactionMetadata parseTransactionMetadata(Map<String, Object> rawMessage) throws IOException {
+    private SinkProto.TransactionMetadata parseTransactionMetadata(Map<String, Object> rawMessage) throws IOException
+    {
         SinkProto.TransactionMetadata.Builder builder = SinkProto.TransactionMetadata.newBuilder();
         String json = OBJECT_MAPPER.writeValueAsString(rawMessage.get("payload"));
         PROTO_PARSER.merge(json, builder);

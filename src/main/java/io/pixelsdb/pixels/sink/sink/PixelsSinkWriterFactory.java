@@ -22,11 +22,14 @@ import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 
 import java.io.IOException;
 
-public class PixelsSinkWriterFactory {
+public class PixelsSinkWriterFactory
+{
     private static final PixelsSinkConfig config = PixelsSinkConfigFactory.getInstance();
 
-    static public PixelsSinkWriter getWriter() throws IOException {
-        switch (config.getPixelsSinkMode()) {
+    static public PixelsSinkWriter getWriter() throws IOException
+    {
+        switch (config.getPixelsSinkMode())
+        {
             case CSV:
                 return new CsvWriter();
             case RETINA:

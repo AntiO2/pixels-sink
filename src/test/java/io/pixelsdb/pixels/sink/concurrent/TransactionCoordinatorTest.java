@@ -42,45 +42,53 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class TransactionCoordinatorTest {
+class TransactionCoordinatorTest
+{
+    private static final Logger LOGGER = LoggerFactory.getLogger(TransactionCoordinatorTest.class);
     private TransactionCoordinator coordinator;
     private List<String> dispatchedEvents;
     private ExecutorService testExecutor;
     private CountDownLatch latch;
-    private static final Logger LOGGER = LoggerFactory.getLogger(TransactionCoordinatorTest.class);
+
     @BeforeEach
-    void setUp() throws IOException {
+    void setUp() throws IOException
+    {
         PixelsSinkConfigFactory.initialize("");
 
         testExecutor = TestUtils.synchronousExecutor();
         dispatchedEvents = Collections.synchronizedList(new ArrayList<>());
         coordinator = new TestableCoordinator(dispatchedEvents);
 
-        try {
+        try
+        {
             Field executorField = TransactionCoordinator.class
                     .getDeclaredField("dispatchExecutor");
             executorField.setAccessible(true);
             executorField.set(coordinator, testExecutor);
-        } catch (Exception e) {
+        } catch (Exception e)
+        {
             throw new RuntimeException("Failed to inject executor", e);
         }
     }
 
-    private SinkProto.TransactionMetadata buildBeginTx(String txId) {
+    private SinkProto.TransactionMetadata buildBeginTx(String txId)
+    {
         return SinkProto.TransactionMetadata.newBuilder()
                 .setId(txId)
                 .setStatus(SinkProto.TransactionStatus.BEGIN)
                 .build();
     }
 
-    private SinkProto.TransactionMetadata buildEndTx(String txId) {
+    private SinkProto.TransactionMetadata buildEndTx(String txId)
+    {
         return SinkProto.TransactionMetadata.newBuilder()
                 .setId(txId)
                 .setStatus(SinkProto.TransactionStatus.END)
                 .build();
     }
 
-    private RowChangeEvent buildEvent(String txId, String table, long collectionOrder, long totalOrder) throws SinkException {
+    private RowChangeEvent buildEvent(String txId, String table, long collectionOrder, long totalOrder) throws SinkException
+    {
         return new RowChangeEvent(
                 SinkProto.RowRecord.newBuilder().setTransaction(
                                 SinkProto.TransactionInfo.newBuilder()
@@ -90,16 +98,17 @@ class TransactionCoordinatorTest {
                                         .build()
                         ).setSource(
                                 SinkProto.SourceInfo.newBuilder()
-                                .setTable(table)
-                                .setDb("test_db")
-                                .build()
+                                        .setTable(table)
+                                        .setDb("test_db")
+                                        .build()
                         ).setOp(SinkProto.OperationType.INSERT)
                         .build(), null
         );
     }
 
     @Test
-    void shouldProcessOrderedEvents() throws Exception {
+    void shouldProcessOrderedEvents() throws Exception
+    {
         coordinator.processTransactionEvent(buildBeginTx("tx1"));
 
         coordinator.processRowEvent(buildEvent("tx1", "orders", 1, 1));
@@ -112,7 +121,8 @@ class TransactionCoordinatorTest {
     }
 
     @Test
-    void shouldHandleOutOfOrderEvents()  throws SinkException{
+    void shouldHandleOutOfOrderEvents() throws SinkException
+    {
         coordinator.processTransactionEvent(buildBeginTx("tx2"));
         coordinator.processRowEvent(buildEvent("tx2", "users", 3, 3));
         coordinator.processRowEvent(buildEvent("tx2", "users", 2, 2));
@@ -124,7 +134,8 @@ class TransactionCoordinatorTest {
     }
 
     @Test
-    void shouldRecoverOrphanedEvents()  throws SinkException{
+    void shouldRecoverOrphanedEvents() throws SinkException
+    {
         coordinator.processRowEvent(buildEvent("tx3", "logs", 1, 1)); // orphan event
         coordinator.processTransactionEvent(buildBeginTx("tx3"));     // recover
         coordinator.processTransactionEvent(buildEndTx("tx3"));
@@ -133,7 +144,8 @@ class TransactionCoordinatorTest {
 
     @ParameterizedTest
     @EnumSource(value = SinkProto.OperationType.class, names = {"INSERT", "UPDATE", "DELETE", "SNAPSHOT"})
-    void shouldProcessNonTransactionalEvents(SinkProto.OperationType opType) throws InterruptedException, SinkException {
+    void shouldProcessNonTransactionalEvents(SinkProto.OperationType opType) throws InterruptedException, SinkException
+    {
         RowChangeEvent event = new RowChangeEvent(
                 SinkProto.RowRecord.newBuilder()
                         .setOp(opType)
@@ -146,7 +158,8 @@ class TransactionCoordinatorTest {
     }
 
     @Test
-    void shouldHandleTransactionTimeout() throws Exception {
+    void shouldHandleTransactionTimeout() throws Exception
+    {
         TransactionCoordinator fastTimeoutCoordinator = new TransactionCoordinator();
         fastTimeoutCoordinator.setTxTimeoutMs(100);
 
@@ -159,19 +172,24 @@ class TransactionCoordinatorTest {
 
     @ParameterizedTest
     @ValueSource(ints = {1, 3, 9, 16})
-    void shouldHandleConcurrentEvents(int threadCount) throws SinkException, IOException, InterruptedException {
+    void shouldHandleConcurrentEvents(int threadCount) throws SinkException, IOException, InterruptedException
+    {
         PixelsSinkConfigFactory.reset();
         PixelsSinkConfigFactory.initialize("");
 
         latch = new CountDownLatch(threadCount);
         coordinator.processTransactionEvent(buildBeginTx("tx5"));
         // concurrently send event
-        for (int i = 0; i < threadCount; i++) {
+        for (int i = 0; i < threadCount; i++)
+        {
             int order = i + 1;
-            new Thread(() -> {
-                try {
+            new Thread(() ->
+            {
+                try
+                {
                     coordinator.processRowEvent(buildEvent("tx5", "concurrent", order, order));
-                } catch (SinkException e) {
+                } catch (SinkException e)
+                {
                     throw new RuntimeException(e);
                 }
                 latch.countDown();
@@ -190,17 +208,23 @@ class TransactionCoordinatorTest {
     }
 
 
-    private static class TestableCoordinator extends TransactionCoordinator {
-        private final List<String> eventLog;
+    private static class TestableCoordinator extends TransactionCoordinator
+    {
         private static final Logger LOGGER = LoggerFactory.getLogger(TestableCoordinator.class);
-        TestableCoordinator(List<String> eventLog) {
+        private final List<String> eventLog;
+
+        TestableCoordinator(List<String> eventLog)
+        {
             this.eventLog = eventLog;
         }
 
         @Override
-        protected void dispatchImmediately(RowChangeEvent event, SinkContext ctx) {
-            dispatchExecutor.execute(() -> {
-                try {
+        protected void dispatchImmediately(RowChangeEvent event, SinkContext ctx)
+        {
+            dispatchExecutor.execute(() ->
+            {
+                try
+                {
                     String log = String.format("Dispatching [%s] %s.%s (Order: %s/%s)",
                             event.getOp().name(),
                             event.getDb(),
@@ -212,9 +236,12 @@ class TransactionCoordinatorTest {
                     LOGGER.info(log);
                     eventLog.add(log);
                     LOGGER.debug("Event log size : {}", eventLog.size());
-                } finally {
-                    if (ctx != null) {
-                        if (ctx.pendingEvents.decrementAndGet() == 0 && ctx.completed) {
+                } finally
+                {
+                    if (ctx != null)
+                    {
+                        if (ctx.pendingEvents.decrementAndGet() == 0 && ctx.completed)
+                        {
                             ctx.completionFuture.complete(null);
                         }
                     }

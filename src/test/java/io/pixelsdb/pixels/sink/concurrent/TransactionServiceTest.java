@@ -9,51 +9,64 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static org.junit.jupiter.api.Assertions.*;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 @Slf4j
-public class TransactionServiceTest {
+public class TransactionServiceTest
+{
     private static final Logger logger = LoggerFactory.getLogger(TransactionServiceTest.class);
+
     @Test
-    public void testTransactionService() {
+    public void testTransactionService()
+    {
         int numTransactions = 10;
 
         TransService transService = TransService.CreateInstance("localhost", 18889);
-        try {
-            List<TransContext> transContexts =  transService.beginTransBatch(numTransactions, false);
+        try
+        {
+            List<TransContext> transContexts = transService.beginTransBatch(numTransactions, false);
             assertEquals(numTransactions, transContexts.size());
             TransContext prevTransContext = transContexts.get(0);
-            for(int i = 1; i < numTransactions; i++) {
+            for (int i = 1; i < numTransactions; i++)
+            {
                 TransContext transContext = transContexts.get(i);
                 assertTrue(transContext.getTransId() > prevTransContext.getTransId());
                 assertTrue(transContext.getTimestamp() > prevTransContext.getTimestamp());
                 prevTransContext = transContext;
             }
-        } catch (TransException e) {
+        } catch (TransException e)
+        {
             throw new RuntimeException(e);
         }
     }
 
     @Test
-    public void testBatchRequest() {
+    public void testBatchRequest()
+    {
         int numTransactions = 1000;
 
         TransService transService = TransService.CreateInstance("localhost", 18889);
-        try {
-            List<TransContext> transContexts =  transService.beginTransBatch(numTransactions, false);
+        try
+        {
+            List<TransContext> transContexts = transService.beginTransBatch(numTransactions, false);
             assertEquals(numTransactions, transContexts.size());
             TransContext prevTransContext = transContexts.get(0);
-            for(int i = 1; i < numTransactions; i++) {
+            for (int i = 1; i < numTransactions; i++)
+            {
                 TransContext transContext = transContexts.get(i);
                 assertTrue(transContext.getTransId() > prevTransContext.getTransId());
                 assertTrue(transContext.getTimestamp() > prevTransContext.getTimestamp());
                 prevTransContext = transContext;
             }
-        } catch (TransException e) {
+        } catch (TransException e)
+        {
             throw new RuntimeException(e);
         }
     }
+
     @Test
     public void testAbort() throws TransException
     {
@@ -71,6 +84,6 @@ public class TransactionServiceTest {
         transContext = transService.beginTrans(true);
         logger.info("ID {}, TS {}", transContext.getTransId(), transContext.getTimestamp());
 
-        
+
     }
 }

@@ -26,11 +26,14 @@ import io.prometheus.client.exporter.HTTPServer;
 import java.io.IOException;
 import java.util.Properties;
 
-public class SinkMonitor implements StoppableMonitor {
+public class SinkMonitor implements StoppableMonitor
+{
     private MonitorThreadManager manager;
     private volatile boolean running = true;
     private HTTPServer prometheusHttpServer;
-    public void startSinkMonitor() {
+
+    public void startSinkMonitor()
+    {
         PixelsSinkConfig pixelsSinkConfig = PixelsSinkConfigFactory.getInstance();
         KafkaPropFactorySelector kafkaPropFactorySelector = new KafkaPropFactorySelector();
 
@@ -48,27 +51,33 @@ public class SinkMonitor implements StoppableMonitor {
         manager.startMonitor(transactionMonitor);
         manager.startMonitor(topicMonitor);
 
-        try {
-            if (pixelsSinkConfig.isMonitorEnabled()) {
+        try
+        {
+            if (pixelsSinkConfig.isMonitorEnabled())
+            {
                 this.prometheusHttpServer = new HTTPServer(PixelsSinkConfigFactory.getInstance().getMonitorPort());
             }
-        } catch (IOException e) {
+        } catch (IOException e)
+        {
             throw new RuntimeException(e);
         }
     }
 
 
     @Override
-    public void stopMonitor() {
+    public void stopMonitor()
+    {
         manager.shutdown();
-        if (prometheusHttpServer != null) {
+        if (prometheusHttpServer != null)
+        {
             prometheusHttpServer.close();
         }
 
         running = false;
     }
 
-    public boolean isRunning() {
+    public boolean isRunning()
+    {
         return running;
     }
 }

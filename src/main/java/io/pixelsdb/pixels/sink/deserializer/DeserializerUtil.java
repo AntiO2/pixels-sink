@@ -26,8 +26,10 @@ import org.apache.avro.generic.GenericRecord;
 
 import java.util.Arrays;
 
-public class DeserializerUtil {
-    static RowChangeEvent buildErrorEvent(String topic, byte[] rawData, Exception error) throws SinkException {
+public class DeserializerUtil
+{
+    static RowChangeEvent buildErrorEvent(String topic, byte[] rawData, Exception error) throws SinkException
+    {
         SinkProto.ErrorInfo errorInfo = SinkProto.ErrorInfo.newBuilder()
                 .setMessage(error.getMessage())
                 .setStackTrace(Arrays.toString(error.getStackTrace()))
@@ -39,57 +41,72 @@ public class DeserializerUtil {
                 .setTsMs(System.currentTimeMillis())
                 .build();
 
-        return new RowChangeEvent(record, null) {
+        return new RowChangeEvent(record, null)
+        {
             @Override
-            public boolean hasError() {
+            public boolean hasError()
+            {
                 return true;
             }
 
             @Override
-            public SinkProto.ErrorInfo getErrorInfo() {
+            public SinkProto.ErrorInfo getErrorInfo()
+            {
                 return errorInfo;
             }
 
             @Override
-            public String getTopic() {
+            public String getTopic()
+            {
                 return topic;
             }
         };
     }
 
-    static public SinkProto.TransactionStatus getStatusSafely(GenericRecord record, String field) {
+    static public SinkProto.TransactionStatus getStatusSafely(GenericRecord record, String field)
+    {
         String statusString = getStringSafely(record, field);
-        if (statusString.equals("BEGIN")) {
+        if (statusString.equals("BEGIN"))
+        {
             return SinkProto.TransactionStatus.BEGIN;
         }
-        if (statusString.equals("END")) {
+        if (statusString.equals("END"))
+        {
             return SinkProto.TransactionStatus.END;
         }
 
         return SinkProto.TransactionStatus.UNRECOGNIZED;
     }
 
-    static public String getStringSafely(GenericRecord record, String field) {
-        try {
+    static public String getStringSafely(GenericRecord record, String field)
+    {
+        try
+        {
             Object value = record.get(field);
             return value != null ? value.toString() : "";
-        } catch (AvroRuntimeException e) {
+        } catch (AvroRuntimeException e)
+        {
             return "";
         }
     }
 
-    static public Long getLongSafely(GenericRecord record, String field) {
-        try {
+    static public Long getLongSafely(GenericRecord record, String field)
+    {
+        try
+        {
             Object value = record.get(field);
             return value instanceof Number ? ((Number) value).longValue() : 0L;
-        } catch (AvroRuntimeException e) {
+        } catch (AvroRuntimeException e)
+        {
             return 0L;
         }
     }
 
-    static public SinkProto.OperationType getOperationType(String op) {
+    static public SinkProto.OperationType getOperationType(String op)
+    {
         op = op.toLowerCase();
-        return switch (op) {
+        return switch (op)
+        {
             case "c" -> SinkProto.OperationType.INSERT;
             case "u" -> SinkProto.OperationType.UPDATE;
             case "d" -> SinkProto.OperationType.DELETE;
@@ -98,15 +115,18 @@ public class DeserializerUtil {
         };
     }
 
-    static public boolean hasBeforeValue(SinkProto.OperationType op) {
-        return op == SinkProto.OperationType.DELETE ||  op == SinkProto.OperationType.UPDATE;
+    static public boolean hasBeforeValue(SinkProto.OperationType op)
+    {
+        return op == SinkProto.OperationType.DELETE || op == SinkProto.OperationType.UPDATE;
     }
 
-    static public boolean hasAfterValue(SinkProto.OperationType op) {
+    static public boolean hasAfterValue(SinkProto.OperationType op)
+    {
         return op != SinkProto.OperationType.DELETE;
     }
 
-    static public String  getTransIdPrefix(String  originTransID) {
+    static public String getTransIdPrefix(String originTransID)
+    {
         return originTransID.contains(":")
                 ? originTransID.substring(0, originTransID.indexOf(":"))
                 : originTransID;

@@ -17,15 +17,17 @@
 
 package io.pixelsdb.pixels.sink.concurrent;
 
-import io.pixelsdb.pixels.sink.sink.PixelsSinkMode;
-
-public enum TransactionMode {
+public enum TransactionMode
+{
     BATCH,
     RECORD;
 
-    public static TransactionMode fromValue(String value) {
-        for (TransactionMode mode : values()) {
-            if (mode.name().equalsIgnoreCase(value)) {
+    public static TransactionMode fromValue(String value)
+    {
+        for (TransactionMode mode : values())
+        {
+            if (mode.name().equalsIgnoreCase(value))
+            {
                 return mode;
             }
         }

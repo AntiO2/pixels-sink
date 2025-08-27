@@ -41,20 +41,17 @@ public class RowChangeEvent
 
     @Getter
     private final SinkProto.RowRecord rowRecord;
+    private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
     /**
      * timestamp from pixels transaction server
      */
     @Setter
     @Getter
     private long timeStamp;
-
     @Getter
     private String topic;
-
     @Getter
     private TableMetadata tableMetadata = null;
-
-    private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
     private Summary.Timer latencyTimer;
     private Map<String, SinkProto.ColumnValue> beforeValueMap;
     private Map<String, SinkProto.ColumnValue> afterValueMap;
@@ -65,7 +62,7 @@ public class RowChangeEvent
     private IndexProto.IndexKey afterKey;
 
     @Getter
-    private TypeDescription schema;
+    private final TypeDescription schema;
 
     public RowChangeEvent(SinkProto.RowRecord rowRecord) throws SinkException
     {

@@ -19,11 +19,12 @@ package io.pixelsdb.pixels.sink.sink;
 
 import io.pixelsdb.pixels.retina.RetinaProto;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
-import io.pixelsdb.pixels.sink.concurrent.TransactionMode;
+
 import java.io.Closeable;
 import java.util.List;
 
-public interface PixelsSinkWriter extends Closeable {
+public interface PixelsSinkWriter extends Closeable
+{
     void flush();
 
     boolean write(RowChangeEvent rowChangeEvent);

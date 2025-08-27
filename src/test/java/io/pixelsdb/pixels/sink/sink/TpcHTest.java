@@ -6,12 +6,16 @@ import io.pixelsdb.pixels.common.metadata.MetadataService;
 import io.pixelsdb.pixels.common.retina.RetinaService;
 import io.pixelsdb.pixels.common.transaction.TransContext;
 import io.pixelsdb.pixels.common.transaction.TransService;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
 import java.util.logging.Logger;
 
-public class TpcHTest {
+public class TpcHTest
+{
 
     static Logger logger = Logger.getLogger(TpcHTest.class.getName());
     static RetinaService retinaService;
@@ -21,25 +25,29 @@ public class TpcHTest {
     TransContext transContext;
 
     @BeforeAll
-    public static void setUp() {
+    public static void setUp()
+    {
         retinaService = RetinaService.Instance();
         metadataService = MetadataService.Instance();
         transService = TransService.Instance();
     }
 
     @BeforeEach
-    public void getTrans() throws TransException {
+    public void getTrans() throws TransException
+    {
         transContext = transService.beginTrans(false);
     }
 
     @AfterEach
-    public void commitTrans() throws TransException {
+    public void commitTrans() throws TransException
+    {
         transService.commitTrans(transContext.getTransId(), transContext.getTimestamp());
     }
 
 
     @Test
-    public void insertCustomer() throws RetinaException {
+    public void insertCustomer() throws RetinaException
+    {
         /*
               Column    |     Type      | Extra | Comment
           --------------+---------------+-------+---------
@@ -54,7 +62,8 @@ public class TpcHTest {
           (8 rows)
          */
         String tableName = "customer";
-        for (int i = 0; i < 10; ++i) {
+        for (int i = 0; i < 10; ++i)
+        {
             byte[][] cols = new byte[8][];
 
             cols[0] = Long.toString(i).getBytes(StandardCharsets.UTF_8);                          // c_custkey
@@ -73,7 +82,8 @@ public class TpcHTest {
     }
 
     @Test
-    public void insertRegion() throws RetinaException {
+    public void insertRegion() throws RetinaException
+    {
     /*
           Column    |     Type     | Extra | Comment
         ------------+--------------+-------+---------
@@ -85,7 +95,8 @@ public class TpcHTest {
         String tableName = "region";
         int start = 5;
         int end = 10;
-        for (int i = start; i < end; ++i) {
+        for (int i = start; i < end; ++i)
+        {
             byte[][] cols = new byte[3][];
 
             cols[0] = Long.toString(i).getBytes(StandardCharsets.UTF_8);                      // r_regionkey
@@ -99,7 +110,8 @@ public class TpcHTest {
     }
 
     @Test
-    public void insertNation() throws RetinaException {
+    public void insertNation() throws RetinaException
+    {
     /*
          Column     |     Type     | Extra | Comment
         ------------+--------------+-------+---------
@@ -112,7 +124,8 @@ public class TpcHTest {
         int start = 0;
         int end = 10;
 
-        for (int i = start; i < end; ++i) {
+        for (int i = start; i < end; ++i)
+        {
             byte[][] cols = new byte[4][];
 
             cols[0] = Long.toString(i).getBytes(StandardCharsets.UTF_8);                      // n_nationkey
@@ -127,7 +140,8 @@ public class TpcHTest {
     }
 
     @Test
-    public void insertLineItem() throws RetinaException {
+    public void insertLineItem() throws RetinaException
+    {
         /*
          * Table: lineitem
          * Columns:
@@ -151,7 +165,8 @@ public class TpcHTest {
         String tableName = "lineitem";
         int recordCount = 10;
 
-        for (int i = 0; i < recordCount; ++i) {
+        for (int i = 0; i < recordCount; ++i)
+        {
             byte[][] cols = new byte[16][];
 
             cols[0] = Long.toString(1000 + i).getBytes(StandardCharsets.UTF_8); // l_orderkey
@@ -178,7 +193,8 @@ public class TpcHTest {
     }
 
     @Test
-    public void insertOrders() throws RetinaException {
+    public void insertOrders() throws RetinaException
+    {
         /*
          * Table: orders
          * Columns:
@@ -195,7 +211,8 @@ public class TpcHTest {
         String tableName = "orders";
         int recordCount = 10;
 
-        for (int i = 0; i < recordCount; ++i) {
+        for (int i = 0; i < recordCount; ++i)
+        {
             byte[][] cols = new byte[9][];
 
             cols[0] = Long.toString(10000 + i).getBytes(StandardCharsets.UTF_8); // o_orderkey
@@ -215,7 +232,8 @@ public class TpcHTest {
     }
 
     @Test
-    public void insertPart() throws RetinaException {
+    public void insertPart() throws RetinaException
+    {
         /*
          * Table: part
          * Columns:
@@ -232,7 +250,8 @@ public class TpcHTest {
         String tableName = "part";
         int recordCount = 10;
 
-        for (int i = 0; i < recordCount; ++i) {
+        for (int i = 0; i < recordCount; ++i)
+        {
             byte[][] cols = new byte[9][];
 
             cols[0] = Long.toString(2000 + i).getBytes(StandardCharsets.UTF_8); // p_partkey
@@ -252,7 +271,8 @@ public class TpcHTest {
     }
 
     @Test
-    public void insertPartSupp() throws RetinaException {
+    public void insertPartSupp() throws RetinaException
+    {
         /*
          * Table: partsupp
          * Columns:
@@ -265,7 +285,8 @@ public class TpcHTest {
         String tableName = "partsupp";
         int recordCount = 10;
 
-        for (int i = 0; i < recordCount; ++i) {
+        for (int i = 0; i < recordCount; ++i)
+        {
             byte[][] cols = new byte[5][];
 
             cols[0] = Long.toString(1000 + i).getBytes(StandardCharsets.UTF_8);        // ps_partkey
@@ -281,7 +302,8 @@ public class TpcHTest {
     }
 
     @Test
-    public void insertSupplier() throws RetinaException {
+    public void insertSupplier() throws RetinaException
+    {
         /*
          * Table: supplier
          * Columns:
@@ -296,7 +318,8 @@ public class TpcHTest {
         String tableName = "supplier";
         int recordCount = 10;
 
-        for (int i = 0; i < recordCount; ++i) {
+        for (int i = 0; i < recordCount; ++i)
+        {
             byte[][] cols = new byte[7][];
 
             cols[0] = Long.toString(2000 + i).getBytes(StandardCharsets.UTF_8);                  // s_suppkey

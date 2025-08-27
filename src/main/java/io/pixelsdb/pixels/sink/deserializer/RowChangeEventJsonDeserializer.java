@@ -30,39 +30,47 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 
-public class RowChangeEventJsonDeserializer implements Deserializer<RowChangeEvent> {
+public class RowChangeEventJsonDeserializer implements Deserializer<RowChangeEvent>
+{
     private static final Logger logger = LoggerFactory.getLogger(RowChangeEventJsonDeserializer.class);
     private static final ObjectMapper objectMapper = new ObjectMapper();
     private final TableMetadataRegistry tableMetadataRegistry = TableMetadataRegistry.Instance();
 
     @Override
-    public RowChangeEvent deserialize(String topic, byte[] data) {
-        if (data == null || data.length == 0) {
+    public RowChangeEvent deserialize(String topic, byte[] data)
+    {
+        if (data == null || data.length == 0)
+        {
             logger.debug("Received empty message from topic: {}", topic);
             return null;
         }
         MetricsFacade.getInstance().addRawData(data.length);
-        try {
+        try
+        {
             JsonNode rootNode = objectMapper.readTree(data);
             JsonNode payloadNode = rootNode.path("payload");
 
             SinkProto.OperationType opType = parseOperationType(payloadNode);
 
             return buildRowRecord(payloadNode, opType);
-        } catch (Exception e) {
+        } catch (Exception e)
+        {
             logger.error("Failed to deserialize message from topic {}: {}", topic, e.getMessage());
             return null;
         }
     }
 
-    private SinkProto.OperationType parseOperationType(JsonNode payloadNode) {
+    private SinkProto.OperationType parseOperationType(JsonNode payloadNode)
+    {
         String opCode = payloadNode.path("op").asText("");
         return DeserializerUtil.getOperationType(opCode);
     }
 
     @Deprecated
-    private TypeDescription getSchema(JsonNode schemaNode, SinkProto.OperationType opType) {
-        return switch (opType) {
+    private TypeDescription getSchema(JsonNode schemaNode, SinkProto.OperationType opType)
+    {
+        return switch (opType)
+        {
             case DELETE -> SchemaDeserializer.parseFromBeforeOrAfter(schemaNode, "before");
             case INSERT, UPDATE, SNAPSHOT -> SchemaDeserializer.parseFromBeforeOrAfter(schemaNode, "after");
             case UNRECOGNIZED -> throw new IllegalArgumentException("Operation type is unknown. Check op");
@@ -70,7 +78,8 @@ public class RowChangeEventJsonDeserializer implements Deserializer<RowChangeEve
     }
 
     private RowChangeEvent buildRowRecord(JsonNode payloadNode,
-                                          SinkProto.OperationType opType) throws SinkException {
+                                          SinkProto.OperationType opType) throws SinkException
+    {
 
         SinkProto.RowRecord.Builder builder = SinkProto.RowRecord.newBuilder();
 
@@ -81,28 +90,33 @@ public class RowChangeEventJsonDeserializer implements Deserializer<RowChangeEve
 
         String schemaName;
         String tableName;
-        if (payloadNode.has("source")) {
-            SinkProto.SourceInfo.Builder sourceInfoBuilder =  parseSourceInfo(payloadNode.get("source"));
+        if (payloadNode.has("source"))
+        {
+            SinkProto.SourceInfo.Builder sourceInfoBuilder = parseSourceInfo(payloadNode.get("source"));
             schemaName = sourceInfoBuilder.getDb(); // Notice we use the schema
             tableName = sourceInfoBuilder.getTable();
             builder.setSource(sourceInfoBuilder);
-        } else {
+        } else
+        {
             throw new IllegalArgumentException("Missing source field in row record");
         }
 
         TypeDescription typeDescription = tableMetadataRegistry.getTypeDescription(schemaName, tableName);
         RowDataParser rowDataParser = new RowDataParser(typeDescription);
-        if (payloadNode.hasNonNull("transaction")) {
+        if (payloadNode.hasNonNull("transaction"))
+        {
             builder.setTransaction(parseTransactionInfo(payloadNode.get("transaction")));
         }
 
-        if(DeserializerUtil.hasBeforeValue(opType)) {
+        if (DeserializerUtil.hasBeforeValue(opType))
+        {
             SinkProto.RowValue.Builder beforeBuilder = builder.getBeforeBuilder();
             rowDataParser.parse(payloadNode.get("before"), beforeBuilder);
             builder.setBefore(beforeBuilder);
         }
 
-        if(DeserializerUtil.hasAfterValue(opType)) {
+        if (DeserializerUtil.hasAfterValue(opType))
+        {
 
             SinkProto.RowValue.Builder afterBuilder = builder.getAfterBuilder();
             rowDataParser.parse(payloadNode.get("after"), afterBuilder);
@@ -110,16 +124,19 @@ public class RowChangeEventJsonDeserializer implements Deserializer<RowChangeEve
         }
 
         RowChangeEvent event = new RowChangeEvent(builder.build(), typeDescription);
-        try {
+        try
+        {
             event.initIndexKey();
-        } catch (SinkException e) {
+        } catch (SinkException e)
+        {
             logger.warn("Row change event {}: Init index key failed", event);
         }
 
         return event;
     }
 
-    private SinkProto.SourceInfo.Builder parseSourceInfo(JsonNode sourceNode) {
+    private SinkProto.SourceInfo.Builder parseSourceInfo(JsonNode sourceNode)
+    {
         return SinkProto.SourceInfo.newBuilder()
                 .setVersion(sourceNode.path("version").asText())
                 .setConnector(sourceNode.path("connector").asText())
@@ -137,7 +154,8 @@ public class RowChangeEventJsonDeserializer implements Deserializer<RowChangeEve
                 .setXmin(sourceNode.path("xmin").asLong());
     }
 
-    private SinkProto.TransactionInfo parseTransactionInfo(JsonNode txNode) {
+    private SinkProto.TransactionInfo parseTransactionInfo(JsonNode txNode)
+    {
         return SinkProto.TransactionInfo.newBuilder()
                 .setId(DeserializerUtil.getTransIdPrefix(txNode.path("id").asText()))
                 .setTotalOrder(txNode.path("total_order").asLong())

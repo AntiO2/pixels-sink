@@ -34,14 +34,16 @@ import org.apache.kafka.common.serialization.Deserializer;
 import java.util.HashMap;
 import java.util.Map;
 
-public class RowChangeEventAvroDeserializer implements Deserializer<RowChangeEvent> {
+public class RowChangeEventAvroDeserializer implements Deserializer<RowChangeEvent>
+{
 
     private final AvroKafkaDeserializer<GenericRecord> avroDeserializer = new AvroKafkaDeserializer<>();
     private final TableMetadataRegistry tableMetadataRegistry = TableMetadataRegistry.Instance();
     private final PixelsSinkConfig config = PixelsSinkConfigFactory.getInstance();
 
     @Override
-    public void configure(Map<String, ?> configs, boolean isKey) {
+    public void configure(Map<String, ?> configs, boolean isKey)
+    {
         Map<String, Object> enrichedConfig = new HashMap<>(configs);
         enrichedConfig.put(SerdeConfig.REGISTRY_URL, config.getRegistryUrl());
         enrichedConfig.put(SerdeConfig.CHECK_PERIOD_MS, SerdeConfig.CHECK_PERIOD_MS_DEFAULT);
@@ -49,14 +51,17 @@ public class RowChangeEventAvroDeserializer implements Deserializer<RowChangeEve
     }
 
     @Override
-    public RowChangeEvent deserialize(String topic, byte[] data) {
-        try {
+    public RowChangeEvent deserialize(String topic, byte[] data)
+    {
+        try
+        {
             MetricsFacade.getInstance().addRawData(data.length);
             GenericRecord avroRecord = avroDeserializer.deserialize(topic, data);
             Schema avroSchema = avroRecord.getSchema();
             RowChangeEvent rowChangeEvent = convertToRowChangeEvent(avroRecord, avroSchema);
             return rowChangeEvent;
-        } catch (Exception e) {
+        } catch (Exception e)
+        {
             e.printStackTrace();
             return null;
             // throw new SerializationException("Avro deserialization failed", e);
@@ -64,17 +69,20 @@ public class RowChangeEventAvroDeserializer implements Deserializer<RowChangeEve
         }
     }
 
-    private void registerSchema(String topic, Schema avroSchema) {
+    private void registerSchema(String topic, Schema avroSchema)
+    {
 
     }
 
-    private RowChangeEvent convertToRowChangeEvent(GenericRecord avroRecord, Schema schema) throws SinkException{
+    private RowChangeEvent convertToRowChangeEvent(GenericRecord avroRecord, Schema schema) throws SinkException
+    {
         SinkProto.OperationType op = parseOperationType(avroRecord);
         SinkProto.RowRecord.Builder recordBuilder = SinkProto.RowRecord.newBuilder()
                 .setOp(op)
                 .setTsMs(DeserializerUtil.getLongSafely(avroRecord, "ts_ms"));
 
-        if (avroRecord.get("source") != null) {
+        if (avroRecord.get("source") != null)
+        {
             //TODO: 这里看下怎么处理，如果没有source信息，其实可以通过topic推出schema和table信息。
             parseSourceInfo((GenericRecord) avroRecord.get("source"), recordBuilder.getSourceBuilder());
         }
@@ -82,9 +90,11 @@ public class RowChangeEventAvroDeserializer implements Deserializer<RowChangeEve
         String sourceSchema = recordBuilder.getSource().getDb();
         String sourceTable = recordBuilder.getSource().getTable();
         TypeDescription typeDescription = null;
-        try {
+        try
+        {
             typeDescription = tableMetadataRegistry.getTypeDescription(sourceSchema, sourceTable);
-        } catch (SinkException e) {
+        } catch (SinkException e)
+        {
             throw new RuntimeException(e);
         }
         // TableMetadata tableMetadata = tableMetadataRegistry.loadTableMetadata(sourceSchema, sourceTable);
@@ -92,7 +102,8 @@ public class RowChangeEventAvroDeserializer implements Deserializer<RowChangeEve
         recordBuilder.setBefore(parseRowData(avroRecord.get("before"), typeDescription));
         recordBuilder.setAfter(parseRowData(avroRecord.get("after"), typeDescription));
 
-        if (avroRecord.get("transaction") != null) {
+        if (avroRecord.get("transaction") != null)
+        {
             parseTransactionInfo((GenericRecord) avroRecord.get("transaction"),
                     recordBuilder.getTransactionBuilder());
         }
@@ -100,25 +111,31 @@ public class RowChangeEventAvroDeserializer implements Deserializer<RowChangeEve
         return new RowChangeEvent(recordBuilder.build(), typeDescription);
     }
 
-    private SinkProto.OperationType parseOperationType(GenericRecord record) {
+    private SinkProto.OperationType parseOperationType(GenericRecord record)
+    {
         String op = DeserializerUtil.getStringSafely(record, "op");
-        try {
+        try
+        {
             return DeserializerUtil.getOperationType(op);
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException e)
+        {
             return SinkProto.OperationType.UNRECOGNIZED;
         }
     }
 
-    private SinkProto.RowValue.Builder parseRowData(Object data, TypeDescription typeDescription) {
+    private SinkProto.RowValue.Builder parseRowData(Object data, TypeDescription typeDescription)
+    {
         SinkProto.RowValue.Builder builder = SinkProto.RowValue.newBuilder();
-        if (data instanceof GenericRecord rowData) {
+        if (data instanceof GenericRecord rowData)
+        {
             RowDataParser rowDataParser = new RowDataParser(typeDescription); // TODO make it static?
             rowDataParser.parse(rowData, builder);
         }
         return builder;
     }
 
-    private void parseSourceInfo(GenericRecord source, SinkProto.SourceInfo.Builder builder) {
+    private void parseSourceInfo(GenericRecord source, SinkProto.SourceInfo.Builder builder)
+    {
         builder.setVersion(DeserializerUtil.getStringSafely(source, "version"))
                 .setConnector(DeserializerUtil.getStringSafely(source, "connector"))
                 .setName(DeserializerUtil.getStringSafely(source, "name"))
@@ -134,7 +151,8 @@ public class RowChangeEventAvroDeserializer implements Deserializer<RowChangeEve
     }
 
     private void parseTransactionInfo(GenericRecord transaction,
-                                      SinkProto.TransactionInfo.Builder builder) {
+                                      SinkProto.TransactionInfo.Builder builder)
+    {
         builder.setId(DeserializerUtil.getTransIdPrefix(DeserializerUtil.getStringSafely(transaction, "id")))
                 .setTotalOrder(DeserializerUtil.getLongSafely(transaction, "total_order"))
                 .setDataCollectionOrder(DeserializerUtil.getLongSafely(transaction, "data_collection_order"));

@@ -30,11 +30,13 @@ import java.util.Objects;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class RowChangeEventDeserializerTest {
+class RowChangeEventDeserializerTest
+{
 
     private final Deserializer<RowChangeEvent> deserializer = new RowChangeEventJsonDeserializer();
 
-    private String loadSchemaFromFile(String filename) throws IOException, URISyntaxException {
+    private String loadSchemaFromFile(String filename) throws IOException, URISyntaxException
+    {
         ClassLoader classLoader = getClass().getClassLoader();
         return new String(Files.readAllBytes(Paths.get(
                 Objects.requireNonNull(classLoader.getResource(filename)).toURI()
@@ -58,7 +60,8 @@ class RowChangeEventDeserializerTest {
 //    }
 
     @Test
-    void shouldHandleDeleteOperation() throws Exception {
+    void shouldHandleDeleteOperation() throws Exception
+    {
         String jsonData = loadSchemaFromFile("records/delete.json");
         RowChangeEvent event = deserializer.deserialize("test_topic", jsonData.getBytes());
 
@@ -69,7 +72,8 @@ class RowChangeEventDeserializerTest {
 
 
     @Test
-    void shouldHandleEmptyData() {
+    void shouldHandleEmptyData()
+    {
         RowChangeEvent event = deserializer.deserialize("empty_topic", new byte[0]);
         assertNull(event);
     }
