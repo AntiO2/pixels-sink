@@ -80,6 +80,9 @@ public class TransactionMonitor implements Runnable, StoppableMonitor
                 } catch (SinkException e)
                 {
                     throw new RuntimeException(e);
+                } catch (Exception e)
+                {
+                    throw new RuntimeException(e);
                 }
             }
         } finally

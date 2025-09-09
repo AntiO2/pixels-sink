@@ -103,7 +103,7 @@ public class RetinaWriter implements PixelsSinkWriter
     {
         try
         {
-            LOGGER.info("Retina Writer update record {}, {}", schemaName, timestamp);
+            LOGGER.info("Retina Writer update record {}, TS: {}", schemaName, timestamp);
 
             retinaService.updateRecord(schemaName, tableUpdateData, timestamp);
         } catch (RetinaException e)

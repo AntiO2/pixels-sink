@@ -259,6 +259,7 @@ public class TransactionCoordinator
             {
                 // write this tx batch
                 List<RetinaProto.TableUpdateData> tableUpdateDataList = ctx.getTableUpdateDataList();
+                LOGGER.info("Start to write transaction: {}", txId);
                 writer.writeTrans(pixelsSinkConfig.getCaptureDatabase(), tableUpdateDataList, ctx.getTimestamp());
             }
             LOGGER.info("Committed transaction: {}", txId);
