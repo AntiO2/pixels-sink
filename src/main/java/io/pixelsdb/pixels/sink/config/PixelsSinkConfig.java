@@ -19,6 +19,7 @@ package io.pixelsdb.pixels.sink.config;
 import io.pixelsdb.pixels.common.utils.ConfigFactory;
 import io.pixelsdb.pixels.sink.concurrent.TransactionMode;
 import io.pixelsdb.pixels.sink.sink.PixelsSinkMode;
+import io.pixelsdb.pixels.sink.sink.RetinaWriter;
 import lombok.Getter;
 
 import java.io.IOException;
@@ -31,6 +32,7 @@ public class PixelsSinkConfig
 
     private Long transactionTimeout;
     private PixelsSinkMode pixelsSinkMode;
+    private RetinaWriter.RetinaWriteMode retinaWriteMode;
     private TransactionMode transactionMode;
     private short remotePort;
     private int batchSize;
@@ -74,7 +76,12 @@ public class PixelsSinkConfig
         this.mockRpcDelay = parseInt(getProperty("sink.rpc.mock.delay"), PixelsSinkDefaultConfig.MOCK_RPC_DELAY);
         this.transBatchSize = parseInt(getProperty("sink.trans.batch.size"), PixelsSinkDefaultConfig.TRANSACTION_BATCH_SIZE);
         this.transactionMode = TransactionMode.fromValue(getProperty("sink.trans.mode", TransactionConfig.DEFAULT_TRANSACTION_MODE));
+        this.retinaWriteMode = RetinaWriter.RetinaWriteMode.fromValue(getProperty("sink.retina.mode", PixelsSinkDefaultConfig.SINK_RETINA_MODE));
         this.retinaEmbedded = false;
+    }
+
+    public RetinaWriter.RetinaWriteMode getRetinaWriteMode() {
+        return retinaWriteMode;
     }
 
     public String getTopicPrefix()

@@ -148,8 +148,9 @@ class RowDataParser
             case TIMESTAMP:
             {
                 long timestamp = valueNode.asLong();
-                Date date = DateUtil.fromDebeziumTimestamp(timestamp);
-                String tsString = DateUtil.convertDateToString(date);
+//                Date date = DateUtil.fromDebeziumTimestamp(timestamp);
+//                String tsString = DateUtil.convertDateToString(date);
+                String tsString = DateUtil.convertDebeziumTimestampToString(timestamp);
                 columnValueBuilder.setValue(ByteString.copyFrom(tsString, StandardCharsets.UTF_8));
                 columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.DATE));
                 break;

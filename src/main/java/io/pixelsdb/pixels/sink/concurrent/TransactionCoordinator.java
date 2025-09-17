@@ -274,7 +274,16 @@ public class TransactionCoordinator
             transLatencyTimer.close();
         } catch (InterruptedException | ExecutionException | TransException e)
         {
+            try {
+                transService.rollbackTrans(ctx.pixelsTransCtx.getTransId());
+            } catch (TransException ex) {
+                LOGGER.error("Failed to abort transaction {}", txId);
+                ex.printStackTrace();
+                LOGGER.error(ex.getMessage());
+                throw new RuntimeException(ex);
+            }
             // TODO(AntiO2) abort?
+            LOGGER.error(e.getMessage());
             LOGGER.error("Failed to commit transaction {}", txId, e);
         }
     }

@@ -79,9 +79,11 @@ public class TransactionMonitor implements Runnable, StoppableMonitor
                     }
                 } catch (SinkException e)
                 {
+                    e.printStackTrace();
                     throw new RuntimeException(e);
                 } catch (Exception e)
                 {
+                    e.printStackTrace();
                     throw new RuntimeException(e);
                 }
             }

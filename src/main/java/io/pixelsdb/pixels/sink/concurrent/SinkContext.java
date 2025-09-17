@@ -46,6 +46,7 @@ class SinkContext
     final Map<String, Long> tableCursors = new ConcurrentHashMap<>();
     final Map<String, Long> tableCounters = new ConcurrentHashMap<>();
     final Map<String, RetinaProto.TableUpdateData.Builder> tableUpdateDataMap = new ConcurrentHashMap<>();
+    final Map<String, ReentrantLock> tableUpdateLockMap= new ConcurrentHashMap<>();
     final AtomicInteger pendingEvents = new AtomicInteger(0);
     final CompletableFuture<Void> completionFuture = new CompletableFuture<>();
 
@@ -83,6 +84,9 @@ class SinkContext
                         .setTableName(tableName)
                         .setPrimaryIndexId(primaryIndexId)
         );
+        ReentrantLock lock =  tableUpdateLockMap.computeIfAbsent(tableName, k -> new ReentrantLock());
+
+        lock.lock();
         if (rowChangeEvent.hasBeforeData())
         {
             RetinaProto.DeleteData.Builder deleteDataBuilder = RetinaProto.DeleteData.newBuilder();
@@ -99,6 +103,8 @@ class SinkContext
         }
 
         updateCounter(rowChangeEvent.getFullTableName());
+
+        lock.unlock();
         if (pendingEvents.decrementAndGet() == 0 && completed)
         {
             completionFuture.complete(null);

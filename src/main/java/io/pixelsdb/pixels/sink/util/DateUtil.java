@@ -19,8 +19,14 @@
 package io.pixelsdb.pixels.sink.util;
 
 
+import io.pixelsdb.pixels.core.utils.DatetimeUtils;
+
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Calendar;
 import java.util.Date;
 
@@ -62,5 +68,19 @@ public class DateUtil
         DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
         String dateToString = df.format(date);
         return (dateToString);
+    }
+    public static String convertTimestampToString(Date date) {
+        if (date == null) {
+            return null;
+        }
+        SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss.SSS");
+        return sdf.format(date);
+    }
+
+    public static String convertDebeziumTimestampToString(long epochTs)
+    {
+        LocalDateTime dateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(epochTs), ZoneId.systemDefault());
+        DateTimeFormatter formatter = DatetimeUtils.SQL_LOCAL_DATE_TIME;
+        return dateTime.format(formatter);
     }
 }

@@ -63,6 +63,7 @@ public class TableMetadataRegistry
         SchemaTableName key = new SchemaTableName(schema, table);
         if (!registry.containsKey(key))
         {
+            logger.info("Registry doesn't contain {}", key);
             TableMetadata metadata = loadTableMetadata(schema, table);
             registry.put(key, metadata);
         }
@@ -72,23 +73,24 @@ public class TableMetadataRegistry
 
     public TypeDescription getTypeDescription(String schemaName, String tableName) throws SinkException
     {
-        return loadTableMetadata(schemaName, tableName).getTypeDescription();
+        return getMetadata(schemaName, tableName).getTypeDescription();
     }
 
     public List<String> getKeyColumnsName(String schemaName, String tableName) throws SinkException
     {
-        return loadTableMetadata(schemaName, tableName).getKeyColumnNames();
+        return getMetadata(schemaName, tableName).getKeyColumnNames();
     }
 
     public long getPrimaryIndexKeyId(String schemaName, String tableName) throws SinkException
     {
-        return loadTableMetadata(schemaName, tableName).getPrimaryIndexKeyId();
+        return getMetadata(schemaName, tableName).getPrimaryIndexKeyId();
     }
 
-    public TableMetadata loadTableMetadata(String schemaName, String tableName) throws SinkException
+    private TableMetadata loadTableMetadata(String schemaName, String tableName) throws SinkException
     {
         try
         {
+            logger.info("Metadata Cache miss: {} {}", schemaName, tableName);
             Table table = metadataService.getTable(schemaName, tableName);
             SinglePointIndex index = null;
             try

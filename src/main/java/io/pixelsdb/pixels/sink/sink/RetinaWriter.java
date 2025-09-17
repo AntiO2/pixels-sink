@@ -26,15 +26,36 @@ import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
 import io.pixelsdb.pixels.sink.monitor.MetricsFacade;
 import lombok.Getter;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.spi.LoggerContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.lang.module.Configuration;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.logging.Level;
 
 public class RetinaWriter implements PixelsSinkWriter
 {
+    public enum RetinaWriteMode {
+        STREAM,
+        STUB;
+
+        public static RetinaWriteMode fromValue(String value)
+        {
+            for (RetinaWriteMode mode : values())
+            {
+                if (mode.name().equalsIgnoreCase(value))
+                {
+                    return mode;
+                }
+            }
+            throw new RuntimeException(String.format("Can't convert %s to sink type", value));
+        }
+    }
+
     private static final Logger LOGGER = LoggerFactory.getLogger(RetinaWriter.class);
     @Getter
     private static final PixelsSinkMode pixelsSinkMode = PixelsSinkMode.RETINA;
@@ -47,18 +68,17 @@ public class RetinaWriter implements PixelsSinkWriter
     private final RetinaService retinaService = RetinaService.Instance();
 
     private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
-    private final RetinaService.StreamHandle retinaStream;
+    private RetinaService.StreamHandle retinaStream = null;
 
     public RetinaWriter()
     {
-        if (config.getTransactionMode() == TransactionMode.BATCH)
+        if (config.getTransactionMode() == TransactionMode.BATCH && config.getRetinaWriteMode() == RetinaWriteMode.STREAM)
         {
             retinaStream = retinaService.startUpdateStream();
         } else
         {
             retinaStream = null;
         }
-
     }
 
     @Override
@@ -101,17 +121,22 @@ public class RetinaWriter implements PixelsSinkWriter
     @Override
     public boolean writeTrans(String schemaName, List<RetinaProto.TableUpdateData> tableUpdateData, long timestamp)
     {
-        try
+        if(config.getRetinaWriteMode()==RetinaWriteMode.STUB)
         {
-            LOGGER.info("Retina Writer update record {}, TS: {}", schemaName, timestamp);
-
-            retinaService.updateRecord(schemaName, tableUpdateData, timestamp);
-        } catch (RetinaException e)
+            try
+            {
+                LOGGER.debug("Retina Writer update record {}, TS: {}", schemaName, timestamp);
+                retinaService.updateRecord(schemaName, tableUpdateData, timestamp);
+            } catch (RetinaException e)
+            {
+                e.printStackTrace();
+                return false;
+            }
+        } else
         {
-            e.printStackTrace();
-            return false;
+            retinaStream.updateRecord(schemaName, tableUpdateData, timestamp);
         }
-//        retinaStream.updateRecord(schemaName, tableUpdateData, timestamp);
+
         return true;
     }
 
