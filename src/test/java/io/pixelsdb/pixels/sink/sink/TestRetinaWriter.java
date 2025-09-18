@@ -48,7 +48,7 @@ public class TestRetinaWriter
         retinaService = RetinaService.Instance();
         metadataRegistry = TableMetadataRegistry.Instance();
         transService = TransService.Instance();
-        retinaPerformanceTestRowCount = 500_000;
+        retinaPerformanceTestRowCount = 5_000_000;
     }
 
     @Test
@@ -267,7 +267,7 @@ public class TestRetinaWriter
             // 记录结束时间
             long endTime = System.currentTimeMillis();
             long duration = endTime - startTime;
-            logger.debug("writeTrans took " + duration + " milliseconds");
+            logger.info("writeTrans took " + duration + " milliseconds");
 //            CompletableFuture<Void> future = CompletableFuture.runAsync(() ->
 //            {
 //                try
@@ -293,6 +293,7 @@ public class TestRetinaWriter
         double insertsPerSec = totalInserts / seconds;
         double transPerSec = batchCount / seconds;
         logger.info("Inserted " + totalInserts + " rows in " + seconds + "s, rate=" + insertsPerSec + " inserts/s," + transPerSec + "trans/s");
+        writer.close();
     }
 
 
