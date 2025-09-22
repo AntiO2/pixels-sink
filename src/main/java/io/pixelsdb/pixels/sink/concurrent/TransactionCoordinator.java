@@ -29,6 +29,7 @@ import io.pixelsdb.pixels.sink.exception.SinkException;
 import io.pixelsdb.pixels.sink.monitor.MetricsFacade;
 import io.pixelsdb.pixels.sink.sink.PixelsSinkWriter;
 import io.pixelsdb.pixels.sink.sink.PixelsSinkWriterFactory;
+import io.pixelsdb.pixels.sink.sink.TableWriter;
 import io.pixelsdb.pixels.sink.util.LatencySimulator;
 import io.prometheus.client.Summary;
 import org.slf4j.Logger;
@@ -122,7 +123,6 @@ public class TransactionCoordinator
             ctx.lock.unlock();
         }
 
-        LOGGER.debug("Immediately dispatch {} {}/{}", event.getTransaction().getId(), collectionOrder, totalOrder);
         ctx.pendingEvents.incrementAndGet();
         processRowChangeEvent(ctx, event);
     }
@@ -227,32 +227,12 @@ public class TransactionCoordinator
             }
 
             activeTxContexts.remove(txId);
-            boolean res = false;
-            if (pixelsSinkConfig.getTransactionMode() == TransactionMode.BATCH)
-            {
-                // write this tx batch
-                List<RetinaProto.TableUpdateData> tableUpdateDataList = ctx.getTableUpdateDataList();
-                LOGGER.info("Start to write transaction: {}, TS {}", txId, ctx.getTimestamp());
-                res = writer.writeTrans(pixelsSinkConfig.getCaptureDatabase(), tableUpdateDataList, ctx.getTimestamp());
-            }
+            boolean res = true;
             if(res)
             {
                 LOGGER.info("Committed transaction: {}", txId);
                 Summary.Timer transLatencyTimer = metricsFacade.startTransLatencyTimer();
-                CompletableFuture.runAsync(() -> {
-                    try
-                    {
-                        transService.commitTrans(ctx.pixelsTransCtx.getTransId(), ctx.pixelsTransCtx.getTimestamp());
-                    } catch (TransException e)
-                    {
-                        throw new RuntimeException(e);
-                    }
-                }).whenComplete((v, ex) -> {
-                    transLatencyTimer.close();
-                    if (ex != null) {
-                        LOGGER.error("Commit failed", ex);
-                    }
-                });
+                transactionManager.commitTransAsync(ctx.pixelsTransCtx);
             } else
             {
                 LOGGER.info("Abort transaction: {}", txId);
@@ -283,9 +263,11 @@ public class TransactionCoordinator
                 LOGGER.error(ex.getMessage());
                 throw new RuntimeException(ex);
             }
-            // TODO(AntiO2) abort?
             LOGGER.error(e.getMessage());
             LOGGER.error("Failed to commit transaction {}", txId, e);
+        } finally
+        {
+
         }
     }
 
@@ -310,37 +292,13 @@ public class TransactionCoordinator
         {
             case BATCH ->
             {
-                // find table writer and write data ctx.addUpdateData(event);
+                TableWriter.getTableWriter(table).write(event, ctx);
             }
             case RECORD ->
             {
                 dispatchImmediately(event, ctx);
             }
         }
-    }
-
-    private void startDispatchWorker()
-    {
-//        dispatchExecutor.execute(() -> {
-//            while (!Thread.currentThread().isInterrupted()) {
-//                try {
-//                    RowChangeEvent event = nonTxQueue.poll(10, TimeUnit.MILLISECONDS);
-//                    if (event != null) {
-//                        dispatchImmediately(event, null);
-//                        metricsFacade.recordTransaction();
-//                        continue;
-//                    }
-//
-//                    activeTxContexts.values().forEach(ctx ->
-//                            ctx.getTrackedTables().forEach(table ->
-//                                    checkPendingEvents(ctx, table)
-//                            )
-//                    );
-//                } catch (InterruptedException e) {
-//                    Thread.currentThread().interrupt();
-//                }
-//            }
-//        });
     }
 
     protected void dispatchImmediately(RowChangeEvent event, SinkContext ctx)
@@ -408,9 +366,11 @@ public class TransactionCoordinator
             case BATCH ->
             {
                 SinkContext sinkContext = new SinkContext("-1");
-                // sinkContext.addUpdateData(event);
                 TransContext transContext = transactionManager.getTransContext();
-                List<RetinaProto.TableUpdateData> tableUpdateDataList = sinkContext.getTableUpdateDataList();
+                sinkContext.setPixelsTransCtx(transContext);
+                RetinaProto.TableUpdateData.Builder builder = RetinaProto.TableUpdateData.newBuilder();
+                TableWriter.addUpdateData(event, builder, sinkContext);
+                List<RetinaProto.TableUpdateData> tableUpdateDataList = List.of(builder.build());
                 writer.writeTrans(pixelsSinkConfig.getCaptureDatabase(), tableUpdateDataList, transContext.getTimestamp());
                 transactionManager.commitTransAsync(transContext);
             }

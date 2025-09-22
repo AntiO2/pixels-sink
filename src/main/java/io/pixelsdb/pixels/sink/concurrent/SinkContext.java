@@ -45,8 +45,6 @@ public class SinkContext
     final String sourceTxId;
     final Map<String, Long> tableCursors = new ConcurrentHashMap<>();
     final Map<String, Long> tableCounters = new ConcurrentHashMap<>();
-    final Map<String, RetinaProto.TableUpdateData.Builder> tableUpdateDataMap = new ConcurrentHashMap<>();
-    final Map<String, ReentrantLock> tableUpdateLockMap= new ConcurrentHashMap<>();
     final AtomicInteger pendingEvents = new AtomicInteger(0);
     final CompletableFuture<Void> completionFuture = new CompletableFuture<>();
 
@@ -67,14 +65,6 @@ public class SinkContext
         this.pixelsTransCtx = pixelsTransCtx;
     }
 
-    public List<RetinaProto.TableUpdateData> getTableUpdateDataList()
-    {
-        return tableUpdateDataMap.values()
-                .stream()
-                .map(RetinaProto.TableUpdateData.Builder::build)
-                .toList();
-    }
-
     boolean isReadyForDispatch(String table, long collectionOrder)
     {
         lock.lock();
@@ -92,8 +82,11 @@ public class SinkContext
 
     void updateCounter(String table)
     {
+        lock.lock();
         tableCounters.compute(table, (k, v) ->
                 (v == null) ? 1 : v + 1);
+        lock.unlock();
+        cond.signalAll();
     }
 
     public void updateCounter(String table, long count) {
@@ -167,16 +160,6 @@ public class SinkContext
     public Map<String, Long> getTableCounters()
     {
         return tableCounters;
-    }
-
-    public Map<String, RetinaProto.TableUpdateData.Builder> getTableUpdateDataMap()
-    {
-        return tableUpdateDataMap;
-    }
-
-    public Map<String, ReentrantLock> getTableUpdateLockMap()
-    {
-        return tableUpdateLockMap;
     }
 
     public AtomicInteger getPendingEvents()
