@@ -109,7 +109,7 @@ public class TestIndexService
     }
 
     @Test
-    public void testGetRowID() throws MetadataException
+    public void testGetRowID() throws MetadataException, IndexException
     {
         int numRowIds = 10000;
         IndexProto.RowIdBatch rowIdBatch = indexService.allocateRowIdBatch(4, numRowIds);

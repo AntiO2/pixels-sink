@@ -38,6 +38,7 @@ public class TestRetinaWriter
     static TableMetadataRegistry metadataRegistry;
     static TransService transService;
     static int retinaPerformanceTestRowCount;
+    static int retinaPerformanceTestMaxId;
     private final ExecutorService executor = Executors.newFixedThreadPool(16);
 
     @BeforeAll
@@ -49,6 +50,7 @@ public class TestRetinaWriter
         metadataRegistry = TableMetadataRegistry.Instance();
         transService = TransService.Instance();
         retinaPerformanceTestRowCount = 5_000_000;
+        retinaPerformanceTestMaxId = 2_000_000;
     }
 
     @Test
@@ -180,13 +182,13 @@ public class TestRetinaWriter
             RetinaException, SinkException, TransException, IOException, ExecutionException, InterruptedException
     {
         String schemaName = "pixels_bench_sf1x";
-        String tableName = "checkingaccount";
+        String tableName = "savingaccount";
 
         PixelsSinkWriter writer = PixelsSinkWriterFactory.getWriter();
 
         TransactionManager manager = TransactionManager.Instance();
         // Step 1: Insert 10,000 records
-        int totalInserts = retinaPerformanceTestRowCount;
+        int totalInserts = retinaPerformanceTestMaxId;
         int batchSize = 5;
         int batchCount = totalInserts / batchSize;
 
@@ -344,7 +346,7 @@ public class TestRetinaWriter
 
                     for (int i = 0; i < batchSize; i++)
                     {
-                        int accountID = random.nextInt(retinaPerformanceTestRowCount);
+                        int accountID = random.nextInt(retinaPerformanceTestMaxId);
                         int userID = accountID % 1000;
                         float oldBalance = 1000.0f + accountID;
                         float newBalance = oldBalance + random.nextInt(1000);

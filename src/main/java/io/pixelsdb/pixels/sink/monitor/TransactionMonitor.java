@@ -7,9 +7,10 @@
  *
  * http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
+ * Unless required by applicable law or agreed to in writing,
  * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
@@ -32,6 +33,8 @@ import org.slf4j.LoggerFactory;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.Properties;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class TransactionMonitor implements Runnable, StoppableMonitor
@@ -42,6 +45,8 @@ public class TransactionMonitor implements Runnable, StoppableMonitor
     private final KafkaConsumer<String, SinkProto.TransactionMetadata> consumer;
     private final TransactionCoordinator transactionCoordinator;
     private final AtomicBoolean running = new AtomicBoolean(true);
+    private final BlockingQueue<SinkProto.TransactionMetadata> eventQueue = new LinkedBlockingQueue<>(10000);
+    private Thread processorThread;
 
     public TransactionMonitor(PixelsSinkConfig pixelsSinkConfig, Properties kafkaProperties)
     {
@@ -58,6 +63,9 @@ public class TransactionMonitor implements Runnable, StoppableMonitor
             consumer.subscribe(Collections.singletonList(transactionTopic));
             LOGGER.info("Started transaction monitor for topic: {}", transactionTopic);
 
+            processorThread = new Thread(this::processLoop, "processor-" + transactionTopic);
+            processorThread.start();
+
             while (running.get())
             {
                 try
@@ -67,9 +75,13 @@ public class TransactionMonitor implements Runnable, StoppableMonitor
 
                     for (ConsumerRecord<String, SinkProto.TransactionMetadata> record : records)
                     {
-                        SinkProto.TransactionMetadata transaction = record.value();
-                        LOGGER.debug("Processing transaction event: {}", transaction.getId());
-                        transactionCoordinator.processTransactionEvent(transaction);
+                        try
+                        {
+                            eventQueue.put(record.value());
+                        } catch (InterruptedException e)
+                        {
+                            Thread.currentThread().interrupt();
+                        }
                     }
                 } catch (WakeupException e)
                 {
@@ -77,10 +89,6 @@ public class TransactionMonitor implements Runnable, StoppableMonitor
                     {
                         LOGGER.warn("Consumer wakeup unexpectedly", e);
                     }
-                } catch (SinkException e)
-                {
-                    e.printStackTrace();
-                    throw new RuntimeException(e);
                 } catch (Exception e)
                 {
                     e.printStackTrace();
@@ -90,8 +98,41 @@ public class TransactionMonitor implements Runnable, StoppableMonitor
         } finally
         {
             closeResources();
+            if (processorThread != null)
+            {
+                processorThread.interrupt();
+                try
+                {
+                    processorThread.join();
+                } catch (InterruptedException ignored)
+                {
+                }
+            }
             LOGGER.info("Transaction monitor stopped");
         }
+    }
+
+    private void processLoop()
+    {
+        while (running.get() || !eventQueue.isEmpty())
+        {
+            try
+            {
+                SinkProto.TransactionMetadata transaction = eventQueue.take();
+                try
+                {
+                    LOGGER.debug("Processing transaction event: {}", transaction.getId());
+                    transactionCoordinator.processTransactionEvent(transaction);
+                } catch (SinkException e)
+                {
+                    throw new RuntimeException(e);
+                }
+            } catch (InterruptedException e)
+            {
+                Thread.currentThread().interrupt();
+            }
+        }
+        LOGGER.info("Processor thread exited for {}", transactionTopic);
     }
 
     @Override

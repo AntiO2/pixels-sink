@@ -7,9 +7,10 @@
  *
  * http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
+ * Unless required by applicable law or agreed to in writing,
  * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
@@ -35,8 +36,8 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.Properties;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class TableMonitor implements Runnable
@@ -47,8 +48,9 @@ public class TableMonitor implements Runnable
     private final String topic;
     private final AtomicBoolean running = new AtomicBoolean(true);
     private final String tableName;
-    private final ExecutorService executor = Executors.newCachedThreadPool();
+    private final BlockingQueue<RowChangeEvent> eventQueue = new LinkedBlockingQueue<>(10000);
     private KafkaConsumer<String, RowChangeEvent> consumer;
+    private Thread processorThread;
 
     public TableMonitor(Properties kafkaProperties, String topic) throws IOException
     {
@@ -69,6 +71,9 @@ public class TableMonitor implements Runnable
             consumer = new KafkaConsumer<>(kafkaProperties);
             consumer.subscribe(Collections.singleton(topic));
 
+            processorThread = new Thread(this::processLoop, "processor-" + tableName);
+            processorThread.start();
+
             while (running.get())
             {
                 try
@@ -79,18 +84,13 @@ public class TableMonitor implements Runnable
                         log.debug("{} Consumer poll returned {} records", tableName, records.count());
                         records.forEach(record ->
                         {
-                            log.info("{} Consumer record: {}", tableName, record.value());
-                            executor.execute(() ->
+                            try
                             {
-                                RowChangeEvent event = record.value();
-                                try
-                                {
-                                    transactionCoordinator.processRowEvent(event);
-                                } catch (SinkException e)
-                                {
-                                    throw new RuntimeException(e);
-                                }
-                            });
+                                eventQueue.put(record.value());
+                            } catch (InterruptedException e)
+                            {
+                                Thread.currentThread().interrupt();
+                            }
                         });
                     }
                 } catch (InterruptException ignored)
@@ -100,7 +100,6 @@ public class TableMonitor implements Runnable
             }
         } catch (WakeupException e)
         {
-            // shutdown normally
             log.info("Consumer wakeup triggered for {}", tableName);
         } catch (Exception e)
         {
@@ -113,7 +112,39 @@ public class TableMonitor implements Runnable
                 consumer.close(Duration.ofSeconds(5));
                 log.info("Kafka consumer closed for {}", tableName);
             }
+            if (processorThread != null)
+            {
+                processorThread.interrupt();
+                try
+                {
+                    processorThread.join();
+                } catch (InterruptedException ignored)
+                {
+                }
+            }
         }
+    }
+
+    private void processLoop()
+    {
+        while (running.get() || !eventQueue.isEmpty())
+        {
+            try
+            {
+                RowChangeEvent event = eventQueue.take();
+                try
+                {
+                    transactionCoordinator.processRowEvent(event);
+                } catch (SinkException e)
+                {
+                    throw new RuntimeException(e);
+                }
+            } catch (InterruptedException e)
+            {
+                Thread.currentThread().interrupt();
+            }
+        }
+        log.info("Processor thread exited for {}", tableName);
     }
 
     public void shutdown()

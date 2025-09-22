@@ -36,7 +36,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
-class SinkContext
+public class SinkContext
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(SinkContext.class);
     final ReentrantLock lock = new ReentrantLock();
@@ -75,42 +75,6 @@ class SinkContext
                 .toList();
     }
 
-    void addUpdateData(RowChangeEvent rowChangeEvent) throws SinkException
-    {
-        String tableName = rowChangeEvent.getTable();
-        long primaryIndexId = tableMetadataRegistry.getPrimaryIndexKeyId(rowChangeEvent.getSchemaName(), tableName);
-        RetinaProto.TableUpdateData.Builder builder = tableUpdateDataMap.computeIfAbsent(tableName, k ->
-                RetinaProto.TableUpdateData.newBuilder()
-                        .setTableName(tableName)
-                        .setPrimaryIndexId(primaryIndexId)
-        );
-        ReentrantLock lock =  tableUpdateLockMap.computeIfAbsent(tableName, k -> new ReentrantLock());
-
-        lock.lock();
-        if (rowChangeEvent.hasBeforeData())
-        {
-            RetinaProto.DeleteData.Builder deleteDataBuilder = RetinaProto.DeleteData.newBuilder();
-            deleteDataBuilder.addIndexKeys(rowChangeEvent.getBeforeKey());
-            builder.addDeleteData(deleteDataBuilder);
-        }
-
-        if (rowChangeEvent.hasAfterData())
-        {
-            RetinaProto.InsertData.Builder insertDataBuilder = RetinaProto.InsertData.newBuilder();
-            insertDataBuilder.addIndexKeys(rowChangeEvent.getAfterKey());
-            insertDataBuilder.addAllColValues(rowChangeEvent.getAfterData());
-            builder.addInsertData(insertDataBuilder);
-        }
-
-        updateCounter(rowChangeEvent.getFullTableName());
-
-        lock.unlock();
-        if (pendingEvents.decrementAndGet() == 0 && completed)
-        {
-            completionFuture.complete(null);
-        }
-    }
-
     boolean isReadyForDispatch(String table, long collectionOrder)
     {
         lock.lock();
@@ -130,6 +94,11 @@ class SinkContext
     {
         tableCounters.compute(table, (k, v) ->
                 (v == null) ? 1 : v + 1);
+    }
+
+    public void updateCounter(String table, long count) {
+        tableCounters.compute(table, (k, v) ->
+                (v == null) ? count : v + count);
     }
 
     Set<String> getTrackedTables()
@@ -170,8 +139,78 @@ class SinkContext
         completionFuture.get();
     }
 
-    long getTimestamp()
+    public long getTimestamp()
     {
         return pixelsTransCtx == null ? 0 : pixelsTransCtx.getTimestamp();
+    }
+
+    public ReentrantLock getLock()
+    {
+        return lock;
+    }
+
+    public Condition getCond()
+    {
+        return cond;
+    }
+
+    public String getSourceTxId()
+    {
+        return sourceTxId;
+    }
+
+    public Map<String, Long> getTableCursors()
+    {
+        return tableCursors;
+    }
+
+    public Map<String, Long> getTableCounters()
+    {
+        return tableCounters;
+    }
+
+    public Map<String, RetinaProto.TableUpdateData.Builder> getTableUpdateDataMap()
+    {
+        return tableUpdateDataMap;
+    }
+
+    public Map<String, ReentrantLock> getTableUpdateLockMap()
+    {
+        return tableUpdateLockMap;
+    }
+
+    public AtomicInteger getPendingEvents()
+    {
+        return pendingEvents;
+    }
+
+    public CompletableFuture<Void> getCompletionFuture()
+    {
+        return completionFuture;
+    }
+
+    public TableMetadataRegistry getTableMetadataRegistry()
+    {
+        return tableMetadataRegistry;
+    }
+
+    public TransContext getPixelsTransCtx()
+    {
+        return pixelsTransCtx;
+    }
+
+    public void setPixelsTransCtx(TransContext pixelsTransCtx)
+    {
+        this.pixelsTransCtx = pixelsTransCtx;
+    }
+
+    public boolean isCompleted()
+    {
+        return completed;
+    }
+
+    public void setCompleted(boolean completed)
+    {
+        this.completed = completed;
     }
 }

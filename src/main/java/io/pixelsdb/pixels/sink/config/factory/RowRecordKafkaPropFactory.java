@@ -39,6 +39,12 @@ public class RowRecordKafkaPropFactory implements KafkaPropFactory
         Properties kafkaProperties = getCommonKafkaProperties(config);
         kafkaProperties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, config.getValueDeserializer());
         kafkaProperties.put(ConsumerConfig.GROUP_ID_CONFIG, config.getGroupId());
+
+        kafkaProperties.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, "30000");
+        kafkaProperties.put(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, "1000");
+        kafkaProperties.put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, "600000");
+        kafkaProperties.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, "500");
+
         return kafkaProperties;
     }
 }

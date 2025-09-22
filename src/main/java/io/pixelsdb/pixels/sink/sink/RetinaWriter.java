@@ -173,7 +173,7 @@ public class RetinaWriter implements PixelsSinkWriter
 //            }
         }
 
-        if (config.getTransactionMode() == TransactionMode.BATCH)
+        if (config.getTransactionMode() == TransactionMode.BATCH && config.getRetinaWriteMode() == RetinaWriteMode.STREAM)
         {
             retinaStream.close();
         }
