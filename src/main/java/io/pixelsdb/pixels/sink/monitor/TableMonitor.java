@@ -84,6 +84,10 @@ public class TableMonitor implements Runnable
                         log.debug("{} Consumer poll returned {} records", tableName, records.count());
                         records.forEach(record ->
                         {
+                            if(record.value() == null)
+                            {
+                                return;
+                            }
                             try
                             {
                                 eventQueue.put(record.value());

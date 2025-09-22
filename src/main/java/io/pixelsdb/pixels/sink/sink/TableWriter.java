@@ -50,6 +50,7 @@ public class TableWriter
     private List<RowChangeEvent> buffer = new ArrayList<>();
     private volatile String currentTxId = null;
     private final String tableName;
+    String fullTableName;
     private ScheduledFuture<?> flushTask = null;
     private RetinaProto.TableUpdateData.Builder builder;
     public TableWriter(String tableName) throws IOException
@@ -78,13 +79,17 @@ public class TableWriter
         try
         {
             String txId = ctx.getSourceTxId();
-            if (currentTxId != null && !currentTxId.equals(txId))
+            if (currentTxId == null || (currentTxId != null && !currentTxId.equals(txId)))
             {
                 flushInternal(ctx);
                 builder = RetinaProto.TableUpdateData.newBuilder();
                 long primaryIndexId = tableMetadataRegistry.getPrimaryIndexKeyId(event.getSchemaName(), tableName);
                 builder.setTableName(tableName);
                 builder.setPrimaryIndexId(primaryIndexId);
+                if(fullTableName == null)
+                {
+                    fullTableName = event.getFullTableName();
+                }
             }
 
             currentTxId = txId;
@@ -105,7 +110,7 @@ public class TableWriter
                     {
                         lock.unlock();
                     }
-                }, 3, TimeUnit.SECONDS); // 3s 定时器
+                }, 3, TimeUnit.SECONDS); // 3s
             }
         } catch (SinkException e)
         {
@@ -135,27 +140,34 @@ public class TableWriter
 
     private void flushInternal(SinkContext sinkContext) throws SinkException
     {
-        if (buffer.isEmpty() || currentTxId == null)
-        {
-            return;
+        try {
+            lock.lock();
+            if (buffer.isEmpty() || currentTxId == null || builder == null)
+            {
+                return;
+            }
+
+            List<RowChangeEvent> batch = buffer;
+            buffer = new ArrayList<>();
+
+            String txId = currentTxId;
+            currentTxId = null;
+
+            LOGGER.info("Flushing {} events for table {} txId={}", batch.size(), tableName, txId);
+
+            for (RowChangeEvent event : batch)
+            {
+                addUpdateData(event, builder, sinkContext);
+            }
+            List<RetinaProto.TableUpdateData> tableUpdateData = List.of(builder.build());
+            builder = RetinaProto.TableUpdateData.newBuilder().setPrimaryIndexId(builder.getPrimaryIndexId())
+                            .setTableName(tableName);
+            delegate.writeTrans(batch.get(0).getSchemaName(), tableUpdateData, sinkContext.getTimestamp());
+            sinkContext.updateCounter(fullTableName, batch.size());
+        } finally {
+            lock.unlock();
         }
 
-        List<RowChangeEvent> batch = buffer;
-        buffer = new ArrayList<>();
-
-        String txId = currentTxId;
-        currentTxId = null;
-
-        LOGGER.info("Flushing {} events for table {} txId={}", batch.size(), tableName, txId);
-
-        for (RowChangeEvent event : batch)
-        {
-            addUpdateData(event, builder, sinkContext);
-        }
-        List<RetinaProto.TableUpdateData> tableUpdateData = List.of(builder.build());
-
-        delegate.writeTrans(batch.get(0).getSchemaName(), tableUpdateData, sinkContext.getTimestamp());
-        sinkContext.updateCounter(tableName, batch.size());
     }
 
     public void close()

@@ -219,13 +219,6 @@ public class TransactionCoordinator
                 ctx.lock.unlock();
             }
 
-            if (ctx.pendingEvents.get() > 0)
-            {
-                LOGGER.info("Waiting for {} pending events in TX {}",
-                        ctx.pendingEvents.get(), txId);
-                ctx.awaitCompletion();
-            }
-
             activeTxContexts.remove(txId);
             boolean res = true;
             if(res)
@@ -252,7 +245,7 @@ public class TransactionCoordinator
                     }
                 });
             }
-        } catch (InterruptedException | ExecutionException e)
+        } catch (InterruptedException e)
         {
             try {
                 LOGGER.info("Catch Exception, Abort transaction: {}", txId);
