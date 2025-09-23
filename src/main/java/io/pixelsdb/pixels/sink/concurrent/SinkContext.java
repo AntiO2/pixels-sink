@@ -18,19 +18,18 @@
 package io.pixelsdb.pixels.sink.concurrent;
 
 import io.pixelsdb.pixels.common.transaction.TransContext;
-import io.pixelsdb.pixels.retina.RetinaProto;
 import io.pixelsdb.pixels.sink.SinkProto;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
-import io.pixelsdb.pixels.sink.exception.SinkException;
 import io.pixelsdb.pixels.sink.metadata.TableMetadataRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Condition;
@@ -49,9 +48,9 @@ public class SinkContext
     final CompletableFuture<Void> completionFuture = new CompletableFuture<>();
 
     final TableMetadataRegistry tableMetadataRegistry = TableMetadataRegistry.Instance();
-    TransContext pixelsTransCtx;
     volatile boolean completed = false;
-
+    Queue<RowChangeEvent> orphanEvent = new ConcurrentLinkedQueue<>();
+    private TransContext pixelsTransCtx;
 
     SinkContext(String sourceTxId)
     {
@@ -89,7 +88,8 @@ public class SinkContext
         cond.signalAll();
     }
 
-    public void updateCounter(String table, long count) {
+    public void updateCounter(String table, long count)
+    {
         tableCounters.compute(table, (k, v) ->
                 (v == null) ? count : v + count);
     }
@@ -135,6 +135,16 @@ public class SinkContext
     public long getTimestamp()
     {
         return pixelsTransCtx == null ? 0 : pixelsTransCtx.getTimestamp();
+    }
+
+    public void bufferOrphanedEvent(RowChangeEvent event)
+    {
+        orphanEvent.add(event);
+    }
+
+    public Queue<RowChangeEvent> getOrphanEvent()
+    {
+        return orphanEvent;
     }
 
     public ReentrantLock getLock()

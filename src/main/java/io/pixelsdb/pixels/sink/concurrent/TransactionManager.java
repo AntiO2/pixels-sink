@@ -69,7 +69,7 @@ public class TransactionManager
     {
         try
         {
-            List<TransContext> newContexts = transService.beginTransBatch(100, false);
+            List<TransContext> newContexts = transService.beginTransBatch(1000, false);
             transContextQueue.addAll(newContexts);
         } catch (TransException e)
         {
@@ -110,10 +110,10 @@ public class TransactionManager
                         transContext.getTransId(),
                         transContext.getTimestamp()
                 );
-                LOGGER.info("Success Commit {} {}", transContext.getTransId(), transContext.getTimestamp());
+                LOGGER.info("Success Commit TXID: {} TS: {}", transContext.getTransId(), transContext.getTimestamp());
             } catch (TransException e)
             {
-                LOGGER.error("Async commit failed: transId=%s%n", transContext.getTransId());
+                LOGGER.error("Async commit failed: transId={}", transContext.getTransId());
                 e.printStackTrace();
             }
         });

@@ -69,8 +69,11 @@ public class DateUtil
         String dateToString = df.format(date);
         return (dateToString);
     }
-    public static String convertTimestampToString(Date date) {
-        if (date == null) {
+
+    public static String convertTimestampToString(Date date)
+    {
+        if (date == null)
+        {
             return null;
         }
         SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss.SSS");

@@ -48,7 +48,7 @@ public class TableMonitor implements Runnable
     private final String topic;
     private final AtomicBoolean running = new AtomicBoolean(true);
     private final String tableName;
-    private final BlockingQueue<RowChangeEvent> eventQueue = new LinkedBlockingQueue<>(10000);
+    private final BlockingQueue<RowChangeEvent> eventQueue = new LinkedBlockingQueue<>();
     private KafkaConsumer<String, RowChangeEvent> consumer;
     private Thread processorThread;
 
@@ -81,10 +81,10 @@ public class TableMonitor implements Runnable
                     ConsumerRecords<String, RowChangeEvent> records = consumer.poll(Duration.ofSeconds(5));
                     if (!records.isEmpty())
                     {
-                        log.debug("{} Consumer poll returned {} records", tableName, records.count());
+                        log.info("{} Consumer poll returned {} records", tableName, records.count());
                         records.forEach(record ->
                         {
-                            if(record.value() == null)
+                            if (record.value() == null)
                             {
                                 return;
                             }
@@ -136,6 +136,7 @@ public class TableMonitor implements Runnable
             try
             {
                 RowChangeEvent event = eventQueue.take();
+                // log.info("Event received: {}", event);
                 try
                 {
                     transactionCoordinator.processRowEvent(event);

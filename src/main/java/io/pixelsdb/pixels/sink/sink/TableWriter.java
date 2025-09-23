@@ -7,19 +7,18 @@
  *
  * http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
+ * Unless required by applicable law or agreed to in writing,
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
-
 
 package io.pixelsdb.pixels.sink.sink;
 
 import io.pixelsdb.pixels.retina.RetinaProto;
 import io.pixelsdb.pixels.sink.concurrent.SinkContext;
+import io.pixelsdb.pixels.sink.concurrent.TransactionCoordinatorFactory;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
 import io.pixelsdb.pixels.sink.exception.SinkException;
 import io.pixelsdb.pixels.sink.metadata.TableMetadataRegistry;
@@ -28,7 +27,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
@@ -39,20 +37,17 @@ public class TableWriter
     private static final Map<String, TableWriter> WRITER_REGISTRY = new ConcurrentHashMap<>();
     private static final Logger LOGGER = LoggerFactory.getLogger(TableWriter.class);
     private static final TableMetadataRegistry tableMetadataRegistry = TableMetadataRegistry.Instance();
+    private static final long TX_TIMEOUT_MS = 3000;
     private final PixelsSinkWriter delegate; // physical writer
-    private final Map<String, SinkContext> txnContextMap = new ConcurrentHashMap<>();
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
-
-    private final long TX_TIMEOUT_MS = 3000;
-
     private final ReentrantLock lock = new ReentrantLock();
-
+    private final String tableName;
+    // Shared state (protected by lock)
     private List<RowChangeEvent> buffer = new ArrayList<>();
     private volatile String currentTxId = null;
-    private final String tableName;
-    String fullTableName;
     private ScheduledFuture<?> flushTask = null;
-    private RetinaProto.TableUpdateData.Builder builder;
+    private String fullTableName;
+
     public TableWriter(String tableName) throws IOException
     {
         this.delegate = PixelsSinkWriterFactory.getWriter();
@@ -73,119 +68,11 @@ public class TableWriter
         });
     }
 
-    public boolean write(RowChangeEvent event, SinkContext ctx)
-    {
-        lock.lock();
-        try
-        {
-            String txId = ctx.getSourceTxId();
-            if (currentTxId == null || (currentTxId != null && !currentTxId.equals(txId)))
-            {
-                flushInternal(ctx);
-                builder = RetinaProto.TableUpdateData.newBuilder();
-                long primaryIndexId = tableMetadataRegistry.getPrimaryIndexKeyId(event.getSchemaName(), tableName);
-                builder.setTableName(tableName);
-                builder.setPrimaryIndexId(primaryIndexId);
-                if(fullTableName == null)
-                {
-                    fullTableName = event.getFullTableName();
-                }
-            }
-
-            currentTxId = txId;
-            buffer.add(event);
-
-            if (flushTask == null || flushTask.isDone())
-            {
-                flushTask = scheduler.schedule(() ->
-                {
-                    try
-                    {
-                        lock.lock();
-                        flushInternal(ctx);
-                    } catch (Exception e)
-                    {
-                        LOGGER.error("Scheduled flush failed for table {}", tableName, e);
-                    } finally
-                    {
-                        lock.unlock();
-                    }
-                }, 3, TimeUnit.SECONDS); // 3s
-            }
-        } catch (SinkException e)
-        {
-            LOGGER.error(e.getMessage(), e);
-            return false;
-        } finally
-        {
-            lock.unlock();
-        }
-        return true;
-    }
-
-    public void flush(SinkContext sinkContext)
-    {
-        lock.lock();
-        try
-        {
-            flushInternal(sinkContext);
-        } catch (SinkException e)
-        {
-            throw new RuntimeException(e);
-        } finally
-        {
-            lock.unlock();
-        }
-    }
-
-    private void flushInternal(SinkContext sinkContext) throws SinkException
-    {
-        try {
-            lock.lock();
-            if (buffer.isEmpty() || currentTxId == null || builder == null)
-            {
-                return;
-            }
-
-            List<RowChangeEvent> batch = buffer;
-            buffer = new ArrayList<>();
-
-            String txId = currentTxId;
-            currentTxId = null;
-
-            LOGGER.info("Flushing {} events for table {} txId={}", batch.size(), tableName, txId);
-
-            for (RowChangeEvent event : batch)
-            {
-                addUpdateData(event, builder, sinkContext);
-            }
-            List<RetinaProto.TableUpdateData> tableUpdateData = List.of(builder.build());
-            builder = RetinaProto.TableUpdateData.newBuilder().setPrimaryIndexId(builder.getPrimaryIndexId())
-                            .setTableName(tableName);
-            delegate.writeTrans(batch.get(0).getSchemaName(), tableUpdateData, sinkContext.getTimestamp());
-            sinkContext.updateCounter(fullTableName, batch.size());
-        } finally {
-            lock.unlock();
-        }
-
-    }
-
-    public void close()
-    {
-        scheduler.shutdown();
-        try
-        {
-            scheduler.awaitTermination(5, TimeUnit.SECONDS);
-            delegate.close();
-        } catch (InterruptedException ignored)
-        {
-        } catch (IOException e)
-        {
-            throw new RuntimeException(e);
-        }
-    }
-
-    public static void addUpdateData(RowChangeEvent rowChangeEvent, RetinaProto.TableUpdateData.Builder builder, SinkContext ctx) throws SinkException
+    /**
+     * Helper: add insert/delete data into proto builder.
+     */
+    public static void addUpdateData(RowChangeEvent rowChangeEvent,
+                                     RetinaProto.TableUpdateData.Builder builder) throws SinkException
     {
         if (rowChangeEvent.hasBeforeData())
         {
@@ -200,6 +87,162 @@ public class TableWriter
             insertDataBuilder.addIndexKeys(rowChangeEvent.getAfterKey());
             insertDataBuilder.addAllColValues(rowChangeEvent.getAfterData());
             builder.addInsertData(insertDataBuilder);
+        }
+    }
+
+    /**
+     * Write a single RowChangeEvent.
+     * Ensures that events are grouped by transaction (txId).
+     */
+    public boolean write(RowChangeEvent event, SinkContext ctx)
+    {
+        try
+        {
+            boolean needFlush = false;
+
+            lock.lock();
+            try
+            {
+                String txId = ctx.getSourceTxId();
+
+                // If this is a new transaction, flush the old one
+                if (currentTxId == null || !currentTxId.equals(txId))
+                {
+                    needFlush = !buffer.isEmpty();
+                    if (needFlush)
+                    {
+                        if (flushTask != null)
+                        {
+                            flushTask.cancel(false);
+                        }
+                        flush();
+                    }
+                    currentTxId = txId;
+                    if (fullTableName == null)
+                    {
+                        fullTableName = event.getFullTableName();
+                    }
+                }
+
+                buffer.add(event);
+
+                // Reset scheduled flush: cancel old one and reschedule
+                if (flushTask != null && !flushTask.isDone())
+                {
+                    flushTask.cancel(false);
+                }
+                flushTask = scheduler.schedule(() ->
+                {
+                    try
+                    {
+                        lock.lock();
+                        try
+                        {
+                            if (txId.equals(currentTxId))
+                            {
+                                flush();
+                            }
+                        } finally
+                        {
+                            lock.unlock();
+                        }
+                    } catch (Exception e)
+                    {
+                        LOGGER.error("Scheduled flush failed for table {}", tableName, e);
+                    }
+                }, TX_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+            } finally
+            {
+                lock.unlock();
+            }
+            return true;
+        } catch (Exception e)
+        {
+            LOGGER.error("Write failed for table {}", tableName, e);
+            return false;
+        }
+    }
+
+    /**
+     * Flush any buffered events for the current transaction.
+     */
+    public void flush()
+    {
+        List<RowChangeEvent> batch;
+        String txId;
+        RetinaProto.TableUpdateData.Builder toBuild;
+        SinkContext sinkContext = null;
+        lock.lock();
+        try
+        {
+            if (buffer.isEmpty() || currentTxId == null)
+            {
+                return;
+            }
+            txId = currentTxId;
+            currentTxId = null;
+
+            sinkContext = TransactionCoordinatorFactory.getCoordinator().getSinkContext(txId);
+            sinkContext.getLock().lock();
+            try
+            {
+                while (sinkContext.getPixelsTransCtx() == null)
+                {
+                    LOGGER.warn("Wait for prev tx to begin trans: {}", txId);
+                    sinkContext.getCond().await();
+                }
+            } finally
+            {
+                sinkContext.getLock().unlock();
+            }
+
+            // Swap buffers quickly under lock
+            batch = buffer;
+            buffer = new ArrayList<>();
+        } catch (InterruptedException e)
+        {
+            throw new RuntimeException(e);
+        } finally
+        {
+            lock.unlock();
+        }
+
+        RowChangeEvent event1 = batch.get(0);
+
+        RetinaProto.TableUpdateData.Builder builder = RetinaProto.TableUpdateData.newBuilder()
+                .setPrimaryIndexId(event1.getTableMetadata().getPrimaryIndexKeyId())
+                .setTableName(tableName);
+
+
+        try
+        {
+            for (RowChangeEvent event : batch)
+            {
+                addUpdateData(event, builder);
+            }
+            List<RetinaProto.TableUpdateData> tableUpdateData = List.of(builder.build());
+            delegate.writeTrans(event1.getSchemaName(), tableUpdateData, sinkContext.getTimestamp());
+            sinkContext.updateCounter(fullTableName, batch.size());
+            // ---- Outside lock: build proto and write ----
+            LOGGER.info("Flushing {} events for table {} txId={}", batch.size(), fullTableName, txId);
+        } catch (SinkException e)
+        {
+            throw new RuntimeException("Flush failed for table " + tableName, e);
+        }
+    }
+
+    public void close()
+    {
+        scheduler.shutdown();
+        try
+        {
+            scheduler.awaitTermination(5, TimeUnit.SECONDS);
+            delegate.close();
+        } catch (InterruptedException ignored)
+        {
+        } catch (IOException e)
+        {
+            throw new RuntimeException(e);
         }
     }
 }

@@ -26,50 +26,24 @@ import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
 import io.pixelsdb.pixels.sink.monitor.MetricsFacade;
 import lombok.Getter;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.spi.LoggerContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.lang.module.Configuration;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.logging.Level;
 
 public class RetinaWriter implements PixelsSinkWriter
 {
-    public enum RetinaWriteMode {
-        STREAM,
-        STUB;
-
-        public static RetinaWriteMode fromValue(String value)
-        {
-            for (RetinaWriteMode mode : values())
-            {
-                if (mode.name().equalsIgnoreCase(value))
-                {
-                    return mode;
-                }
-            }
-            throw new RuntimeException(String.format("Can't convert %s to sink type", value));
-        }
-    }
-
     private static final Logger LOGGER = LoggerFactory.getLogger(RetinaWriter.class);
     @Getter
     private static final PixelsSinkMode pixelsSinkMode = PixelsSinkMode.RETINA;
-    // private static final IndexService indexService = IndexService.Instance();
-
-
     private static final PixelsSinkConfig config = PixelsSinkConfigFactory.getInstance();
+    // private static final IndexService indexService = IndexService.Instance();
     private final AtomicBoolean isClosed = new AtomicBoolean(false);
-
     private final RetinaService retinaService = RetinaService.Instance();
-
     private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
     private RetinaService.StreamHandle retinaStream = null;
-
     public RetinaWriter()
     {
         if (config.getTransactionMode() == TransactionMode.BATCH && config.getRetinaWriteMode() == RetinaWriteMode.STREAM)
@@ -121,7 +95,7 @@ public class RetinaWriter implements PixelsSinkWriter
     @Override
     public boolean writeTrans(String schemaName, List<RetinaProto.TableUpdateData> tableUpdateData, long timestamp)
     {
-        if(config.getRetinaWriteMode()==RetinaWriteMode.STUB)
+        if (config.getRetinaWriteMode() == RetinaWriteMode.STUB)
         {
             try
             {
@@ -148,7 +122,6 @@ public class RetinaWriter implements PixelsSinkWriter
 
         return false;
     }
-
 
     private boolean sendDeleteRequest(RowChangeEvent event)
     {
@@ -190,6 +163,24 @@ public class RetinaWriter implements PixelsSinkWriter
 //        RetinaProto.InsertRecordResponse insertRecordResponse = blockingStub.insertRecord(getInsertRecordRequest(event));
 //        return insertRecordResponse.getHeader().getErrorCode() == 0;
         return false;
+    }
+
+    public enum RetinaWriteMode
+    {
+        STREAM,
+        STUB;
+
+        public static RetinaWriteMode fromValue(String value)
+        {
+            for (RetinaWriteMode mode : values())
+            {
+                if (mode.name().equalsIgnoreCase(value))
+                {
+                    return mode;
+                }
+            }
+            throw new RuntimeException(String.format("Can't convert %s to sink type", value));
+        }
     }
 
 //    private RetinaProto.TransInfo getTransinfo(RowChangeEvent event) {

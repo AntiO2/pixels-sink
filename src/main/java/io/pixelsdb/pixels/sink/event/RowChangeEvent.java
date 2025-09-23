@@ -42,6 +42,8 @@ public class RowChangeEvent
     @Getter
     private final SinkProto.RowRecord rowRecord;
     private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
+    @Getter
+    private final TypeDescription schema;
     /**
      * timestamp from pixels transaction server
      */
@@ -55,14 +57,10 @@ public class RowChangeEvent
     private Summary.Timer latencyTimer;
     private Map<String, SinkProto.ColumnValue> beforeValueMap;
     private Map<String, SinkProto.ColumnValue> afterValueMap;
-
     @Getter
     private IndexProto.IndexKey beforeKey;
     @Getter
     private IndexProto.IndexKey afterKey;
-
-    @Getter
-    private final TypeDescription schema;
 
     public RowChangeEvent(SinkProto.RowRecord rowRecord) throws SinkException
     {

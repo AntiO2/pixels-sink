@@ -80,7 +80,8 @@ public class PixelsSinkConfig
         this.retinaEmbedded = false;
     }
 
-    public RetinaWriter.RetinaWriteMode getRetinaWriteMode() {
+    public RetinaWriter.RetinaWriteMode getRetinaWriteMode()
+    {
         return retinaWriteMode;
     }
 
