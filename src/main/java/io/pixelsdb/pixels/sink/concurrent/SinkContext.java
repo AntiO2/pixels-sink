@@ -134,7 +134,11 @@ public class SinkContext
 
     public long getTimestamp()
     {
-        return pixelsTransCtx == null ? 0 : pixelsTransCtx.getTimestamp();
+        if(pixelsTransCtx == null)
+        {
+            throw new RuntimeException("PixelsTransCtx is NULL");
+        }
+        return pixelsTransCtx.getTimestamp();
     }
 
     public void bufferOrphanedEvent(RowChangeEvent event)

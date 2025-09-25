@@ -38,6 +38,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 public class TransactionCoordinator
@@ -106,7 +107,8 @@ public class TransactionCoordinator
         long totalOrder = event.getTransaction().getTotalOrder();
 
         LOGGER.debug("Receive event {} {}/{} {}/{} ", event.getOp().toString(), txId, totalOrder, table, collectionOrder);
-        activeTxContexts.compute(txId, (sourceTxId, sinkContext) ->
+        AtomicBoolean canWrite = new AtomicBoolean(false);
+        SinkContext ctx = activeTxContexts.compute(txId, (sourceTxId, sinkContext) ->
         {
             if (sinkContext == null)
             {
@@ -115,16 +117,19 @@ public class TransactionCoordinator
                 return newSinkContext;
             } else
             {
-                try
+                if (sinkContext.getPixelsTransCtx() == null)
                 {
-                    processRowChangeEvent(sinkContext, event);
-                } catch (SinkException e)
-                {
-                    throw new RuntimeException(e);
+                    sinkContext.bufferOrphanedEvent(event);
+                    return sinkContext;
                 }
+                canWrite.set(true);
                 return sinkContext;
             }
         });
+        if(canWrite.get())
+        {
+            processRowChangeEvent(ctx, event);
+        }
     }
 
     private void handleTxBegin(SinkProto.TransactionMetadata txBegin) throws SinkException
@@ -142,20 +147,6 @@ public class TransactionCoordinator
 
     private void startTransSync(String sourceTxId) throws SinkException
     {
-        // simple blocking based on activeTxContexts size
-        while (activeTxContexts.size() >= MAX_ACTIVE_TX)
-        {
-            try
-            {
-                LOGGER.warn("Too many active transactions ({}), waiting...", activeTxContexts.size());
-                Thread.sleep(100); // sleep 100ms before retry
-            } catch (InterruptedException e)
-            {
-                Thread.currentThread().interrupt();
-                throw new SinkException("Interrupted while waiting for activeTxContexts capacity", e);
-            }
-        }
-
         activeTxContexts.compute(
                 sourceTxId,
                 (k, oldCtx) ->

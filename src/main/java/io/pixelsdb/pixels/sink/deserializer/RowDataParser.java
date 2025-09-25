@@ -84,18 +84,28 @@ class RowDataParser
             case INT:
             {
                 int value = valueNode.asInt();
-                columnValueBuilder.setValue(ByteString.copyFrom(Integer.toString(value), StandardCharsets.UTF_8));
+                byte[] bytes = ByteBuffer.allocate(Integer.BYTES).putInt(value).array();
+                columnValueBuilder.setValue(ByteString.copyFrom(bytes));
                 columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.INT));
                 break;
             }
             case LONG:
             {
                 long value = valueNode.asLong();
-                columnValueBuilder.setValue(ByteString.copyFrom(Long.toString(value), StandardCharsets.UTF_8));
+                byte[] bytes = ByteBuffer.allocate(Long.BYTES).putLong(value).array();
+                columnValueBuilder.setValue(ByteString.copyFrom(bytes));
                 columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.LONG));
                 break;
             }
             case CHAR:
+            {
+                String text = valueNode.asText();
+                byte[] bytes = new byte[] { (byte) text.charAt(0) };
+                columnValueBuilder.setValue(ByteString.copyFrom(bytes));
+                columnValueBuilder.setType(PixelsProto.Type.newBuilder()
+                        .setKind(PixelsProto.Type.Kind.STRING));
+                break;
+            }
             case VARCHAR:
             case STRING:
             case VARBINARY:
@@ -115,16 +125,6 @@ class RowDataParser
                         .setScale(type.getScale()));
                 break;
             }
-            case DATE:
-            {
-                // expect date in format "yyyy-MM-dd"
-                Integer isoDate = valueNode.asInt();
-                Date date = DateUtil.fromDebeziumDate(isoDate);
-                String dayString = DateUtil.convertDateToDayString(date);
-                columnValueBuilder.setValue(ByteString.copyFrom(dayString, StandardCharsets.UTF_8));
-                columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.DATE));
-                break;
-            }
             case BINARY:
             {
                 String base64 = valueNode.asText(); // assume already base64 encoded
@@ -138,21 +138,39 @@ class RowDataParser
                 throw new UnsupportedOperationException("STRUCT parsing not yet implemented");
             }
             case DOUBLE:
+            {
+                double value = valueNode.asDouble();
+                long longBits = Double.doubleToLongBits(value);
+                byte[] bytes = ByteBuffer.allocate(Long.BYTES).putLong(longBits).array();
+                columnValueBuilder.setValue(ByteString.copyFrom(bytes));
+                columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.DOUBLE));
+                break;
+            }
             case FLOAT:
             {
-                Double value = valueNode.asDouble();
-                columnValueBuilder.setValue(ByteString.copyFrom(Double.toString(value), StandardCharsets.UTF_8));
-                columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.DOUBLE));
+                float value = (float) valueNode.asDouble();
+                int intBits = Float.floatToIntBits(value);
+                byte[] bytes = ByteBuffer.allocate(4).putInt(intBits).array();
+                columnValueBuilder.setValue(ByteString.copyFrom(bytes));
+                columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.FLOAT));
+                break;
+            }
+            case DATE:
+            {
+                int isoDate = valueNode.asInt();
+                byte[] bytes = ByteBuffer.allocate(Integer.BYTES).putInt(isoDate).array();
+                columnValueBuilder.setValue(ByteString.copyFrom(bytes));
+                columnValueBuilder.setType(PixelsProto.Type.newBuilder()
+                        .setKind(PixelsProto.Type.Kind.DATE));
                 break;
             }
             case TIMESTAMP:
             {
                 long timestamp = valueNode.asLong();
-//                Date date = DateUtil.fromDebeziumTimestamp(timestamp);
-//                String tsString = DateUtil.convertDateToString(date);
-                String tsString = DateUtil.convertDebeziumTimestampToString(timestamp);
-                columnValueBuilder.setValue(ByteString.copyFrom(tsString, StandardCharsets.UTF_8));
-                columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.DATE));
+                byte[] bytes = ByteBuffer.allocate(Long.BYTES).putLong(timestamp).array();
+                columnValueBuilder.setValue(ByteString.copyFrom(bytes));
+                columnValueBuilder.setType(PixelsProto.Type.newBuilder()
+                        .setKind(PixelsProto.Type.Kind.DATE));
                 break;
             }
             default:
