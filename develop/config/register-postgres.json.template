@@ -11,14 +11,15 @@
     "database.dbname" : "pixels_realtime_crud", 
     "schema.include.list": "public",
     "database.server.id": "1", 
-    "topic.prefix": "oltp_server",
+    "topic.prefix": "postgresql.oltp_server",
 
     "transforms": "topicRouting",
     "transforms.topicRouting.type": "org.apache.kafka.connect.transforms.RegexRouter",
-    "transforms.topicRouting.regex": "oltp_server\\.public\\.(.*)",
-    "transforms.topicRouting.replacement": "oltp_server.pixels_realtime_crud.$1",
+    "transforms.topicRouting.regex": "postgresql.oltp_server\\.public\\.(.*)",
+    "transforms.topicRouting.replacement": "postgresql.oltp_server.pixels_realtime_crud.$1",
 
-    "key.converter.schemas.enable": "false",
-    "value.converter.schemas.enable": "false"
+    "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "plugin.name": "pgoutput"
   }
 }

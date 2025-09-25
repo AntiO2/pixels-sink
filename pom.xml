@@ -27,14 +27,14 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <maven.compiler.source>8</maven.compiler.source>
-        <maven.compiler.target>8</maven.compiler.target>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
         <mainClass>io.pixelsdb.pixels.sink.PixelsSinkApp</mainClass>
         <maven.deploy.skip>true</maven.deploy.skip>
         <maven.install.skip>true</maven.install.skip>
 
         <dep.argparse4j.version>0.9.0</dep.argparse4j.version>
-        <dep.kafka.version>3.9.0</dep.kafka.version>
+        <dep.kafka.version>3.8.0</dep.kafka.version>
         <dep.opencsv.version>5.8</dep.opencsv.version>
         <dep.lombok.version>1.18.36</dep.lombok.version>
         <dep.debezium.version>3.0.7.Final</dep.debezium.version>
@@ -52,13 +52,19 @@
             <artifactId>pixels-core</artifactId>
             <optional>true</optional>
         </dependency>
+        <dependency>
+            <groupId>io.pixelsdb</groupId>
+            <artifactId>pixels-retina</artifactId>
+            <optional>true</optional>
+            <scope>test</scope>
+        </dependency>
+
 
         <dependency>
             <groupId>com.alibaba</groupId>
             <artifactId>fastjson</artifactId>
             <optional>true</optional>
         </dependency>
-
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
             <artifactId>log4j-core</artifactId>
@@ -93,6 +99,10 @@
             <version>3.25.1</version>
         </dependency>
 
+        <dependency>
+            <groupId>javax.annotation</groupId>
+            <artifactId>javax.annotation-api</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>net.sourceforge.argparse4j</groupId>
@@ -172,6 +182,26 @@
             <scope>test</scope>
         </dependency>
 
+        <dependency>
+            <groupId>io.apicurio</groupId>
+            <artifactId>apicurio-registry-serdes-avro-serde</artifactId>
+            <version>2.6.2.Final</version>
+        </dependency>
+
+
+        <!--monitor-->
+        <dependency>
+            <groupId>io.prometheus</groupId>
+            <artifactId>simpleclient</artifactId>
+            <version>0.16.0</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.prometheus</groupId>
+            <artifactId>simpleclient_httpserver</artifactId>
+            <version>0.16.0</version>
+        </dependency>
+
     </dependencies>
 
     <build>
@@ -223,7 +253,6 @@
         <plugin>
             <groupId>com.spotify</groupId>
             <artifactId>dockerfile-maven-plugin</artifactId>
-            
             <version>${plugin.dockerfile-maven.version}</version>
             <configuration>
                 <repository>${project.artifactId}</repository>
@@ -233,7 +262,25 @@
                 </buildArgs>
                 <dockerfile>develop/images/pixels-sink/Dockerfile</dockerfile>
             </configuration>
-        </plugin> 
+        </plugin>
+        <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <configuration>
+                <source>17</source>
+                <target>17</target>
+                <annotationProcessorPaths>
+                    <path>
+                        <groupId>org.projectlombok</groupId>
+                        <artifactId>lombok</artifactId>
+                        <version>${dep.lombok.version}</version>
+                    </path>
+                </annotationProcessorPaths>
+                <compilerArgs>
+                    <arg>-parameters</arg>
+                </compilerArgs>
+            </configuration>
+        </plugin>
         </plugins>
     </build>
 </project>

@@ -1,96 +1,185 @@
 /*
- * Copyright 2018-2025 PixelsDB.
+ * Copyright 2025 PixelsDB.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 package io.pixelsdb.pixels.sink.config;
 
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
+import io.pixelsdb.pixels.common.utils.ConfigFactory;
+import io.pixelsdb.pixels.sink.concurrent.TransactionMode;
+import io.pixelsdb.pixels.sink.sink.PixelsSinkMode;
+import io.pixelsdb.pixels.sink.sink.RetinaWriter;
+import lombok.Getter;
+
 import java.io.IOException;
-import java.io.InputStream;
-import java.util.Properties;
+import java.util.Objects;
 
-public class PixelsSinkConfig {
-    private final Properties properties;
-    private final Long transactionTimeout;
-    public PixelsSinkConfig(String configFilePath) throws IOException {
-        properties = new Properties();
-        if (configFilePath != null && !configFilePath.isEmpty()) {
-            try (InputStream input = new FileInputStream(configFilePath)) {
-                properties.load(input);
-            } catch (FileNotFoundException e) {
-                throw new FileNotFoundException("Configuration file not found: " + configFilePath);
-            } catch (IOException e) {
-                throw new IOException("Error reading configuration file: " + configFilePath, e);
-            }
-        } else {
-            try (InputStream input = getClass().getClassLoader().getResourceAsStream(PixelsSinkDefaultConfig.PROPERTIES_PATH)) {
-                if (input == null) {
-                    throw new FileNotFoundException("Resource file not found: " + configFilePath);
-                }
-                properties.load(input);
+@Getter
+public class PixelsSinkConfig
+{
+    private final ConfigFactory config;
 
-            }
-        }
-        transactionTimeout = Long.valueOf(properties.getProperty("transaction.timeout", TransactionConfig.DEFAULT_TRANSACTION_TIME_OUT));
+    private Long transactionTimeout;
+    private PixelsSinkMode pixelsSinkMode;
+    private RetinaWriter.RetinaWriteMode retinaWriteMode;
+    private TransactionMode transactionMode;
+    private short remotePort;
+    private int batchSize;
+    private int timeoutMs;
+    private int flushIntervalMs;
+    private int maxRetries;
+    private boolean sinkCsvEnableHeader;
+    private boolean monitorEnabled;
+    private short monitorPort;
+    private boolean rpcEnable;
+    private int mockRpcDelay;
+    private int transBatchSize;
+    private boolean retinaEmbedded;
+
+    public PixelsSinkConfig(String configFilePath) throws IOException
+    {
+        this.config = ConfigFactory.Instance();
+        this.config.loadProperties(configFilePath);
+        parseProps();
     }
 
-    public String getTopicPrefix() {
-        return properties.getProperty("topic.prefix");
+    public PixelsSinkConfig(ConfigFactory config)
+    {
+        this.config = config;
+        parseProps();
     }
 
-    public String getCaptureDatabase() {
-        return properties.getProperty("consumer.capture_database");
+    private void parseProps()
+    {
+        this.pixelsSinkMode = PixelsSinkMode.fromValue(getProperty("sink.mode", PixelsSinkDefaultConfig.SINK_MODE));
+        this.transactionTimeout = Long.valueOf(getProperty("transaction.timeout", TransactionConfig.DEFAULT_TRANSACTION_TIME_OUT));
+        this.remotePort = parseShort(getProperty("sink.remote.port"), PixelsSinkDefaultConfig.SINK_REMOTE_PORT);
+        this.batchSize = parseInt(getProperty("sink.batch.size"), PixelsSinkDefaultConfig.SINK_BATCH_SIZE);
+        this.timeoutMs = parseInt(getProperty("sink.timeout.ms"), PixelsSinkDefaultConfig.SINK_TIMEOUT_MS);
+        this.flushIntervalMs = parseInt(getProperty("sink.flush.interval.ms"), PixelsSinkDefaultConfig.SINK_FLUSH_INTERVAL_MS);
+        this.maxRetries = parseInt(getProperty("sink.max.retries"), PixelsSinkDefaultConfig.SINK_MAX_RETRIES);
+        this.sinkCsvEnableHeader = parseBoolean(getProperty("sink.csv.enable_header"), PixelsSinkDefaultConfig.SINK_CSV_ENABLE_HEADER);
+        this.monitorEnabled = parseBoolean(getProperty("sink.monitor.enabled"), PixelsSinkDefaultConfig.SINK_MONITOR_ENABLED);
+        this.monitorPort = parseShort(getProperty("sink.monitor.port"), PixelsSinkDefaultConfig.SINK_MONITOR_PORT);
+        this.rpcEnable = parseBoolean(getProperty("sink.rpc.enable"), PixelsSinkDefaultConfig.SINK_RPC_ENABLED);
+        this.mockRpcDelay = parseInt(getProperty("sink.rpc.mock.delay"), PixelsSinkDefaultConfig.MOCK_RPC_DELAY);
+        this.transBatchSize = parseInt(getProperty("sink.trans.batch.size"), PixelsSinkDefaultConfig.TRANSACTION_BATCH_SIZE);
+        this.transactionMode = TransactionMode.fromValue(getProperty("sink.trans.mode", TransactionConfig.DEFAULT_TRANSACTION_MODE));
+        this.retinaWriteMode = RetinaWriter.RetinaWriteMode.fromValue(getProperty("sink.retina.mode", PixelsSinkDefaultConfig.SINK_RETINA_MODE));
+        this.retinaEmbedded = false;
     }
 
-    public String[] getIncludeTables() {
-        String includeTables = properties.getProperty("consumer.include_tables", "");
+    public RetinaWriter.RetinaWriteMode getRetinaWriteMode()
+    {
+        return retinaWriteMode;
+    }
+
+    public String getTopicPrefix()
+    {
+        return getProperty("topic.prefix");
+    }
+
+    public String getCaptureDatabase()
+    {
+        return getProperty("consumer.capture_database");
+    }
+
+    public String[] getIncludeTables()
+    {
+        String includeTables = getProperty("consumer.include_tables", "");
         return includeTables.isEmpty() ? new String[0] : includeTables.split(",");
     }
 
-    public String getBootstrapServers() {
-        return properties.getProperty("bootstrap.servers");
+    public String getBootstrapServers()
+    {
+        return getProperty("bootstrap.servers");
     }
 
-    public String getGroupId() {
-        return properties.getProperty("group.id");
+    public String getGroupId()
+    {
+        return getProperty("group.id");
     }
 
-    public String getKeyDeserializer() {
-        return properties.getProperty("key.deserializer", PixelsSinkDefaultConfig.KEY_DESERIALIZER);
-    }
-    public String getValueDeserializer() {
-        return properties.getProperty("value.deserializer", PixelsSinkDefaultConfig.VALUE_DESERIALIZER);
+    public String getKeyDeserializer()
+    {
+        return getProperty("key.deserializer", PixelsSinkDefaultConfig.KEY_DESERIALIZER);
     }
 
-    public String getCsvSinkPath() {
-        return properties.getProperty("csv.sink_path", PixelsSinkDefaultConfig.CSV_SINK_PATH);
+    public String getValueDeserializer()
+    {
+        return getProperty("value.deserializer", PixelsSinkDefaultConfig.VALUE_DESERIALIZER);
     }
 
-    public String getTransactionTopicSuffix() {
-        return properties.getProperty("transaction.topic.suffix", TransactionConfig.DEFAULT_TRANSACTION_TOPIC_SUFFIX);
+    public String getCsvSinkPath()
+    {
+        return getProperty("sink.csv.path", PixelsSinkDefaultConfig.CSV_SINK_PATH);
     }
 
-    public String getTransactionTopicValueDeserializer() {
-        return properties.getProperty("transaction.topic.key.deserializer", TransactionConfig.DEFAULT_TRANSACTION_TOPIC_KEY_DESERIALIZER);
+    public String getTransactionTopicSuffix()
+    {
+        return getProperty("transaction.topic.suffix", TransactionConfig.DEFAULT_TRANSACTION_TOPIC_SUFFIX);
     }
 
-    public String getTransactionTopicGroupId() {
-        return properties.getProperty("transaction.topic.group_id", TransactionConfig.DEFAULT_TRANSACTION_TOPIC_GROUP_ID);
+    public String getTransactionTopicValueDeserializer()
+    {
+        return getProperty("transaction.topic.value.deserializer",
+                TransactionConfig.DEFAULT_TRANSACTION_TOPIC_VALUE_DESERIALIZER);
     }
 
-    public Long getTransactionTimeout() {
-        return transactionTimeout;
+    public String getTransactionTopicGroupId()
+    {
+        return getProperty("transaction.topic.group_id", TransactionConfig.DEFAULT_TRANSACTION_TOPIC_GROUP_ID);
     }
+
+    public String getSinkRemoteHost()
+    {
+        return getProperty("sink.remote.host", PixelsSinkDefaultConfig.SINK_REMOTE_HOST);
+    }
+
+    private short parseShort(String valueStr, short defaultValue)
+    {
+        return (valueStr != null) ? Short.parseShort(valueStr) : defaultValue;
+    }
+
+    private int parseInt(String valueStr, int defaultValue)
+    {
+        return (valueStr != null) ? Integer.parseInt(valueStr) : defaultValue;
+    }
+
+    private boolean parseBoolean(String valueStr, boolean defaultValue)
+    {
+        return (valueStr != null) ? Boolean.parseBoolean(valueStr) : defaultValue;
+    }
+
+    public String getProperty(String key)
+    {
+        return config.getProperty(key);
+    }
+
+    public String getProperty(String key, String defaultValue)
+    {
+        String value = config.getProperty(key);
+        if (Objects.isNull(value))
+        {
+            return defaultValue;
+        }
+        return value;
+    }
+
+    public String getRegistryUrl()
+    {
+        return getProperty("sink.registry.url", "");
+    }
+
 }

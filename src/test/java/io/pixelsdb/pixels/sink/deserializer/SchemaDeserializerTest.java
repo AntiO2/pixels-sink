@@ -1,3 +1,20 @@
+/*
+ * Copyright 2025 PixelsDB.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 package io.pixelsdb.pixels.sink.deserializer;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -13,22 +30,26 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Objects;
 
-public class SchemaDeserializerTest {
+public class SchemaDeserializerTest
+{
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
     @BeforeEach
-    public void setUp() throws IOException, URISyntaxException {
+    public void setUp() throws IOException, URISyntaxException
+    {
         // String schemaStr = schemaNode.toString();
 
     }
 
-    private String loadSchemaFromFile(String filename) throws IOException, URISyntaxException {
+    private String loadSchemaFromFile(String filename) throws IOException, URISyntaxException
+    {
         ClassLoader classLoader = getClass().getClassLoader();
         return new String(Files.readAllBytes(Paths.get(Objects.requireNonNull(classLoader.getResource(filename)).toURI())));
     }
 
     @Test
-    public void testParseNationStruct() throws IOException, URISyntaxException {
+    public void testParseNationStruct() throws IOException, URISyntaxException
+    {
         String jsonSchema = loadSchemaFromFile("records/nation.json");
         JsonNode rootNode = objectMapper.readTree(jsonSchema);
         JsonNode schemaNode = rootNode.get("schema");
@@ -48,7 +69,8 @@ public class SchemaDeserializerTest {
     }
 
     @Test
-    public void testParseDecimalType() throws IOException {
+    public void testParseDecimalType() throws IOException
+    {
         String jsonSchema = "[{"
                 + "\"type\": \"bytes\","
                 + "\"name\": \"org.apache.kafka.connect.data.Decimal\","
@@ -69,7 +91,8 @@ public class SchemaDeserializerTest {
     }
 
     @Test
-    public void testParseDateType() throws IOException {
+    public void testParseDateType() throws IOException
+    {
 
         String jsonSchema = "[{"
                 + "\"type\": \"int32\","
@@ -84,21 +107,24 @@ public class SchemaDeserializerTest {
 
     // 测试未知类型异常
     @Test
-    public void testParseInvalidType() throws IOException {
+    public void testParseInvalidType() throws IOException
+    {
         String jsonSchema = "[{"
                 + "\"type\": \"unknown_type\","
                 + "\"field\": \"invalid_field\""
                 + "}]";
         JsonNode rootNode = objectMapper.readTree(jsonSchema);
         Assertions.assertThrows(
-                IllegalArgumentException.class, () -> {
+                IllegalArgumentException.class, () ->
+                {
                     SchemaDeserializer.parseStruct(rootNode);
                 }
         );
     }
 
     @Test
-    public void testMissingRequiredField() throws IOException {
+    public void testMissingRequiredField() throws IOException
+    {
         String jsonSchema = "{"
                 + "\"type\": \"struct\","
                 + "\"fields\": ["
@@ -107,7 +133,8 @@ public class SchemaDeserializerTest {
                 + "}";
         JsonNode rootNode = objectMapper.readTree(jsonSchema);
         Assertions.assertThrows(
-                IllegalArgumentException.class, () -> {
+                IllegalArgumentException.class, () ->
+                {
                     SchemaDeserializer.parseFieldType(rootNode);
                 }
         );
