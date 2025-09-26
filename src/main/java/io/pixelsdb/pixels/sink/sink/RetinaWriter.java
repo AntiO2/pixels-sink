@@ -24,7 +24,7 @@ import io.pixelsdb.pixels.sink.concurrent.TransactionMode;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
-import io.pixelsdb.pixels.sink.monitor.MetricsFacade;
+import io.pixelsdb.pixels.sink.processor.MetricsFacade;
 import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

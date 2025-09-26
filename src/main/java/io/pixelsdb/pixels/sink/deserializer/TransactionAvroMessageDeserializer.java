@@ -22,7 +22,7 @@ import io.apicurio.registry.serde.avro.AvroKafkaDeserializer;
 import io.pixelsdb.pixels.sink.SinkProto;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
-import io.pixelsdb.pixels.sink.monitor.MetricsFacade;
+import io.pixelsdb.pixels.sink.processor.MetricsFacade;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.kafka.common.errors.SerializationException;
 import org.apache.kafka.common.serialization.Deserializer;
@@ -58,40 +58,12 @@ public class TransactionAvroMessageDeserializer implements Deserializer<SinkProt
         {
             MetricsFacade.getInstance().addRawData(bytes.length);
             GenericRecord avroRecord = avroDeserializer.deserialize(topic, bytes);
-            return convertToTransactionMetadata(avroRecord);
+            return TransactionStructMessageDeserializer.convertToTransactionMetadata(avroRecord);
         } catch (Exception e)
         {
             logger.error("Avro deserialization failed for topic {}: {}", topic, e.getMessage());
             throw new SerializationException("Failed to deserialize Avro message", e);
         }
-    }
-
-    private SinkProto.TransactionMetadata convertToTransactionMetadata(GenericRecord record)
-    {
-        SinkProto.TransactionMetadata.Builder builder =
-                SinkProto.TransactionMetadata.newBuilder();
-        builder.setStatus(DeserializerUtil.getStatusSafely(record, "status"))
-                .setId(DeserializerUtil.getStringSafely(record, "id"))
-                .setEventCount(DeserializerUtil.getLongSafely(record, "event_count"))
-                .setTimestamp(DeserializerUtil.getLongSafely(record, "ts_ms"));
-
-        if (record.get("data_collections") != null)
-        {
-            Iterable<?> collections = (Iterable<?>) record.get("data_collections");
-            for (Object item : collections)
-            {
-                if (item instanceof GenericRecord collectionRecord)
-                {
-                    SinkProto.DataCollection.Builder collectionBuilder =
-                            SinkProto.DataCollection.newBuilder();
-                    collectionBuilder.setDataCollection(DeserializerUtil.getStringSafely(collectionRecord, "data_collection"));
-                    collectionBuilder.setEventCount(DeserializerUtil.getLongSafely(collectionRecord, "event_count"));
-                    builder.addDataCollections(collectionBuilder);
-                }
-            }
-        }
-
-        return builder.build();
     }
 
     @Override

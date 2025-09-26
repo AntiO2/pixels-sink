@@ -23,6 +23,9 @@ import io.pixelsdb.pixels.sink.event.RowChangeEvent;
 import io.pixelsdb.pixels.sink.exception.SinkException;
 import org.apache.avro.AvroRuntimeException;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.kafka.connect.data.Struct;
+import org.apache.kafka.connect.errors.DataException;
+import org.apache.kafka.connect.source.SourceRecord;
 
 import java.util.Arrays;
 
@@ -63,7 +66,7 @@ public class DeserializerUtil
         };
     }
 
-    static public SinkProto.TransactionStatus getStatusSafely(GenericRecord record, String field)
+    static public <T> SinkProto.TransactionStatus getStatusSafely(T record, String field)
     {
         String statusString = getStringSafely(record, field);
         if (statusString.equals("BEGIN"))
@@ -78,28 +81,34 @@ public class DeserializerUtil
         return SinkProto.TransactionStatus.UNRECOGNIZED;
     }
 
-    static public String getStringSafely(GenericRecord record, String field)
-    {
-        try
-        {
-            Object value = record.get(field);
-            return value != null ? value.toString() : "";
-        } catch (AvroRuntimeException e)
-        {
-            return "";
+    public static <T> Object getFieldSafely(T record, String field) {
+        try {
+            if (record instanceof GenericRecord avro) {
+                return avro.get(field);
+            } else if (record instanceof Struct struct) {
+                return struct.get(field);
+            } else if (record instanceof SourceRecord sourceRecord) {
+                return ((Struct) sourceRecord.value()).get(field);
+            }
+        } catch (Exception e) {
+            return null;
         }
+        return null;
     }
 
-    static public Long getLongSafely(GenericRecord record, String field)
-    {
-        try
-        {
-            Object value = record.get(field);
-            return value instanceof Number ? ((Number) value).longValue() : 0L;
-        } catch (AvroRuntimeException e)
-        {
-            return 0L;
-        }
+    public static <T> String getStringSafely(T record, String field) {
+        Object value = getFieldSafely(record, field);
+        return value != null ? value.toString() : "";
+    }
+
+    public static <T> Long getLongSafely(T record, String field) {
+        Object value = getFieldSafely(record, field);
+        return value instanceof Number ? ((Number) value).longValue() : 0L;
+    }
+
+    public static <T> Integer getIntSafely(T record, String field) {
+        Object value = getFieldSafely(record, field);
+        return value instanceof Number ? ((Number) value).intValue() : 0;
     }
 
     static public SinkProto.OperationType getOperationType(String op)
@@ -131,4 +140,5 @@ public class DeserializerUtil
                 ? originTransID.substring(0, originTransID.indexOf(":"))
                 : originTransID;
     }
+
 }

@@ -37,7 +37,7 @@
         <dep.kafka.version>3.8.0</dep.kafka.version>
         <dep.opencsv.version>5.8</dep.opencsv.version>
         <dep.lombok.version>1.18.36</dep.lombok.version>
-        <dep.debezium.version>3.0.7.Final</dep.debezium.version>
+        <dep.debezium.version>3.2.3.Final</dep.debezium.version>
         <plugin.dockerfile-maven.version>1.4.13</plugin.dockerfile-maven.version>
     </properties>
 
@@ -117,6 +117,11 @@
             <artifactId>kafka-clients</artifactId>
             <version>${dep.kafka.version}</version>
         </dependency>
+        <dependency>
+            <groupId>org.apache.kafka</groupId>
+            <artifactId>connect-api</artifactId>
+            <version>${dep.kafka.version}</version>
+        </dependency>
 
         <dependency>
             <groupId>com.opencsv</groupId>
@@ -148,7 +153,11 @@
             <artifactId>debezium-sink</artifactId>
             <version>${dep.debezium.version}</version>
         </dependency>
-
+        <dependency>
+            <groupId>io.debezium</groupId>
+            <artifactId>debezium-connector-postgres</artifactId>
+            <version>${dep.debezium.version}</version>
+        </dependency>
         <!-- testing -->
         <dependency>
             <groupId>junit</groupId>

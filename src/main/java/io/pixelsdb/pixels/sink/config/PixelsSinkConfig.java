@@ -18,9 +18,11 @@ package io.pixelsdb.pixels.sink.config;
 
 import io.pixelsdb.pixels.common.utils.ConfigFactory;
 import io.pixelsdb.pixels.sink.concurrent.TransactionMode;
+import io.pixelsdb.pixels.sink.deserializer.RowChangeEventJsonDeserializer;
 import io.pixelsdb.pixels.sink.sink.PixelsSinkMode;
 import io.pixelsdb.pixels.sink.sink.RetinaWriter;
 import lombok.Getter;
+import org.apache.kafka.common.serialization.StringDeserializer;
 
 import java.io.IOException;
 import java.util.Objects;
@@ -30,156 +32,114 @@ public class PixelsSinkConfig
 {
     private final ConfigFactory config;
 
+    @ConfigKey(value = "transaction.timeout", defaultValue = TransactionConfig.DEFAULT_TRANSACTION_TIME_OUT)
     private Long transactionTimeout;
+
+    @ConfigKey(value = "sink.mode", defaultValue = PixelsSinkDefaultConfig.SINK_MODE)
     private PixelsSinkMode pixelsSinkMode;
+
+    @ConfigKey(value = "sink.retina.mode", defaultValue = PixelsSinkDefaultConfig.SINK_RETINA_MODE)
     private RetinaWriter.RetinaWriteMode retinaWriteMode;
+
+    @ConfigKey(value = "sink.trans.mode", defaultValue = TransactionConfig.DEFAULT_TRANSACTION_MODE)
     private TransactionMode transactionMode;
+
+    @ConfigKey(value = "sink.remote.port", defaultValue = "9090")
     private short remotePort;
+
+    @ConfigKey(value = "sink.batch.size", defaultValue = "5000")
     private int batchSize;
+
+    @ConfigKey(value = "sink.timeout.ms", defaultValue = "30000")
     private int timeoutMs;
+
+    @ConfigKey(value = "sink.flush.interval.ms", defaultValue = "1000")
     private int flushIntervalMs;
+
+    @ConfigKey(value = "sink.max.retries", defaultValue = "3")
     private int maxRetries;
+
+    @ConfigKey(value = "sink.csv.enable_header", defaultValue = "false")
     private boolean sinkCsvEnableHeader;
+
+    @ConfigKey(value = "sink.monitor.enabled", defaultValue = "false")
     private boolean monitorEnabled;
+
+    @ConfigKey(value = "sink.monitor.port", defaultValue = "9999")
     private short monitorPort;
+
+    @ConfigKey(value = "sink.rpc.enable", defaultValue = "false")
     private boolean rpcEnable;
+
+    @ConfigKey(value = "sink.rpc.mock.delay", defaultValue = "0")
     private int mockRpcDelay;
+
+    @ConfigKey(value = "sink.trans.batch.size", defaultValue = "100")
     private int transBatchSize;
-    private boolean retinaEmbedded;
+
+    private boolean retinaEmbedded = false;
+
+    @ConfigKey("topic.prefix")
+    private String topicPrefix;
+    @ConfigKey("debezium.topic.prefix")
+    private String debeziumTopicPrefix;
+
+    @ConfigKey("consumer.capture_database")
+    private String captureDatabase;
+
+    @ConfigKey(value = "consumer.include_tables", defaultValue = "")
+    private String includeTablesRaw;
+
+    @ConfigKey("bootstrap.servers")
+    private String bootstrapServers;
+
+    @ConfigKey("group.id")
+    private String groupId;
+
+    @ConfigKey(value = "key.deserializer", defaultClass = StringDeserializer.class)
+    private String keyDeserializer;
+
+    @ConfigKey(value = "value.deserializer", defaultClass = RowChangeEventJsonDeserializer.class)
+    private String valueDeserializer;
+
+    @ConfigKey(value = "sink.csv.path", defaultValue = PixelsSinkDefaultConfig.CSV_SINK_PATH)
+    private String csvSinkPath;
+
+    @ConfigKey(value = "transaction.topic.suffix", defaultValue = TransactionConfig.DEFAULT_TRANSACTION_TOPIC_SUFFIX)
+    private String transactionTopicSuffix;
+
+    @ConfigKey(value = "transaction.topic.value.deserializer",
+            defaultClass = RowChangeEventJsonDeserializer.class)
+    private String transactionTopicValueDeserializer;
+
+    @ConfigKey(value = "transaction.topic.group_id",
+            defaultValue = TransactionConfig.DEFAULT_TRANSACTION_TOPIC_GROUP_ID)
+    private String transactionTopicGroupId;
+
+    @ConfigKey(value = "sink.remote.host", defaultValue = PixelsSinkDefaultConfig.SINK_REMOTE_HOST)
+    private String sinkRemoteHost;
+
+    @ConfigKey("sink.registry.url")
+    private String registryUrl;
+
+    @ConfigKey(value = "sink.datasource", defaultValue = PixelsSinkDefaultConfig.DATA_SOURCE)
+    private String dataSource;
 
     public PixelsSinkConfig(String configFilePath) throws IOException
     {
         this.config = ConfigFactory.Instance();
         this.config.loadProperties(configFilePath);
-        parseProps();
+        ConfigLoader.load(this.config.getProperties(), this);
     }
 
     public PixelsSinkConfig(ConfigFactory config)
     {
         this.config = config;
-        parseProps();
+        ConfigLoader.load(this.config.getProperties(), this);
     }
 
-    private void parseProps()
-    {
-        this.pixelsSinkMode = PixelsSinkMode.fromValue(getProperty("sink.mode", PixelsSinkDefaultConfig.SINK_MODE));
-        this.transactionTimeout = Long.valueOf(getProperty("transaction.timeout", TransactionConfig.DEFAULT_TRANSACTION_TIME_OUT));
-        this.remotePort = parseShort(getProperty("sink.remote.port"), PixelsSinkDefaultConfig.SINK_REMOTE_PORT);
-        this.batchSize = parseInt(getProperty("sink.batch.size"), PixelsSinkDefaultConfig.SINK_BATCH_SIZE);
-        this.timeoutMs = parseInt(getProperty("sink.timeout.ms"), PixelsSinkDefaultConfig.SINK_TIMEOUT_MS);
-        this.flushIntervalMs = parseInt(getProperty("sink.flush.interval.ms"), PixelsSinkDefaultConfig.SINK_FLUSH_INTERVAL_MS);
-        this.maxRetries = parseInt(getProperty("sink.max.retries"), PixelsSinkDefaultConfig.SINK_MAX_RETRIES);
-        this.sinkCsvEnableHeader = parseBoolean(getProperty("sink.csv.enable_header"), PixelsSinkDefaultConfig.SINK_CSV_ENABLE_HEADER);
-        this.monitorEnabled = parseBoolean(getProperty("sink.monitor.enabled"), PixelsSinkDefaultConfig.SINK_MONITOR_ENABLED);
-        this.monitorPort = parseShort(getProperty("sink.monitor.port"), PixelsSinkDefaultConfig.SINK_MONITOR_PORT);
-        this.rpcEnable = parseBoolean(getProperty("sink.rpc.enable"), PixelsSinkDefaultConfig.SINK_RPC_ENABLED);
-        this.mockRpcDelay = parseInt(getProperty("sink.rpc.mock.delay"), PixelsSinkDefaultConfig.MOCK_RPC_DELAY);
-        this.transBatchSize = parseInt(getProperty("sink.trans.batch.size"), PixelsSinkDefaultConfig.TRANSACTION_BATCH_SIZE);
-        this.transactionMode = TransactionMode.fromValue(getProperty("sink.trans.mode", TransactionConfig.DEFAULT_TRANSACTION_MODE));
-        this.retinaWriteMode = RetinaWriter.RetinaWriteMode.fromValue(getProperty("sink.retina.mode", PixelsSinkDefaultConfig.SINK_RETINA_MODE));
-        this.retinaEmbedded = false;
-    }
-
-    public RetinaWriter.RetinaWriteMode getRetinaWriteMode()
-    {
-        return retinaWriteMode;
-    }
-
-    public String getTopicPrefix()
-    {
-        return getProperty("topic.prefix");
-    }
-
-    public String getCaptureDatabase()
-    {
-        return getProperty("consumer.capture_database");
-    }
-
-    public String[] getIncludeTables()
-    {
-        String includeTables = getProperty("consumer.include_tables", "");
-        return includeTables.isEmpty() ? new String[0] : includeTables.split(",");
-    }
-
-    public String getBootstrapServers()
-    {
-        return getProperty("bootstrap.servers");
-    }
-
-    public String getGroupId()
-    {
-        return getProperty("group.id");
-    }
-
-    public String getKeyDeserializer()
-    {
-        return getProperty("key.deserializer", PixelsSinkDefaultConfig.KEY_DESERIALIZER);
-    }
-
-    public String getValueDeserializer()
-    {
-        return getProperty("value.deserializer", PixelsSinkDefaultConfig.VALUE_DESERIALIZER);
-    }
-
-    public String getCsvSinkPath()
-    {
-        return getProperty("sink.csv.path", PixelsSinkDefaultConfig.CSV_SINK_PATH);
-    }
-
-    public String getTransactionTopicSuffix()
-    {
-        return getProperty("transaction.topic.suffix", TransactionConfig.DEFAULT_TRANSACTION_TOPIC_SUFFIX);
-    }
-
-    public String getTransactionTopicValueDeserializer()
-    {
-        return getProperty("transaction.topic.value.deserializer",
-                TransactionConfig.DEFAULT_TRANSACTION_TOPIC_VALUE_DESERIALIZER);
-    }
-
-    public String getTransactionTopicGroupId()
-    {
-        return getProperty("transaction.topic.group_id", TransactionConfig.DEFAULT_TRANSACTION_TOPIC_GROUP_ID);
-    }
-
-    public String getSinkRemoteHost()
-    {
-        return getProperty("sink.remote.host", PixelsSinkDefaultConfig.SINK_REMOTE_HOST);
-    }
-
-    private short parseShort(String valueStr, short defaultValue)
-    {
-        return (valueStr != null) ? Short.parseShort(valueStr) : defaultValue;
-    }
-
-    private int parseInt(String valueStr, int defaultValue)
-    {
-        return (valueStr != null) ? Integer.parseInt(valueStr) : defaultValue;
-    }
-
-    private boolean parseBoolean(String valueStr, boolean defaultValue)
-    {
-        return (valueStr != null) ? Boolean.parseBoolean(valueStr) : defaultValue;
-    }
-
-    public String getProperty(String key)
-    {
-        return config.getProperty(key);
-    }
-
-    public String getProperty(String key, String defaultValue)
-    {
-        String value = config.getProperty(key);
-        if (Objects.isNull(value))
-        {
-            return defaultValue;
-        }
-        return value;
-    }
-
-    public String getRegistryUrl()
-    {
-        return getProperty("sink.registry.url", "");
+    public String[] getIncludeTables() {
+        return includeTablesRaw.isEmpty() ? new String[0] : includeTablesRaw.split(",");
     }
 
 }

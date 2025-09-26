@@ -20,7 +20,7 @@ package io.pixelsdb.pixels.sink.deserializer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.util.JsonFormat;
 import io.pixelsdb.pixels.sink.SinkProto;
-import io.pixelsdb.pixels.sink.monitor.MetricsFacade;
+import io.pixelsdb.pixels.sink.processor.MetricsFacade;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

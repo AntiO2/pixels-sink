@@ -18,9 +18,9 @@ package io.pixelsdb.pixels.sink;
 
 import io.pixelsdb.pixels.sink.concurrent.TransactionCoordinatorFactory;
 import io.pixelsdb.pixels.sink.config.CommandLineConfig;
+import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
-import io.pixelsdb.pixels.sink.monitor.MetricsFacade;
-import io.pixelsdb.pixels.sink.monitor.SinkMonitor;
+import io.pixelsdb.pixels.sink.processor.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,19 +32,30 @@ import java.io.IOException;
 public class PixelsSinkApp
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(PixelsSinkApp.class);
-    private static final SinkMonitor sinkMonitor = new SinkMonitor();
+    private static MainProcessor mainProcessor;
 
     public static void main(String[] args) throws IOException
     {
         Runtime.getRuntime().addShutdownHook(new Thread(() ->
         {
-            sinkMonitor.stopMonitor();
+            mainProcessor.stopProcessor();
             TransactionCoordinatorFactory.reset();
             LOGGER.info("Pixels Sink Server shutdown complete");
         }));
 
         init(args);
-        sinkMonitor.startSinkMonitor();
+        PixelsSinkConfig config = PixelsSinkConfigFactory.getInstance();
+        if(config.getDataSource().equals("kafka"))
+        {
+            mainProcessor = new SinkKafkaProcessor();
+        } else if(config.getDataSource().equals("engine"))
+        {
+            mainProcessor = new SinkEngineProcessor();
+        } else
+        {
+            throw new IllegalStateException("Unsupported data source type: " + config.getDataSource());
+        }
+        mainProcessor.start();
     }
 
     private static void init(String[] args) throws IOException

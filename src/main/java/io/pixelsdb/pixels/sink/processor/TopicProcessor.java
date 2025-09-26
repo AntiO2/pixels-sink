@@ -15,9 +15,10 @@
  *
  */
 
-package io.pixelsdb.pixels.sink.monitor;
+package io.pixelsdb.pixels.sink.processor;
 
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
+import io.pixelsdb.pixels.sink.event.TablePipelineManager;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.ListTopicsResult;
@@ -31,16 +32,15 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
-public class TopicMonitor extends Thread implements StoppableMonitor
+public class TopicProcessor extends TablePipelineManager implements StoppableProcessor, Runnable
 {
 
-    private static final Logger log = LoggerFactory.getLogger(TopicMonitor.class);
+    private static final Logger log = LoggerFactory.getLogger(TopicProcessor.class);
     private final Properties kafkaProperties;
     private final PixelsSinkConfig pixelsSinkConfig;
     private final String[] includeTables;
     private final Set<String> subscribedTopics = ConcurrentHashMap.newKeySet();
     private final String bootstrapServers;
-    private final ExecutorService executorService;
     private final String baseTopic;
 
     private final AtomicBoolean running = new AtomicBoolean(true);
@@ -48,14 +48,13 @@ public class TopicMonitor extends Thread implements StoppableMonitor
     private AdminClient adminClient;
     private Timer timer;
 
-    public TopicMonitor(PixelsSinkConfig pixelsSinkConfig, Properties kafkaProperties)
+    public TopicProcessor(PixelsSinkConfig pixelsSinkConfig, Properties kafkaProperties)
     {
         this.pixelsSinkConfig = pixelsSinkConfig;
         this.kafkaProperties = kafkaProperties;
         this.baseTopic = pixelsSinkConfig.getTopicPrefix() + "." + pixelsSinkConfig.getCaptureDatabase();
         this.includeTables = pixelsSinkConfig.getIncludeTables();
         this.bootstrapServers = pixelsSinkConfig.getBootstrapServers();
-        this.executorService = Executors.newCachedThreadPool();
     }
 
     private static Set<String> filterTopics(Set<String> topics, String prefix)
@@ -80,7 +79,7 @@ public class TopicMonitor extends Thread implements StoppableMonitor
     }
 
     @Override
-    public void stopMonitor()
+    public void stopProcessor()
     {
         log.info("Initiating topic monitor shutdown...");
         running.set(false);
@@ -120,7 +119,7 @@ public class TopicMonitor extends Thread implements StoppableMonitor
         Properties props = new Properties();
         props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, this.bootstrapServers);
         this.adminClient = AdminClient.create(props);
-        this.timer = new Timer("TopicMonitor-Timer", true);
+        this.timer = new Timer("TopicProcessor-Timer", true);
         log.info("Started topic monitor for base topic: {}", baseTopic);
     }
 
@@ -157,7 +156,6 @@ public class TopicMonitor extends Thread implements StoppableMonitor
             adminClient.close(Duration.ofSeconds(5));
         }
         shutdownExecutorService();
-        this.interrupt();
     }
 
     private void shutdownExecutorService()

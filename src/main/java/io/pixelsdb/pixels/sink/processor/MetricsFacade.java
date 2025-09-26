@@ -15,7 +15,7 @@
  *
  */
 
-package io.pixelsdb.pixels.sink.monitor;
+package io.pixelsdb.pixels.sink.processor;
 
 import io.pixelsdb.pixels.sink.SinkProto;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;

@@ -24,7 +24,7 @@ import io.pixelsdb.pixels.sink.SinkProto;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
 import io.pixelsdb.pixels.sink.exception.SinkException;
 import io.pixelsdb.pixels.sink.metadata.TableMetadataRegistry;
-import io.pixelsdb.pixels.sink.monitor.MetricsFacade;
+import io.pixelsdb.pixels.sink.processor.MetricsFacade;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -120,7 +120,7 @@ public class RowChangeEventJsonDeserializer implements Deserializer<RowChangeEve
 
             SinkProto.RowValue.Builder afterBuilder = builder.getAfterBuilder();
             rowDataParser.parse(payloadNode.get("after"), afterBuilder);
-            builder.setBefore(afterBuilder);
+            builder.setAfter(afterBuilder);
         }
 
         RowChangeEvent event = new RowChangeEvent(builder.build(), typeDescription);

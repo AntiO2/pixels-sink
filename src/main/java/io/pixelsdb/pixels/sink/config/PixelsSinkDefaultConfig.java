@@ -22,11 +22,9 @@ import org.apache.kafka.common.serialization.StringDeserializer;
 
 public class PixelsSinkDefaultConfig
 {
+    public static final String DATA_SOURCE = "kafka";
     public static final String PROPERTIES_PATH = "pixels-sink.properties";
     public static final String CSV_SINK_PATH = "./data";
-
-    public static final String KEY_DESERIALIZER = StringDeserializer.class.getName(); // org.apache.kafka.common.serialization.StringDeserializer
-    public static final String VALUE_DESERIALIZER = RowChangeEventJsonDeserializer.class.getName();
 
     public static final String SINK_MODE = "csv";
 

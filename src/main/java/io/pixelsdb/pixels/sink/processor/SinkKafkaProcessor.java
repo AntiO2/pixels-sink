@@ -15,7 +15,7 @@
  *
  */
 
-package io.pixelsdb.pixels.sink.monitor;
+package io.pixelsdb.pixels.sink.processor;
 
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConstants;
@@ -26,13 +26,14 @@ import io.prometheus.client.exporter.HTTPServer;
 import java.io.IOException;
 import java.util.Properties;
 
-public class SinkMonitor implements StoppableMonitor
+public class SinkKafkaProcessor implements MainProcessor
 {
     private MonitorThreadManager manager;
     private volatile boolean running = true;
     private HTTPServer prometheusHttpServer;
 
-    public void startSinkMonitor()
+    @Override
+    public void start()
     {
         PixelsSinkConfig pixelsSinkConfig = PixelsSinkConfigFactory.getInstance();
         KafkaPropFactorySelector kafkaPropFactorySelector = new KafkaPropFactorySelector();
@@ -40,15 +41,15 @@ public class SinkMonitor implements StoppableMonitor
         Properties transactionKafkaProperties = kafkaPropFactorySelector
                 .getFactory(PixelsSinkConstants.TRANSACTION_KAFKA_PROP_FACTORY)
                 .createKafkaProperties(pixelsSinkConfig);
-        TransactionMonitor transactionMonitor = new TransactionMonitor(pixelsSinkConfig, transactionKafkaProperties);
+        TransactionProcessor transactionProcessor = null; // TODO: new TransactionProcessor();
 
         Properties topicKafkaProperties = kafkaPropFactorySelector
                 .getFactory(PixelsSinkConstants.ROW_RECORD_KAFKA_PROP_FACTORY)
                 .createKafkaProperties(pixelsSinkConfig);
-        TopicMonitor topicMonitor = new TopicMonitor(pixelsSinkConfig, topicKafkaProperties);
+        TopicProcessor topicMonitor = new TopicProcessor(pixelsSinkConfig, topicKafkaProperties);
 
         manager = new MonitorThreadManager();
-        manager.startMonitor(transactionMonitor);
+        manager.startMonitor(transactionProcessor);
         manager.startMonitor(topicMonitor);
 
         try
@@ -65,7 +66,7 @@ public class SinkMonitor implements StoppableMonitor
 
 
     @Override
-    public void stopMonitor()
+    public void stopProcessor()
     {
         manager.shutdown();
         if (prometheusHttpServer != null)
@@ -76,6 +77,7 @@ public class SinkMonitor implements StoppableMonitor
         running = false;
     }
 
+    @Override
     public boolean isRunning()
     {
         return running;

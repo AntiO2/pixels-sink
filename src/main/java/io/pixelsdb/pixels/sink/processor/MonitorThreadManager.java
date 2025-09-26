@@ -15,7 +15,7 @@
  *
  */
 
-package io.pixelsdb.pixels.sink.monitor;
+package io.pixelsdb.pixels.sink.processor;
 
 import io.pixelsdb.pixels.sink.config.PixelsSinkConstants;
 
@@ -47,9 +47,9 @@ public class MonitorThreadManager
     {
         monitors.forEach(monitor ->
         {
-            if (monitor instanceof StoppableMonitor)
+            if (monitor instanceof StoppableProcessor)
             {
-                ((StoppableMonitor) monitor).stopMonitor();
+                ((StoppableProcessor) monitor).stopProcessor();
             }
         });
     }

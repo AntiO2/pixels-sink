@@ -15,10 +15,17 @@
  *
  */
 
-package io.pixelsdb.pixels.sink.monitor;
+package io.pixelsdb.pixels.sink.processor;
 
-public interface StoppableMonitor
+
+/**
+ * @package: io.pixelsdb.pixels.sink.processor
+ * @className: MainProcessor
+ * @author: AntiO2
+ * @date: 2025/9/26 13:45
+ */
+public interface MainProcessor extends StoppableProcessor
 {
-
-    void stopMonitor();
+    public void start();
+    public boolean isRunning();
 }

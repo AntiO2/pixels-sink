@@ -24,6 +24,9 @@ import io.pixelsdb.pixels.core.TypeDescription;
 import io.pixelsdb.pixels.sink.SinkProto;
 import io.pixelsdb.pixels.sink.util.DateUtil;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.kafka.connect.data.Field;
+import org.apache.kafka.connect.data.Schema;
+import org.apache.kafka.connect.data.Struct;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -67,6 +70,15 @@ class RowDataParser
     }
 
 
+    public void parse(Struct record, SinkProto.RowValue.Builder builder)
+    {
+        for (Field field: record.schema().fields())
+        {
+            String fieldName = field.name();
+            Schema.Type fieldType = field.schema().type();
+            builder.addValues(parseValue(record.get(fieldName), fieldName, fieldType).build());
+        }
+    }
     private SinkProto.ColumnValue.Builder parseValue(JsonNode valueNode, String fieldName, TypeDescription type)
     {
         if (valueNode == null || valueNode.isNull())
@@ -181,6 +193,7 @@ class RowDataParser
     }
 
 
+    @Deprecated // TODO: use bit
     private SinkProto.ColumnValue.Builder parseValue(GenericRecord record, String fieldName, TypeDescription fieldType)
     {
         SinkProto.ColumnValue.Builder columnValueBuilder = SinkProto.ColumnValue.newBuilder();
@@ -251,6 +264,84 @@ class RowDataParser
             }
             default:
                 throw new IllegalArgumentException("Unsupported type: " + fieldType.getCategory());
+        }
+
+        return columnValueBuilder;
+    }
+
+    private SinkProto.ColumnValue.Builder parseValue(Object record, String fieldName, Schema.Type type)
+    {
+        // TODO(AntiO2) support pixels type
+        if (record == null)
+        {
+            return SinkProto.ColumnValue.newBuilder()
+                    .setName(fieldName)
+                    .setValue(ByteString.EMPTY);
+        }
+
+        SinkProto.ColumnValue.Builder columnValueBuilder = SinkProto.ColumnValue.newBuilder();
+        columnValueBuilder.setName(fieldName);
+
+        switch (type)
+        {
+            case INT8:
+            case INT16:
+            case INT32:
+            {
+                int value = (Integer) record;
+                byte[] bytes = ByteBuffer.allocate(Integer.BYTES).putInt(value).array();
+                columnValueBuilder.setValue(ByteString.copyFrom(bytes));
+                columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.INT));
+                break;
+            }
+            case INT64:
+            {
+                long value = (Long) record;
+                byte[] bytes = ByteBuffer.allocate(Long.BYTES).putLong(value).array();
+                columnValueBuilder.setValue(ByteString.copyFrom(bytes));
+                columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.LONG));
+                break;
+            }
+            case BYTES:
+            {
+                byte[] bytes = (byte[]) record;
+                columnValueBuilder.setValue(ByteString.copyFrom(bytes));
+                columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.BYTE));
+                break;
+            }
+            case BOOLEAN:
+            case STRING:
+            {
+                String value = (String) record;
+                columnValueBuilder.setValue(ByteString.copyFrom(value, StandardCharsets.UTF_8));
+                columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.STRING));
+                break;
+            }
+            case STRUCT:
+            {
+                // You can recursively parse fields in a struct here
+                throw new UnsupportedOperationException("STRUCT parsing not yet implemented");
+            }
+            case FLOAT64:
+            {
+                double value = (double) record;
+                long longBits = Double.doubleToLongBits(value);
+                byte[] bytes = ByteBuffer.allocate(Long.BYTES).putLong(longBits).array();
+                columnValueBuilder.setValue(ByteString.copyFrom(bytes));
+                columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.DOUBLE));
+                break;
+            }
+            case FLOAT32:
+            {
+                float value = (float) record;
+                int intBits = Float.floatToIntBits(value);
+                byte[] bytes = ByteBuffer.allocate(4).putInt(intBits).array();
+                columnValueBuilder.setValue(ByteString.copyFrom(bytes));
+                columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.FLOAT));
+                break;
+            }
+            default:
+                throw new IllegalArgumentException("Unsupported type: " + type);
         }
 
         return columnValueBuilder;
