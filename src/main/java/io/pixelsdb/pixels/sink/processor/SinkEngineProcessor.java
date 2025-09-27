@@ -21,7 +21,6 @@ import io.debezium.engine.DebeziumEngine;
 import io.debezium.engine.RecordChangeEvent;
 import io.debezium.engine.format.ChangeEventFormat;
 import io.pixelsdb.pixels.sink.PixelsDebeziumConsumer;
-import io.pixelsdb.pixels.sink.config.factory.DebeziumConfigFactory;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import org.apache.kafka.connect.source.SourceRecord;
 
@@ -37,20 +36,20 @@ import java.util.concurrent.Executors;
  */
 public class SinkEngineProcessor implements MainProcessor
 {
-
-    private final Properties props;
     private final PixelsDebeziumConsumer consumer;
     private DebeziumEngine<RecordChangeEvent<SourceRecord>> engine;
     private ExecutorService executor;
     private volatile boolean running = true;
     public SinkEngineProcessor() {
-        this.props = DebeziumConfigFactory.createDebeziumProperties(PixelsSinkConfigFactory.getInstance());
         this.consumer = new PixelsDebeziumConsumer();
     }
 
     public void start() {
+        Properties debeziumProps = PixelsSinkConfigFactory.getInstance()
+                .getConfig().extractPropertiesByPrefix("debezium.", true);
+
         this.engine = DebeziumEngine.create(ChangeEventFormat.of(Connect.class))
-                .using(props)
+                .using(debeziumProps)
                 .notifying(consumer)
                 .build();
 

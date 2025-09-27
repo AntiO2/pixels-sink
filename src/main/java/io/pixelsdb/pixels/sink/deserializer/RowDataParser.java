@@ -72,9 +72,10 @@ class RowDataParser
 
     public void parse(Struct record, SinkProto.RowValue.Builder builder)
     {
-        for (Field field: record.schema().fields())
+        for (int i = 0; i < schema.getFieldNames().size(); i++)
         {
-            String fieldName = field.name();
+            String fieldName = schema.getFieldNames().get(i);
+            Field field = record.schema().field(fieldName);
             Schema.Type fieldType = field.schema().type();
             builder.addValues(parseValue(record.get(fieldName), fieldName, fieldType).build());
         }

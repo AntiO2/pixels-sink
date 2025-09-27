@@ -129,13 +129,13 @@ public class PixelsSinkConfig
     {
         this.config = ConfigFactory.Instance();
         this.config.loadProperties(configFilePath);
-        ConfigLoader.load(this.config.getProperties(), this);
+        ConfigLoader.load(this.config.extractPropertiesByPrefix("", false), this);
     }
 
     public PixelsSinkConfig(ConfigFactory config)
     {
         this.config = config;
-        ConfigLoader.load(this.config.getProperties(), this);
+        ConfigLoader.load(this.config.extractPropertiesByPrefix("", false), this);
     }
 
     public String[] getIncludeTables() {
