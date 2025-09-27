@@ -30,5 +30,6 @@ public interface PixelsSinkWriter extends Closeable
     boolean write(RowChangeEvent rowChangeEvent);
 
     boolean writeTrans(String schemaName, List<RetinaProto.TableUpdateData> tableUpdateData, long timestamp);
-    // boolean write(RowChangeEvent rowChangeEvent, ByteBuffer byteBuffer);
+
+    boolean writeBatch(String schemaName, List<RetinaProto.TableUpdateData> tableUpdateData);
 }

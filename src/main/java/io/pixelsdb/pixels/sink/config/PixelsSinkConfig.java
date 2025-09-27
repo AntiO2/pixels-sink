@@ -56,6 +56,9 @@ public class PixelsSinkConfig
     @ConfigKey(value = "sink.flush.interval.ms", defaultValue = "1000")
     private int flushIntervalMs;
 
+    @ConfigKey(value = "sink.flush.batch.size", defaultValue = "100")
+    private int flushBatchSize;
+
     @ConfigKey(value = "sink.max.retries", defaultValue = "3")
     private int maxRetries;
 

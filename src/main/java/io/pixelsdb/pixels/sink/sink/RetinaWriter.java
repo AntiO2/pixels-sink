@@ -100,7 +100,7 @@ public class RetinaWriter implements PixelsSinkWriter
             try
             {
                 LOGGER.debug("Retina Writer update record {}, TS: {}", schemaName, timestamp);
-                retinaService.updateRecord(schemaName, tableUpdateData, timestamp);
+                retinaService.updateRecord(schemaName, tableUpdateData);
             } catch (RetinaException e)
             {
                 e.printStackTrace();
@@ -108,9 +108,28 @@ public class RetinaWriter implements PixelsSinkWriter
             }
         } else
         {
-            retinaStream.updateRecord(schemaName, tableUpdateData, timestamp);
+            retinaStream.updateRecord(schemaName, tableUpdateData);
         }
+        return true;
+    }
 
+    @Override
+    public boolean writeBatch(String schemaName, List<RetinaProto.TableUpdateData> tableUpdateData)
+    {
+        if (config.getRetinaWriteMode() == RetinaWriteMode.STUB)
+        {
+            try
+            {
+                retinaService.updateRecord(schemaName, tableUpdateData);
+            } catch (RetinaException e)
+            {
+                e.printStackTrace();
+                return false;
+            }
+        } else
+        {
+            retinaStream.updateRecord(schemaName, tableUpdateData);
+        }
         return true;
     }
 
@@ -182,10 +201,4 @@ public class RetinaWriter implements PixelsSinkWriter
             throw new RuntimeException(String.format("Can't convert %s to sink type", value));
         }
     }
-
-//    private RetinaProto.TransInfo getTransinfo(RowChangeEvent event) {
-//        return RetinaProto.TransInfo.newBuilder()
-//                .setOrder(event.getTransaction().getTotalOrder())
-//                .setTransId(event.getTransaction().getId().hashCode()).build();
-//    }
 }

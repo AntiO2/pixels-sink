@@ -144,6 +144,12 @@ public class CsvWriter implements PixelsSinkWriter
         throw new UnsupportedOperationException("CSV Writer doesn't implement batch write trans");
     }
 
+    @Override
+    public boolean writeBatch(String schemaName, List<RetinaProto.TableUpdateData> tableUpdateData)
+    {
+        throw new UnsupportedOperationException("CSV Writer doesn't implement batch write batch");
+    }
+
     private FileChannel getOrCreateChannel(RowChangeEvent event) throws IOException
     {
         String tableName = event.getTable();

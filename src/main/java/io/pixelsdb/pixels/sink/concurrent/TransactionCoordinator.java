@@ -29,7 +29,8 @@ import io.pixelsdb.pixels.sink.exception.SinkException;
 import io.pixelsdb.pixels.sink.processor.MetricsFacade;
 import io.pixelsdb.pixels.sink.sink.PixelsSinkWriter;
 import io.pixelsdb.pixels.sink.sink.PixelsSinkWriterFactory;
-import io.pixelsdb.pixels.sink.sink.TableWriter;
+import io.pixelsdb.pixels.sink.sink.TableCrossTxWriter;
+import io.pixelsdb.pixels.sink.sink.TableSingleTxWriter;
 import io.prometheus.client.Summary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -302,7 +303,11 @@ public class TransactionCoordinator
         {
             case BATCH ->
             {
-                TableWriter.getTableWriter(table).write(event, ctx);
+                TableCrossTxWriter.getTableWriter(table).write(event, ctx);
+            }
+            case TRANS ->
+            {
+                TableSingleTxWriter.getTableWriter(table).write(event, ctx);
             }
             case RECORD ->
             {
@@ -384,7 +389,7 @@ public class TransactionCoordinator
                 TransContext transContext = transactionManager.getTransContext();
                 sinkContext.setPixelsTransCtx(transContext);
                 RetinaProto.TableUpdateData.Builder builder = RetinaProto.TableUpdateData.newBuilder();
-                TableWriter.addUpdateData(event, builder);
+                TableSingleTxWriter.addUpdateData(event, builder);
                 List<RetinaProto.TableUpdateData> tableUpdateDataList = List.of(builder.build());
                 writer.writeTrans(pixelsSinkConfig.getCaptureDatabase(), tableUpdateDataList, transContext.getTimestamp());
                 transactionManager.commitTransAsync(transContext);

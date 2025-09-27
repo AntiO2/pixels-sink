@@ -19,6 +19,7 @@ package io.pixelsdb.pixels.sink.concurrent;
 
 public enum TransactionMode
 {
+    TRANS,
     BATCH,
     RECORD;
 

@@ -6,6 +6,7 @@ import io.pixelsdb.pixels.common.exception.TransException;
 import io.pixelsdb.pixels.common.retina.RetinaService;
 import io.pixelsdb.pixels.common.transaction.TransContext;
 import io.pixelsdb.pixels.common.transaction.TransService;
+import io.pixelsdb.pixels.core.TypeDescription;
 import io.pixelsdb.pixels.index.IndexProto;
 import io.pixelsdb.pixels.retina.RetinaProto;
 import io.pixelsdb.pixels.sink.SinkProto;
@@ -15,12 +16,14 @@ import io.pixelsdb.pixels.sink.event.RowChangeEvent;
 import io.pixelsdb.pixels.sink.exception.SinkException;
 import io.pixelsdb.pixels.sink.metadata.TableMetadataRegistry;
 import io.pixelsdb.pixels.sink.util.DateUtil;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -103,8 +106,8 @@ public class TestRetinaWriter
             tableUpdateDataBuilder.addInsertData(insertDataBuilder.build());
         }
         tableUpdateData.add(tableUpdateDataBuilder.build());
-        retinaService.updateRecord(schemaName, tableUpdateData, timeStamp);
-
+        retinaService.updateRecord(schemaName, tableUpdateData);
+        tableUpdateDataBuilder.setTimestamp(timeStamp);
         transService.commitTrans(ctx.getTransId(), timeStamp);
     }
 
@@ -172,8 +175,9 @@ public class TestRetinaWriter
                     .addIndexKeys(rowChangeEvent.getAfterKey());
             tableUpdateDataBuilder.addInsertData(insertDataBuilder.build());
         }
+        tableUpdateDataBuilder.setTimestamp(timeStamp);
         tableUpdateData.add(tableUpdateDataBuilder.build());
-        retinaService.updateRecord(schemaName, tableUpdateData, timeStamp);
+        retinaService.updateRecord(schemaName, tableUpdateData);
         transService.commitTrans(ctx.getTransId(), timeStamp);
     }
 
@@ -192,97 +196,99 @@ public class TestRetinaWriter
         int batchSize = 5;
         int batchCount = totalInserts / batchSize;
 
+        int samllBatchCount = 10;
 
         long start = System.currentTimeMillis();
 
         List<CompletableFuture<Void>> futures = new ArrayList<>();
 
-        for (int b = 0; b < batchCount; b++)
+        for (int b = 0; b < batchCount;)
         {
-            TransContext ctx = manager.getTransContext();
-            long timeStamp = ctx.getTimestamp();
-
             List<RetinaProto.TableUpdateData> tableUpdateData = new ArrayList<>();
-            RetinaProto.TableUpdateData.Builder tableUpdateDataBuilder =
-                    RetinaProto.TableUpdateData.newBuilder()
-                            .setTableName(tableName)
-                            .setPrimaryIndexId(metadataRegistry.getPrimaryIndexKeyId(schemaName, tableName));
-
-            for (int i = 0; i < batchSize; i++)
+            for(int sb = 0; sb < samllBatchCount; sb++)
             {
-                int accountID = b * batchSize + i;
-                int userID = accountID % 1000;
-                float balance = 1000.0f + accountID;
-                int isBlocked = 0;
-                long ts = System.currentTimeMillis();
+                ++b;
+                TransContext ctx = manager.getTransContext();
+                long timeStamp = ctx.getTimestamp();
 
-                byte[][] cols = new byte[5][];
-                cols[0] = Integer.toString(accountID).getBytes(StandardCharsets.UTF_8);
-                cols[1] = Integer.toString(userID).getBytes(StandardCharsets.UTF_8);
-                cols[2] = Float.toString(balance).getBytes(StandardCharsets.UTF_8);
-                cols[3] = Integer.toString(isBlocked).getBytes(StandardCharsets.UTF_8);
-                cols[4] = DateUtil.convertDebeziumTimestampToString(ts).getBytes(StandardCharsets.UTF_8);
-                // cols[4] = Long.toString(ts).getBytes(StandardCharsets.UTF_8);
-                // after row
-                SinkProto.RowValue.Builder afterValueBuilder = SinkProto.RowValue.newBuilder()
-                        .addValues(SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom(cols[0])).setName("accountid").build())
-                        .addValues(SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom(cols[1])).setName("userid").build())
-                        .addValues(SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom(cols[2])).setName("balance").build())
-                        .addValues(SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom(cols[3])).setName("isblocked").build())
-                        .addValues(SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom(cols[4])).setName("timestamp").build());
+                RetinaProto.TableUpdateData.Builder tableUpdateDataBuilder =
+                        RetinaProto.TableUpdateData.newBuilder()
+                                .setTableName(tableName)
+                                .setPrimaryIndexId(metadataRegistry.getPrimaryIndexKeyId(schemaName, tableName));
 
-                // RowRecord
-                SinkProto.RowRecord.Builder rowBuilder = SinkProto.RowRecord.newBuilder()
-                        .setOp(SinkProto.OperationType.INSERT)
-                        .setAfter(afterValueBuilder)
-                        .setSource(
-                                SinkProto.SourceInfo.newBuilder()
-                                        .setDb(schemaName)
-                                        .setTable(tableName)
-                                        .build()
-                        );
+                for (int i = 0; i < batchSize; i++)
+                {
+                    int accountID = b * batchSize + i;
+                    int userID = accountID % 1000;
+                    float balance = 1000.0f + accountID;
+                    int isBlocked = 0;
+                    long ts = System.currentTimeMillis();
 
-                RowChangeEvent rowChangeEvent = new RowChangeEvent(rowBuilder.build());
-                rowChangeEvent.setTimeStamp(timeStamp);
+                    byte[][] cols = new byte[5][];
+                    cols[0] = ByteBuffer.allocate(Integer.BYTES).putInt(accountID).array();
+                    cols[1] = ByteBuffer.allocate(Integer.BYTES).putInt(userID).array();
+                    int intBits = Float.floatToIntBits(balance);
+                    cols[2] = ByteBuffer.allocate(4).putInt(intBits).array();
+                    cols[3] = ByteBuffer.allocate(Integer.BYTES).putInt(isBlocked).array();
+                    cols[4] = ByteBuffer.allocate(Long.BYTES).putLong(ts).array();
+                    // cols[4] = Long.toString(ts).getBytes(StandardCharsets.UTF_8);
+                    // after row
+                    SinkProto.RowValue.Builder afterValueBuilder = SinkProto.RowValue.newBuilder()
+                            .addValues(SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom(cols[0])).setName("accountid").build())
+                            .addValues(SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom(cols[1])).setName("userid").build())
+                            .addValues(SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom(cols[2])).setName("balance").build())
+                            .addValues(SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom(cols[3])).setName("isblocked").build())
+                            .addValues(SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom(cols[4])).setName("timestamp").build());
 
-                // InsertData
-                RetinaProto.InsertData.Builder insertDataBuilder = RetinaProto.InsertData.newBuilder()
-                        .addColValues(ByteString.copyFrom(cols[0]))
-                        .addColValues(ByteString.copyFrom(cols[1]))
-                        .addColValues(ByteString.copyFrom(cols[2]))
-                        .addColValues(ByteString.copyFrom(cols[3]))
-                        .addColValues(ByteString.copyFrom(cols[4]))
-                        .addIndexKeys(rowChangeEvent.getAfterKey());
+                    // RowRecord
+                    SinkProto.RowRecord.Builder rowBuilder = SinkProto.RowRecord.newBuilder()
+                            .setOp(SinkProto.OperationType.INSERT)
+                            .setAfter(afterValueBuilder)
+                            .setSource(
+                                    SinkProto.SourceInfo.newBuilder()
+                                            .setDb(schemaName)
+                                            .setTable(tableName)
+                                            .build()
+                            );
 
-                tableUpdateDataBuilder.addInsertData(insertDataBuilder.build());
+                    RowChangeEvent rowChangeEvent = new RowChangeEvent(rowBuilder.build());
+                    rowChangeEvent.setTimeStamp(timeStamp);
+
+                    // InsertData
+                    RetinaProto.InsertData.Builder insertDataBuilder = RetinaProto.InsertData.newBuilder()
+                            .addColValues(ByteString.copyFrom(cols[0]))
+                            .addColValues(ByteString.copyFrom(cols[1]))
+                            .addColValues(ByteString.copyFrom(cols[2]))
+                            .addColValues(ByteString.copyFrom(cols[3]))
+                            .addColValues(ByteString.copyFrom(cols[4]))
+                            .addIndexKeys(rowChangeEvent.getAfterKey());
+
+                    tableUpdateDataBuilder.addInsertData(insertDataBuilder.build());
+                }
+
+                tableUpdateData.add(tableUpdateDataBuilder.build());
+
+                CompletableFuture<Void> future = CompletableFuture.runAsync(() ->
+                {
+                    try
+                    {
+                        transService.commitTrans(ctx.getTransId(), timeStamp);
+                    } catch (TransException e)
+                    {
+                        e.printStackTrace();
+                        throw new RuntimeException(e);
+                    }
+
+                }, executor);
+                futures.add(future);
             }
-
-            tableUpdateData.add(tableUpdateDataBuilder.build());
-            // 执行原始的 writeTrans 方法
-            long startTime = System.currentTimeMillis();  // 使用 nanoTime 获取更精确的时间
-            if (!writer.writeTrans(schemaName, tableUpdateData, timeStamp))
+            Assertions.assertNotNull(writer);
+            if (!writer.writeBatch(schemaName, tableUpdateData))
             {
                 logger.error("Error Write Trans");
                 System.exit(-1);
             }
-            transService.commitTrans(ctx.getTransId(), timeStamp);
-            // 记录结束时间
-            long endTime = System.currentTimeMillis();
-            long duration = endTime - startTime;
-            logger.info("writeTrans took " + duration + " milliseconds");
-//            CompletableFuture<Void> future = CompletableFuture.runAsync(() ->
-//            {
-//                try
-//                {
-//                    transService.commitTrans(ctx.getTransId(), timeStamp);
-//                } catch (TransException e)
-//                {
-//                    e.printStackTrace();
-//                    throw new RuntimeException(e);
-//                }
-//
-//            }, executor);
-//            futures.add(future);
+
         }
 
         for (CompletableFuture<Void> future : futures)
