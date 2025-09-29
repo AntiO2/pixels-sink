@@ -34,6 +34,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -111,14 +112,18 @@ public class TableCrossTxWriter extends TableWriter
                 tableUpdateCount.add(smallBatch.size());
             }
 
-            delegate.writeBatch(batch.get(0).getSchemaName(), tableUpdateData);
+            CompletableFuture<RetinaProto.UpdateRecordResponse> updateRecordResponseCompletableFuture = delegate.writeBatchAsync(batch.get(0).getSchemaName(), tableUpdateData);
 
-            for(int i = 0; i < txIds.size(); i++)
-            {
-                String writeTxId = txIds.get(i);
-                SinkContext sinkContext = TransactionCoordinatorFactory.getCoordinator().getSinkContext(writeTxId);
-                sinkContext.updateCounter(fullTableName.get(i), tableUpdateCount.get(i));
-            }
+            updateRecordResponseCompletableFuture.thenAccept(
+                    resp -> {
+                        for(int i = 0; i < txIds.size(); i++)
+                        {
+                            String writeTxId = txIds.get(i);
+                            SinkContext sinkContext = TransactionCoordinatorFactory.getCoordinator().getSinkContext(writeTxId);
+                            sinkContext.updateCounter(fullTableName.get(i), tableUpdateCount.get(i));
+                        }
+                    }
+            );
         } finally
         {
             writeLock.unlock();

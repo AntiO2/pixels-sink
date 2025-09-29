@@ -39,7 +39,11 @@ public class SinkContext
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(SinkContext.class);
     final ReentrantLock lock = new ReentrantLock();
-    final Condition cond = lock.newCondition();
+    final Condition cond = lock.newCondition(); // this cond is wait for pixels tx
+
+    final ReentrantLock tableCounterLock = new ReentrantLock();
+    final Condition tableCounterCond = tableCounterLock.newCondition();
+
 
     final String sourceTxId;
     final Map<String, Long> tableCursors = new ConcurrentHashMap<>();
@@ -81,17 +85,26 @@ public class SinkContext
 
     void updateCounter(String table)
     {
-        lock.lock();
-        tableCounters.compute(table, (k, v) ->
-                (v == null) ? 1 : v + 1);
-        lock.unlock();
-        cond.signalAll();
+        updateCounter(table, 1L);
     }
 
     public void updateCounter(String table, long count)
     {
+        tableCounterLock.lock();
         tableCounters.compute(table, (k, v) ->
                 (v == null) ? count : v + count);
+        tableCounterCond.signalAll();
+        tableCounterLock.unlock();
+    }
+
+    public ReentrantLock getTableCounterLock()
+    {
+        return tableCounterLock;
+    }
+
+    public Condition getTableCounterCond()
+    {
+        return tableCounterCond;
     }
 
     Set<String> getTrackedTables()

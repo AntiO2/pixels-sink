@@ -43,7 +43,9 @@ import java.util.concurrent.locks.ReentrantLock;
  */
 public abstract class TableWriter
 {
-    protected final PixelsSinkWriter delegate; // physical writer
+
+    // TODO(AntiO2): 这里放弃掉底层writer的多种实现了。
+    protected final RetinaWriter delegate; // physical writer
     protected final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
     protected final ReentrantLock lock = new ReentrantLock();
     protected final String tableName;
@@ -58,7 +60,7 @@ public abstract class TableWriter
     {
         this.config = PixelsSinkConfigFactory.getInstance();
         this.tableName = tableName;
-        this.delegate = PixelsSinkWriterFactory.getWriter();
+        this.delegate = new RetinaWriter();
         this.flushInterval = config.getFlushIntervalMs();
     }
     

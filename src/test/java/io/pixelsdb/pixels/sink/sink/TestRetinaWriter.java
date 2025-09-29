@@ -47,8 +47,8 @@ public class TestRetinaWriter
     @BeforeAll
     public static void setUp() throws IOException
     {
-//        PixelsSinkConfigFactory.initialize("/home/pixels/projects/pixels-sink/src/main/resources/pixels-sink.local.properties");
-        PixelsSinkConfigFactory.initialize("/home/ubuntu/pixels-sink/src/main/resources/pixels-sink.aws.properties");
+        PixelsSinkConfigFactory.initialize("/home/pixels/projects/pixels-sink/src/main/resources/pixels-sink.local.properties");
+//        PixelsSinkConfigFactory.initialize("/home/ubuntu/pixels-sink/src/main/resources/pixels-sink.aws.properties");
         retinaService = RetinaService.Instance();
         metadataRegistry = TableMetadataRegistry.Instance();
         transService = TransService.Instance();

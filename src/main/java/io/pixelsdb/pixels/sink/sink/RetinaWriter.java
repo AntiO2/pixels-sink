@@ -31,6 +31,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class RetinaWriter implements PixelsSinkWriter
@@ -132,6 +133,26 @@ public class RetinaWriter implements PixelsSinkWriter
         }
         return true;
     }
+
+    public CompletableFuture<RetinaProto.UpdateRecordResponse> writeBatchAsync
+        (String schemaName, List<RetinaProto.TableUpdateData> tableUpdateData)
+    {
+        if (config.getRetinaWriteMode() == RetinaWriteMode.STUB)
+        {
+            try
+            {
+                retinaService.updateRecord(schemaName, tableUpdateData);
+            } catch (RetinaException e)
+            {
+                e.printStackTrace();
+            }
+            return null;
+        } else
+        {
+            return retinaStream.updateRecord(schemaName, tableUpdateData);
+        }
+    }
+
 
     @Deprecated
     private boolean sendInsertRequest(RowChangeEvent event) throws RetinaException

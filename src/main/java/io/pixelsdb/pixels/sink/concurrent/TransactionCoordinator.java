@@ -50,7 +50,7 @@ public class TransactionCoordinator
     final ConcurrentMap<String, SinkContext> activeTxContexts = new ConcurrentHashMap<>();
     final ExecutorService dispatchExecutor = Executors.newCachedThreadPool();
     private final PixelsSinkWriter writer;
-    private final ExecutorService transactionExecutor = Executors.newCachedThreadPool();
+    private final ExecutorService transactionExecutor = Executors.newFixedThreadPool(1024);
     private final ScheduledExecutorService timeoutScheduler =
             Executors.newSingleThreadScheduledExecutor();
     private final TransactionManager transactionManager = TransactionManager.Instance();
@@ -234,18 +234,24 @@ public class TransactionCoordinator
 
         try
         {
-            while (!ctx.isCompleted(txEnd))
+            try {
+                ctx.tableCounterLock.lock();
+                while (!ctx.isCompleted(txEnd))
+                {
+                    LOGGER.debug("TX End Get Lock {}", txId);
+                    LOGGER.debug("Waiting for events in TX {}: {}", txId,
+                            txEnd.getDataCollectionsList().stream()
+                                    .map(dc -> dc.getDataCollection() + "=" +
+                                            ctx.tableCounters.getOrDefault(dc.getDataCollection(), 0L) +
+                                            "/" + dc.getEventCount())
+                                    .collect(Collectors.joining(", ")));
+                    ctx.tableCounterCond.await();
+                }
+            } finally
             {
-                LOGGER.debug("TX End Get Lock {}", txId);
-                LOGGER.debug("Waiting for events in TX {}: {}", txId,
-                        txEnd.getDataCollectionsList().stream()
-                                .map(dc -> dc.getDataCollection() + "=" +
-                                        ctx.tableCounters.getOrDefault(dc.getDataCollection(), 0L) +
-                                        "/" + dc.getEventCount())
-                                .collect(Collectors.joining(", ")));
-//                ctx.cond.await(100, TimeUnit.MILLISECONDS);
-                Thread.sleep(100);
+                ctx.tableCounterLock.unlock();
             }
+
 
             activeTxContexts.remove(txId);
             boolean res = true;
