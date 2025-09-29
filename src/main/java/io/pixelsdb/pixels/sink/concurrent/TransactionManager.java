@@ -49,7 +49,7 @@ public class TransactionManager
         this.transContextQueue = new ConcurrentLinkedDeque<>();
 
         this.commitExecutor = Executors.newFixedThreadPool(
-                Runtime.getRuntime().availableProcessors(),
+                4096,
                 r ->
                 {
                     Thread t = new Thread(r);
