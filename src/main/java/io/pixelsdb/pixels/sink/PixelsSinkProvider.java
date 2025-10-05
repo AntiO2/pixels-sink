@@ -33,7 +33,7 @@ public class PixelsSinkProvider implements SinkProvider
     public void start(ConfigFactory config)
     {
         PixelsSinkConfigFactory.initialize(config);
-        MetricsFacade.initialize();
+        MetricsFacade.getInstance();
         PixelsSinkConfig pixelsSinkConfig = PixelsSinkConfigFactory.getInstance();
         String dataSource = pixelsSinkConfig.getDataSource();
         if(dataSource.equals("kafka"))

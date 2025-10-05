@@ -27,6 +27,7 @@ import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.event.TableEnginePipelineManager;
 import io.pixelsdb.pixels.sink.event.TablePipelineManager;
 import io.pixelsdb.pixels.sink.event.TransactionEventEngineProvider;
+import io.pixelsdb.pixels.sink.processor.MetricsFacade;
 import io.pixelsdb.pixels.sink.processor.StoppableProcessor;
 import io.pixelsdb.pixels.sink.processor.TransactionProcessor;
 import org.apache.kafka.connect.data.Struct;
@@ -52,6 +53,8 @@ public class PixelsDebeziumConsumer implements DebeziumEngine.ChangeConsumer<Rec
     private final TransactionProcessor processor = new TransactionProcessor(transactionEventProvider);
     private final Thread processorThread;
     private final Thread adapterThread;
+    private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
+
     public PixelsDebeziumConsumer()
     {
         this.checkTransactionTopic = pixelsSinkConfig.getDebeziumTopicPrefix() + ".transaction";
@@ -74,11 +77,14 @@ public class PixelsDebeziumConsumer implements DebeziumEngine.ChangeConsumer<Rec
                     continue;
                 }
 
+                metricsFacade.recordDebeziumEvent();
                 if(isTransactionEvent(sourceRecord))
                 {
-                    handleTransactionSourceRecord(sourceRecord);
+                    metricsFacade.recordTransaction();
+                    // handleTransactionSourceRecord(sourceRecord);
                 } else {
-                    handleRowChangeSourceRecord(sourceRecord);
+                    metricsFacade.recordRowEvent();
+                    // handleRowChangeSourceRecord(sourceRecord);
                 }
             }
             finally

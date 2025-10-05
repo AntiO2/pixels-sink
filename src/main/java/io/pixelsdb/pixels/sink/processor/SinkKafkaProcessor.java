@@ -30,7 +30,6 @@ public class SinkKafkaProcessor implements MainProcessor
 {
     private MonitorThreadManager manager;
     private volatile boolean running = true;
-    private HTTPServer prometheusHttpServer;
 
     @Override
     public void start()
@@ -52,16 +51,6 @@ public class SinkKafkaProcessor implements MainProcessor
         manager.startMonitor(transactionProcessor);
         manager.startMonitor(topicMonitor);
 
-        try
-        {
-            if (pixelsSinkConfig.isMonitorEnabled())
-            {
-                this.prometheusHttpServer = new HTTPServer(PixelsSinkConfigFactory.getInstance().getMonitorPort());
-            }
-        } catch (IOException e)
-        {
-            throw new RuntimeException(e);
-        }
     }
 
 
@@ -69,11 +58,6 @@ public class SinkKafkaProcessor implements MainProcessor
     public void stopProcessor()
     {
         manager.shutdown();
-        if (prometheusHttpServer != null)
-        {
-            prometheusHttpServer.close();
-        }
-
         running = false;
     }
 

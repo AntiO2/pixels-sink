@@ -33,6 +33,8 @@ public class MetricsFacade
     private final Counter transactionCounter;
     private final Summary processingLatency;
     private final Counter rawDataThroughputCounter;
+    private final Counter debeziumEventCounter;
+    private final Counter rowEventCounter;
 
     private final Summary transServiceLatency;
     private final Summary indexServiceLatency;
@@ -45,6 +47,17 @@ public class MetricsFacade
         this.enabled = enabled;
         if (enabled)
         {
+            this.debeziumEventCounter = Counter.build()
+                    .name("debezium_event_total")
+                    .help("Debezium Event Total")
+                    .register();
+
+            this.rowEventCounter = Counter.build()
+                    .name("row_event_total")
+                    .help("Debezium Row Event Total")
+                    .register();
+
+
             this.tableChangeCounter = Counter.build()
                     .name("sink_table_changes_total")
                     .help("Total processed table changes")
@@ -124,6 +137,8 @@ public class MetricsFacade
 
         } else
         {
+            this.debeziumEventCounter = null;
+            this.rowEventCounter = null;
             this.rowChangeCounter = null;
             this.transactionCounter = null;
             this.processingLatency = null;
@@ -137,7 +152,7 @@ public class MetricsFacade
         }
     }
 
-    public static synchronized void initialize()
+    private static synchronized void initialize()
     {
         PixelsSinkConfig config = PixelsSinkConfigFactory.getInstance();
         if (instance == null)
@@ -153,6 +168,14 @@ public class MetricsFacade
             initialize();
         }
         return instance;
+    }
+
+    public void recordDebeziumEvent()
+    {
+        if(enabled && debeziumEventCounter != null)
+        {
+            debeziumEventCounter.inc();
+        }
     }
 
     public void recordRowChange(String table, SinkProto.OperationType operation)
@@ -213,6 +236,14 @@ public class MetricsFacade
         {
             long recordLatency = System.currentTimeMillis() - event.getTimeStamp();
             totalLatency.labels(event.getFullTableName(), event.getOp().toString()).observe(recordLatency);
+        }
+    }
+
+    public void recordRowEvent()
+    {
+        if (enabled && rowEventCounter != null)
+        {
+            rowEventCounter.inc();
         }
     }
 }

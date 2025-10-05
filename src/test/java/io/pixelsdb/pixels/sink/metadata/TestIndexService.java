@@ -43,7 +43,7 @@ public class TestIndexService
 {
 
     private final MetadataService metadataService = MetadataService.Instance();
-    private final IndexService indexService = IndexService.Instance();
+    private final IndexService indexService = null; // TODO
 
     @Test
     public void testCreateFreshnessIndex() throws MetadataException

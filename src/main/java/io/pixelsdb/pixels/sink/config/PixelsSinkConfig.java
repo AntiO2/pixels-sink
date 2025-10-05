@@ -65,10 +65,10 @@ public class PixelsSinkConfig
     @ConfigKey(value = "sink.csv.enable_header", defaultValue = "false")
     private boolean sinkCsvEnableHeader;
 
-    @ConfigKey(value = "sink.monitor.enabled", defaultValue = "false")
+    @ConfigKey(value = "sink.monitor.enable", defaultValue = "false")
     private boolean monitorEnabled;
 
-    @ConfigKey(value = "sink.monitor.port", defaultValue = "9999")
+    @ConfigKey(value = "sink.monitor.port", defaultValue = "9464")
     private short monitorPort;
 
     @ConfigKey(value = "sink.rpc.enable", defaultValue = "false")

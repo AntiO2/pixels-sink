@@ -21,6 +21,8 @@ import io.pixelsdb.pixels.sink.config.CommandLineConfig;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.processor.*;
+import io.prometheus.client.hotspot.DefaultExports;
+import io.prometheus.client.exporter.HTTPServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,6 +35,8 @@ public class PixelsSinkApp
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(PixelsSinkApp.class);
     private static MainProcessor mainProcessor;
+    private static HTTPServer prometheusHttpServer;
+
 
     public static void main(String[] args) throws IOException
     {
@@ -41,6 +45,11 @@ public class PixelsSinkApp
             mainProcessor.stopProcessor();
             TransactionCoordinatorFactory.reset();
             LOGGER.info("Pixels Sink Server shutdown complete");
+            if(prometheusHttpServer != null)
+            {
+                prometheusHttpServer.close();
+            }
+
         }));
 
         init(args);
@@ -55,6 +64,19 @@ public class PixelsSinkApp
         {
             throw new IllegalStateException("Unsupported data source type: " + config.getDataSource());
         }
+
+        try
+        {
+            if (config.isMonitorEnabled())
+            {
+                DefaultExports.initialize();
+                prometheusHttpServer = new HTTPServer(config.getMonitorPort());
+            }
+        } catch (IOException e)
+        {
+            throw new RuntimeException(e);
+        }
+
         mainProcessor.start();
     }
 
@@ -62,6 +84,6 @@ public class PixelsSinkApp
     {
         CommandLineConfig cmdLineConfig = new CommandLineConfig(args);
         PixelsSinkConfigFactory.initialize(cmdLineConfig.getConfigPath());
-        MetricsFacade.initialize();
+        MetricsFacade.getInstance();
     }
 }

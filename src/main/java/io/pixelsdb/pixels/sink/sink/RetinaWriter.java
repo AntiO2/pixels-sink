@@ -44,7 +44,7 @@ public class RetinaWriter implements PixelsSinkWriter
     private final AtomicBoolean isClosed = new AtomicBoolean(false);
     private final RetinaService retinaService = RetinaService.Instance();
     private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
-    private RetinaService.StreamHandle retinaStream = null;
+    private RetinaService.StreamHandler retinaStream = null;
     public RetinaWriter()
     {
         if (config.getTransactionMode() == TransactionMode.BATCH && config.getRetinaWriteMode() == RetinaWriteMode.STREAM)

@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Resolve the absolute path of this script
+SOURCE_PATH=$(readlink -f "$BASH_SOURCE") 2>/dev/null
+SINK_DIR=$(dirname "$SOURCE_PATH")
+
+# Environment variable
+export PIXELS_HOME="/home/ubuntu/opt/pixels"
+
+# Application properties file
+PROPERTIES_FILE="/home/ubuntu/pixels-sink/src/main/resources/pixels-sink.aws.properties"
+
+# JVM config file
+JVM_CONFIG_FILE="${SINK_DIR}/conf/jvm.conf"
+
+if [[ ! -f "$JVM_CONFIG_FILE" ]]; then
+  echo "JVM config file not found: $JVM_CONFIG_FILE"
+  exit 1
+fi
+
+# Read JVM options (ignore comments and empty lines)
+JVM_OPTS=$(grep -v '^\s*#' "$JVM_CONFIG_FILE" | grep -v '^\s*$' | xargs)
+
+# Main class (for reference, though fat-jar specifies it in MANIFEST)
+MAIN_CLASS="io.pixelsdb.pixels.sink.PixelsSinkApp"
+
+# Application arguments
+APP_ARGS="-c $PROPERTIES_FILE"
+
+# Path to the fat jar
+APP_JAR="$SINK_DIR/target/pixels-sink-0.2.0-SNAPSHOT-full.jar"
+
+if [[ ! -f "$APP_JAR" ]]; then
+  echo "Application jar not found: $APP_JAR"
+  exit 1
+fi
+
+echo "Starting PixelsSinkApp..."
+echo "PIXELS_HOME = $PIXELS_HOME"
+echo "JVM_OPTS    = $JVM_OPTS"
+echo "APP_JAR     = $APP_JAR"
+echo "APP_ARGS    = $APP_ARGS"
+
+exec java $JVM_OPTS -jar "$APP_JAR" $APP_ARGS
