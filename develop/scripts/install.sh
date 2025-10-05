@@ -110,6 +110,7 @@ try_command curl -f -X POST -H "Content-Type: application/json" -d @${CONFIG_DIR
 check_fatal_exit "Register PostgreSQL Source Connector Fail"
   if [[ x${enable_tpch} == x"on" && x${load_postgres} == x"on" ]]; then
     docker exec pixels_postgres_source_db sh -c " psql -Upixels -d pixels_realtime_crud < /example/sql/dss.ddl"
+    docker exec pixels_postgres_source_db sh -c " psql -Upixels -d pixels_realtime_crud < /example/sql/dss.ri"
     docker exec pixels_postgres_source_db sh -c " psql -Upixels -d pixels_realtime_crud < /load.sql"
   fi
 fi

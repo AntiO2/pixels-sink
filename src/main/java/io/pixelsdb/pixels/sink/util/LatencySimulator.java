@@ -23,15 +23,18 @@ import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
-public class LatencySimulator {
+public class LatencySimulator
+{
     private static final Random RANDOM = ThreadLocalRandom.current();
     private static final double longTailProb = 0.05;
     private static final double longTailScale = 30;
     private static final double tailVariance = 0.1;
     private static final double normalVariance = 0.4;
 
-    private static long generateLongTailDelay(long baseDelayMs) {
-        if (RANDOM.nextDouble() < longTailProb) {
+    private static long generateLongTailDelay(long baseDelayMs)
+    {
+        if (RANDOM.nextDouble() < longTailProb)
+        {
             double variance = 1 + (RANDOM.nextDouble() * 2 - 1) * tailVariance;
             return (long) (baseDelayMs * longTailScale * variance);
         }
@@ -39,10 +42,13 @@ public class LatencySimulator {
         return (long) (baseDelayMs * (1 + (RANDOM.nextDouble() - 0.5) * normalVariance));
     }
 
-    public static void smartDelay() {
-        try {
+    public static void smartDelay()
+    {
+        try
+        {
             TimeUnit.MILLISECONDS.sleep(generateLongTailDelay(PixelsSinkConfigFactory.getInstance().getMockRpcDelay()));
-        } catch (InterruptedException ignored) {
+        } catch (InterruptedException ignored)
+        {
 
         }
     }

@@ -19,27 +19,45 @@ package io.pixelsdb.pixels.sink;
 
 import io.pixelsdb.pixels.common.sink.SinkProvider;
 import io.pixelsdb.pixels.common.utils.ConfigFactory;
+import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
-import io.pixelsdb.pixels.sink.monitor.MetricsFacade;
-import io.pixelsdb.pixels.sink.monitor.SinkMonitor;
+import io.pixelsdb.pixels.sink.processor.MainProcessor;
+import io.pixelsdb.pixels.sink.processor.MetricsFacade;
+import io.pixelsdb.pixels.sink.processor.SinkEngineProcessor;
+import io.pixelsdb.pixels.sink.processor.SinkKafkaProcessor;
 
-public class PixelsSinkProvider implements SinkProvider {
-    private SinkMonitor sinkMonitor;
+public class PixelsSinkProvider implements SinkProvider
+{
+    private MainProcessor mainProcessor;
 
-    public void start(ConfigFactory config) {
+    public void start(ConfigFactory config)
+    {
         PixelsSinkConfigFactory.initialize(config);
-        MetricsFacade.initialize();
-        sinkMonitor = new SinkMonitor();
-        sinkMonitor.startSinkMonitor();
+        MetricsFacade.getInstance();
+        PixelsSinkConfig pixelsSinkConfig = PixelsSinkConfigFactory.getInstance();
+        String dataSource = pixelsSinkConfig.getDataSource();
+        if(dataSource.equals("kafka"))
+        {
+            mainProcessor = new SinkKafkaProcessor();
+        } else if(dataSource.equals("engine"))
+        {
+            mainProcessor = new SinkEngineProcessor();
+        } else
+        {
+            throw new IllegalStateException("Unsupported data source type: " + dataSource);
+        }
+        mainProcessor.start();
     }
 
     @Override
-    public void shutdown() {
-        sinkMonitor.stopMonitor();
+    public void shutdown()
+    {
+        mainProcessor.stopProcessor();
     }
 
     @Override
-    public boolean isRunning() {
-        return sinkMonitor.isRunning();
+    public boolean isRunning()
+    {
+        return  mainProcessor.isRunning();
     }
 }

@@ -31,7 +31,7 @@ services:
       - pixels_network
 
   postgres:
-    image: quay.io/debezium/postgres:17  # This image install plugin: postgres-decoderbufs and configure wal_level = logical
+    image: quay.io/debezium/postgres:16  # This image install plugin: postgres-decoderbufs and configure wal_level = logical
     container_name: pixels_postgres_source_db
     environment:
       POSTGRES_DB: pixels_realtime_crud
@@ -75,7 +75,8 @@ services:
       - pixels_network
 
   pixels-sink:
-    image: pixels-sink:0.2.0-SNAPSHOT
+    image: hello-world:latest
+      # image: pixels-sink:0.2.0-SNAPSHOT
     container_name: pixels-sink
     volumes:
       - ./data:/app/data
@@ -101,7 +102,7 @@ services:
       - pixels_network
 
   pg_debezium:
-    image: debezium/connect:2.7.3.Final
+    image: debezium/connect:3.0.0.Final
     ports:
       - "8084:8083"
     depends_on:

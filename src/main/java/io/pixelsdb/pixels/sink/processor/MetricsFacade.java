@@ -15,7 +15,7 @@
  *
  */
 
-package io.pixelsdb.pixels.sink.monitor;
+package io.pixelsdb.pixels.sink.processor;
 
 import io.pixelsdb.pixels.sink.SinkProto;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
@@ -24,7 +24,8 @@ import io.pixelsdb.pixels.sink.event.RowChangeEvent;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Summary;
 
-public class MetricsFacade {
+public class MetricsFacade
+{
     private static MetricsFacade instance;
     private final boolean enabled;
     private final Counter tableChangeCounter;
@@ -32,15 +33,31 @@ public class MetricsFacade {
     private final Counter transactionCounter;
     private final Summary processingLatency;
     private final Counter rawDataThroughputCounter;
+    private final Counter debeziumEventCounter;
+    private final Counter rowEventCounter;
 
     private final Summary transServiceLatency;
     private final Summary indexServiceLatency;
     private final Summary retinaServiceLatency;
     private final Summary writerLatency;
     private final Summary totalLatency;
-    private MetricsFacade(boolean enabled) {
+
+    private MetricsFacade(boolean enabled)
+    {
         this.enabled = enabled;
-        if (enabled) {
+        if (enabled)
+        {
+            this.debeziumEventCounter = Counter.build()
+                    .name("debezium_event_total")
+                    .help("Debezium Event Total")
+                    .register();
+
+            this.rowEventCounter = Counter.build()
+                    .name("row_event_total")
+                    .help("Debezium Row Event Total")
+                    .register();
+
+
             this.tableChangeCounter = Counter.build()
                     .name("sink_table_changes_total")
                     .help("Total processed table changes")
@@ -118,7 +135,10 @@ public class MetricsFacade {
                     .quantile(0.99, 0.001)
                     .register();
 
-        } else {
+        } else
+        {
+            this.debeziumEventCounter = null;
+            this.rowEventCounter = null;
             this.rowChangeCounter = null;
             this.transactionCounter = null;
             this.processingLatency = null;
@@ -132,65 +152,98 @@ public class MetricsFacade {
         }
     }
 
-    public static synchronized void initialize() {
+    private static synchronized void initialize()
+    {
         PixelsSinkConfig config = PixelsSinkConfigFactory.getInstance();
-        if (instance == null) {
+        if (instance == null)
+        {
             instance = new MetricsFacade(config.isMonitorEnabled());
         }
     }
 
-    public static MetricsFacade getInstance() {
-        if (instance == null) {
+    public static MetricsFacade getInstance()
+    {
+        if (instance == null)
+        {
             initialize();
         }
         return instance;
     }
 
-    public void recordRowChange(String table, SinkProto.OperationType operation) {
+    public void recordDebeziumEvent()
+    {
+        if(enabled && debeziumEventCounter != null)
+        {
+            debeziumEventCounter.inc();
+        }
+    }
+
+    public void recordRowChange(String table, SinkProto.OperationType operation)
+    {
         recordRowChange(table, operation, 1);
     }
 
-    public void recordRowChange(String table, SinkProto.OperationType operation, int rows) {
-        if (enabled && rowChangeCounter != null) {
+    public void recordRowChange(String table, SinkProto.OperationType operation, int rows)
+    {
+        if (enabled && rowChangeCounter != null)
+        {
             tableChangeCounter.labels(table).inc(rows);
             rowChangeCounter.labels(table, operation.toString()).inc(rows);
         }
     }
 
-    public void recordTransaction() {
-        if (enabled && transactionCounter != null) {
+    public void recordTransaction()
+    {
+        if (enabled && transactionCounter != null)
+        {
             transactionCounter.inc();
         }
     }
 
-    public Summary.Timer startProcessLatencyTimer() {
+    public Summary.Timer startProcessLatencyTimer()
+    {
         return enabled ? processingLatency.startTimer() : null;
     }
 
-    public Summary.Timer startIndexLatencyTimer() {
+    public Summary.Timer startIndexLatencyTimer()
+    {
         return enabled ? indexServiceLatency.startTimer() : null;
     }
 
-    public Summary.Timer startTransLatencyTimer() {
+    public Summary.Timer startTransLatencyTimer()
+    {
         return enabled ? transServiceLatency.startTimer() : null;
     }
 
-    public Summary.Timer startRetinaLatencyTimer() {
+    public Summary.Timer startRetinaLatencyTimer()
+    {
         return enabled ? retinaServiceLatency.startTimer() : null;
     }
 
-    public Summary.Timer startWriteLatencyTimer() {
+    public Summary.Timer startWriteLatencyTimer()
+    {
         return enabled ? writerLatency.startTimer() : null;
     }
 
-    public void addRawData(double data) {
+    public void addRawData(double data)
+    {
         rawDataThroughputCounter.inc(data);
     }
 
-    public void recordTotalLatency(RowChangeEvent event) {
-        if(event.getTimeStamp() != 0) {
-            long recordLatency = System.currentTimeMillis()- event.getTimeStamp();
+    public void recordTotalLatency(RowChangeEvent event)
+    {
+        if (event.getTimeStamp() != 0)
+        {
+            long recordLatency = System.currentTimeMillis() - event.getTimeStamp();
             totalLatency.labels(event.getFullTableName(), event.getOp().toString()).observe(recordLatency);
+        }
+    }
+
+    public void recordRowEvent()
+    {
+        if (enabled && rowEventCounter != null)
+        {
+            rowEventCounter.inc();
         }
     }
 }

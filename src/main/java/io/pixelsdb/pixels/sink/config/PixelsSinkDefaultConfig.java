@@ -20,12 +20,11 @@ package io.pixelsdb.pixels.sink.config;
 import io.pixelsdb.pixels.sink.deserializer.RowChangeEventJsonDeserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 
-public class PixelsSinkDefaultConfig {
+public class PixelsSinkDefaultConfig
+{
+    public static final String DATA_SOURCE = "kafka";
     public static final String PROPERTIES_PATH = "pixels-sink.properties";
     public static final String CSV_SINK_PATH = "./data";
-
-    public static final String KEY_DESERIALIZER = StringDeserializer.class.getName(); // org.apache.kafka.common.serialization.StringDeserializer
-    public static final String VALUE_DESERIALIZER = RowChangeEventJsonDeserializer.class.getName();
 
     public static final String SINK_MODE = "csv";
 
@@ -52,6 +51,7 @@ public class PixelsSinkDefaultConfig {
     public static final int SINK_FLUSH_INTERVAL_MS = 5000;
     public static final int SINK_MAX_RETRIES = 3;
     public static final boolean SINK_CSV_ENABLE_HEADER = false;
+    public static final String SINK_RETINA_MODE = "stub";
 
     // Monitor Config
     public static final boolean SINK_MONITOR_ENABLED = true;

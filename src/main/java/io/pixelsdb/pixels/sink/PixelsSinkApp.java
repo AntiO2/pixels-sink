@@ -18,9 +18,11 @@ package io.pixelsdb.pixels.sink;
 
 import io.pixelsdb.pixels.sink.concurrent.TransactionCoordinatorFactory;
 import io.pixelsdb.pixels.sink.config.CommandLineConfig;
+import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
-import io.pixelsdb.pixels.sink.monitor.MetricsFacade;
-import io.pixelsdb.pixels.sink.monitor.SinkMonitor;
+import io.pixelsdb.pixels.sink.processor.*;
+import io.prometheus.client.hotspot.DefaultExports;
+import io.prometheus.client.exporter.HTTPServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,24 +31,59 @@ import java.io.IOException;
 /**
  * Run PixelsSink as a server
  */
-public class PixelsSinkApp {
+public class PixelsSinkApp
+{
     private static final Logger LOGGER = LoggerFactory.getLogger(PixelsSinkApp.class);
-    private static SinkMonitor sinkMonitor = new SinkMonitor();
+    private static MainProcessor mainProcessor;
+    private static HTTPServer prometheusHttpServer;
 
-    public static void main(String[] args) throws IOException {
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            sinkMonitor.stopMonitor();
+
+    public static void main(String[] args) throws IOException
+    {
+        Runtime.getRuntime().addShutdownHook(new Thread(() ->
+        {
+            mainProcessor.stopProcessor();
             TransactionCoordinatorFactory.reset();
             LOGGER.info("Pixels Sink Server shutdown complete");
+            if(prometheusHttpServer != null)
+            {
+                prometheusHttpServer.close();
+            }
+
         }));
 
         init(args);
-        sinkMonitor.startSinkMonitor();
+        PixelsSinkConfig config = PixelsSinkConfigFactory.getInstance();
+        if(config.getDataSource().equals("kafka"))
+        {
+            mainProcessor = new SinkKafkaProcessor();
+        } else if(config.getDataSource().equals("engine"))
+        {
+            mainProcessor = new SinkEngineProcessor();
+        } else
+        {
+            throw new IllegalStateException("Unsupported data source type: " + config.getDataSource());
+        }
+
+        try
+        {
+            if (config.isMonitorEnabled())
+            {
+                DefaultExports.initialize();
+                prometheusHttpServer = new HTTPServer(config.getMonitorPort());
+            }
+        } catch (IOException e)
+        {
+            throw new RuntimeException(e);
+        }
+
+        mainProcessor.start();
     }
 
-    private static void init(String[] args) throws IOException {
+    private static void init(String[] args) throws IOException
+    {
         CommandLineConfig cmdLineConfig = new CommandLineConfig(args);
         PixelsSinkConfigFactory.initialize(cmdLineConfig.getConfigPath());
-        MetricsFacade.initialize();
+        MetricsFacade.getInstance();
     }
 }

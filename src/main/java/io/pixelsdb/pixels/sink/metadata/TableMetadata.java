@@ -17,34 +17,67 @@
 
 package io.pixelsdb.pixels.sink.metadata;
 
+import io.pixelsdb.pixels.common.exception.MetadataException;
 import io.pixelsdb.pixels.common.metadata.domain.Column;
-import io.pixelsdb.pixels.common.metadata.domain.SecondaryIndex;
+import io.pixelsdb.pixels.common.metadata.domain.SinglePointIndex;
 import io.pixelsdb.pixels.common.metadata.domain.Table;
+import io.pixelsdb.pixels.core.TypeDescription;
 import lombok.Getter;
 
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Getter
-public class TableMetadata {
+public class TableMetadata
+{
     private final Table table;
-    private final SecondaryIndex index;
+    private final SinglePointIndex index;
+    private final TypeDescription typeDescription;
+    private final List<Column> columns;
     private final List<String> keyColumnNames;
 
-    private final List<Column> columns;
-
-    public TableMetadata(Table table, SecondaryIndex index, List<Column> columns) {
+    public TableMetadata(Table table, SinglePointIndex index, List<Column> columns) throws MetadataException
+    {
         this.table = table;
         this.index = index;
         this.columns = columns;
-        keyColumnNames = new LinkedList<>();
-        List<Integer> keyColumnIds = index.getKeyColumns().getKeyColumnIds();
-        for (Integer keyColumnId : keyColumnIds) {
-            keyColumnNames.add(columns.get(keyColumnId).getName());
+        this.keyColumnNames = new LinkedList<>();
+        List<String> columnNames = columns.stream().map(Column::getName).collect(Collectors.toList());
+        List<String> columnTypes = columns.stream().map(Column::getType).collect(Collectors.toList());
+        typeDescription = TypeDescription.createSchemaFromStrings(columnNames, columnTypes);
+        if (index != null)
+        {
+            Map<Long, Column> columnMap = new HashMap<>();
+            for (Column column : columns)
+            {
+                columnMap.put(column.getId(), column);
+            }
+
+            for (Integer keyColumnId : index.getKeyColumns().getKeyColumnIds())
+            {
+                Column column = columnMap.get(keyColumnId.longValue());
+                if (column != null)
+                {
+                    keyColumnNames.add(column.getName());
+                } else
+                {
+                    throw new MetadataException("Cant find key column id: " + keyColumnId + " in table "
+                            + table.getName() + " schema id is " + table.getSchemaId());
+                }
+            }
         }
     }
 
-    public int getPkId() {
-        return index.getKeyColumns().getKeyColumnIds().get(0);
+    public boolean hasPrimaryIndex()
+    {
+        return index != null;
+    }
+
+    public long getPrimaryIndexKeyId()
+    {
+        return index.getId();
     }
 }
