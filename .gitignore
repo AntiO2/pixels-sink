@@ -48,3 +48,6 @@ resources/*.xml
 *.so
 *.o
 .vscode
+
+data/
+tmp/

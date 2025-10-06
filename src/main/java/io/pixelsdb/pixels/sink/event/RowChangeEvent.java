@@ -35,6 +35,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 public class RowChangeEvent
 {
@@ -95,12 +97,8 @@ public class RowChangeEvent
 
     private void initColumnValueMap(SinkProto.RowValue rowValue, Map<String, SinkProto.ColumnValue> map)
     {
-        rowValue.getValuesList().forEach(
-                column ->
-                {
-                    map.put(column.getName(), column);
-                }
-        );
+        IntStream.range(0, schema.getFieldNames().size())
+                .forEach(i -> map.put(schema.getFieldNames().get(i), rowValue.getValuesList().get(i)));
     }
 
     public void initIndexKey() throws SinkException
@@ -190,11 +188,6 @@ public class RowChangeEvent
         return false;
     }
 
-    public SinkProto.ErrorInfo getErrorInfo()
-    {
-        return rowRecord.getError();
-    }
-
     public String getDb()
     {
         return rowRecord.getSource().getDb();
@@ -228,11 +221,6 @@ public class RowChangeEvent
     public boolean hasAfterData()
     {
         return isUpdate() || isInsert() || isSnapshot();
-    }
-
-    public Long getTimeStampUs()
-    {
-        return rowRecord.getTsUs();
     }
 
     public void startLatencyTimer()

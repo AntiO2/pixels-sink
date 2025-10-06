@@ -79,8 +79,8 @@ public class RowChangeEventAvroDeserializer implements Deserializer<RowChangeEve
         SinkProto.OperationType op = parseOperationType(avroRecord);
         SinkProto.RowRecord.Builder recordBuilder = SinkProto.RowRecord.newBuilder()
                 .setOp(op)
-                .setTsMs(DeserializerUtil.getLongSafely(avroRecord, "ts_ms"));
-
+//                .setTsMs(DeserializerUtil.getLongSafely(avroRecord, "ts_ms"));
+;
         if (avroRecord.get("source") != null)
         {
             //TODO: 这里看下怎么处理，如果没有source信息，其实可以通过topic推出schema和table信息。
@@ -136,18 +136,23 @@ public class RowChangeEventAvroDeserializer implements Deserializer<RowChangeEve
 
     private void parseSourceInfo(GenericRecord source, SinkProto.SourceInfo.Builder builder)
     {
-        builder.setVersion(DeserializerUtil.getStringSafely(source, "version"))
-                .setConnector(DeserializerUtil.getStringSafely(source, "connector"))
-                .setName(DeserializerUtil.getStringSafely(source, "name"))
-                .setTsMs(DeserializerUtil.getLongSafely(source, "ts_ms"))
-                .setSnapshot(DeserializerUtil.getStringSafely(source, "snapshot"))
+
+        builder
                 .setDb(DeserializerUtil.getStringSafely(source, "db"))
-                .setSequence(DeserializerUtil.getStringSafely(source, "sequence"))
-                .setSchema(DeserializerUtil.getStringSafely(source, "schema"))
+                        .setSchema(DeserializerUtil.getStringSafely(source, "schema"))
                 .setTable(DeserializerUtil.getStringSafely(source, "table"))
-                .setTxId(DeserializerUtil.getLongSafely(source, "tx_id"))
-                .setLsn(DeserializerUtil.getLongSafely(source, "lsn"))
-                .setXmin(DeserializerUtil.getLongSafely(source, "xmin"));
+//        .setVersion(DeserializerUtil.getStringSafely(source, "version"))
+//                .setConnector(DeserializerUtil.getStringSafely(source, "connector"))
+//                .setName(DeserializerUtil.getStringSafely(source, "name"))
+//                .setTsMs(DeserializerUtil.getLongSafely(source, "ts_ms"))
+//                .setSnapshot(DeserializerUtil.getStringSafely(source, "snapshot"))
+//
+//                .setSequence(DeserializerUtil.getStringSafely(source, "sequence"))
+
+//                .setTxId(DeserializerUtil.getLongSafely(source, "tx_id"))
+//                .setLsn(DeserializerUtil.getLongSafely(source, "lsn"))
+//                .setXmin(DeserializerUtil.getLongSafely(source, "xmin"))
+        ;
     }
 
     private void parseTransactionInfo(GenericRecord transaction,

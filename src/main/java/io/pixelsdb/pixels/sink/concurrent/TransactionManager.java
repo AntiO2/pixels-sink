@@ -107,10 +107,9 @@ public class TransactionManager
             try
             {
                 transService.commitTrans(
-                        transContext.getTransId(),
-                        transContext.getTimestamp()
+                        transContext.getTransId(), false
                 );
-                LOGGER.info("Success Commit TXID: {} TS: {}", transContext.getTransId(), transContext.getTimestamp());
+                LOGGER.trace("Success Commit TXID: {} TS: {}", transContext.getTransId(), transContext.getTimestamp());
             } catch (TransException e)
             {
                 LOGGER.error("Async commit failed: transId={}", transContext.getTransId());

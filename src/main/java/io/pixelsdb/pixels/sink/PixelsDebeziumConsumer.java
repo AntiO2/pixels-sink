@@ -24,15 +24,22 @@ import io.debezium.engine.RecordChangeEvent;
 import io.pixelsdb.pixels.common.metadata.SchemaTableName;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
+import io.pixelsdb.pixels.sink.deserializer.RowChangeEventStructDeserializer;
+import io.pixelsdb.pixels.sink.deserializer.TransactionStructMessageDeserializer;
+import io.pixelsdb.pixels.sink.event.RowChangeEvent;
 import io.pixelsdb.pixels.sink.event.TableEnginePipelineManager;
 import io.pixelsdb.pixels.sink.event.TablePipelineManager;
 import io.pixelsdb.pixels.sink.event.TransactionEventEngineProvider;
+import io.pixelsdb.pixels.sink.exception.SinkException;
 import io.pixelsdb.pixels.sink.processor.MetricsFacade;
 import io.pixelsdb.pixels.sink.processor.StoppableProcessor;
 import io.pixelsdb.pixels.sink.processor.TransactionProcessor;
+import io.pixelsdb.pixels.sink.sink.PixelsSinkMode;
+import io.pixelsdb.pixels.sink.sink.ProtoWriter;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.source.SourceRecord;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -54,7 +61,8 @@ public class PixelsDebeziumConsumer implements DebeziumEngine.ChangeConsumer<Rec
     private final Thread processorThread;
     private final Thread adapterThread;
     private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
-
+    private final PixelsSinkMode pixelsSinkMode;
+    private final ProtoWriter protoWriter;
     public PixelsDebeziumConsumer()
     {
         this.checkTransactionTopic = pixelsSinkConfig.getDebeziumTopicPrefix() + ".transaction";
@@ -62,6 +70,21 @@ public class PixelsDebeziumConsumer implements DebeziumEngine.ChangeConsumer<Rec
         adapterThread.start();
         processorThread = new Thread(processor, "debezium-processor");
         processorThread.start();
+        pixelsSinkMode = pixelsSinkConfig.getPixelsSinkMode();
+
+        if(pixelsSinkMode == PixelsSinkMode.PROTO)
+        {
+            try
+            {
+                this.protoWriter = new ProtoWriter();
+            } catch (IOException e)
+            {
+                throw new RuntimeException(e);
+            }
+        } else
+        {
+            this.protoWriter = null;
+        }
     }
 
 
@@ -81,10 +104,47 @@ public class PixelsDebeziumConsumer implements DebeziumEngine.ChangeConsumer<Rec
                 if(isTransactionEvent(sourceRecord))
                 {
                     metricsFacade.recordTransaction();
-                    // handleTransactionSourceRecord(sourceRecord);
+                    switch (pixelsSinkMode)
+                    {
+                        case RETINA ->
+                        {
+                            handleTransactionSourceRecord(sourceRecord);
+                        }
+                        case PROTO ->
+                        {
+                            SinkProto.TransactionMetadata transactionMetadata = TransactionStructMessageDeserializer.convertToTransactionMetadata(sourceRecord);
+                            protoWriter.writeTrans(transactionMetadata);
+                        }
+                        default ->
+                        {
+                            throw new RuntimeException("Sink Mode " + pixelsSinkMode.toString() + "is not supported");
+                        }
+                    }
                 } else {
                     metricsFacade.recordRowEvent();
-                    // handleRowChangeSourceRecord(sourceRecord);
+                    switch (pixelsSinkMode)
+                    {
+                        case RETINA ->
+                        {
+                            handleRowChangeSourceRecord(sourceRecord);
+                        }
+                        case PROTO ->
+                        {
+                            try
+                            {
+                                RowChangeEvent rowChangeEvent = RowChangeEventStructDeserializer.convertToRowChangeEvent(sourceRecord);
+                                protoWriter.write(rowChangeEvent);
+                            } catch (SinkException e)
+                            {
+                                throw new RuntimeException(e);
+                            }
+
+                        }
+                        default ->
+                        {
+                            throw new RuntimeException("Sink Mode " + pixelsSinkMode.toString() + "is not supported");
+                        }
+                    }
                 }
             }
             finally
@@ -138,5 +198,15 @@ public class PixelsDebeziumConsumer implements DebeziumEngine.ChangeConsumer<Rec
     {
         adapterThread.interrupt();
         processor.stopProcessor();
+        if(protoWriter != null)
+        {
+            try
+            {
+                protoWriter.close();
+            } catch (IOException e)
+            {
+                throw new RuntimeException(e);
+            }
+        }
     }
 }

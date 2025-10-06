@@ -56,7 +56,7 @@ public class TransactionProcessor implements Runnable, StoppableProcessor
                 SinkProto.TransactionMetadata transaction = transactionEventProvider.getEventQueue().take();
                 try
                 {
-                    LOGGER.info("Processing transaction event: {}", transaction.getId());
+                    LOGGER.trace("Processing transaction event: {}", transaction.getId());
                     transactionCoordinator.processTransactionEvent(transaction);
                 } catch (SinkException e)
                 {

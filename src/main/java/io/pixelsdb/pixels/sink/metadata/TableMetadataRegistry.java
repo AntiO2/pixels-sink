@@ -21,6 +21,7 @@ import io.pixelsdb.pixels.common.exception.MetadataException;
 import io.pixelsdb.pixels.common.metadata.MetadataService;
 import io.pixelsdb.pixels.common.metadata.SchemaTableName;
 import io.pixelsdb.pixels.common.metadata.domain.Column;
+import io.pixelsdb.pixels.common.metadata.domain.Schema;
 import io.pixelsdb.pixels.common.metadata.domain.SinglePointIndex;
 import io.pixelsdb.pixels.common.metadata.domain.Table;
 import io.pixelsdb.pixels.core.TypeDescription;
@@ -34,11 +35,14 @@ import java.util.concurrent.ConcurrentMap;
 
 public class TableMetadataRegistry
 {
+
     private static final Logger logger = LoggerFactory.getLogger(TableMetadataRegistry.class);
     private static final MetadataService metadataService = MetadataService.Instance();
     private static volatile TableMetadataRegistry instance;
-    private final ConcurrentMap<SchemaTableName, TableMetadata> registry = new ConcurrentHashMap<>();
 
+    private final ConcurrentMap<SchemaTableName, TableMetadata> registry = new ConcurrentHashMap<>();
+    private final ConcurrentMap<Long, SchemaTableName> tableId2SchemaTableName = new ConcurrentHashMap<>();
+    private List<Schema> schemas;
     private TableMetadataRegistry()
     {
     }
@@ -71,6 +75,17 @@ public class TableMetadataRegistry
     }
 
 
+    public SchemaTableName getSchemaTableName(long tableId) throws SinkException
+    {
+        if (!tableId2SchemaTableName.containsKey(tableId))
+        {
+            logger.info("SchemaTableName doesn't contain {}", tableId);
+            SchemaTableName metadata = loadSchemaTableName(tableId);
+            tableId2SchemaTableName.put(tableId, metadata);
+        }
+        return tableId2SchemaTableName.get(tableId);
+    }
+
     public TypeDescription getTypeDescription(String schemaName, String tableName) throws SinkException
     {
         return getMetadata(schemaName, tableName).getTypeDescription();
@@ -85,6 +100,13 @@ public class TableMetadataRegistry
     {
         return getMetadata(schemaName, tableName).getPrimaryIndexKeyId();
     }
+
+
+    public long getTableId(String schemaName, String tableName) throws SinkException
+    {
+        return getMetadata(schemaName, tableName).getTableId();
+    }
+
 
     private TableMetadata loadTableMetadata(String schemaName, String tableName) throws SinkException
     {
@@ -112,4 +134,31 @@ public class TableMetadataRegistry
             throw new SinkException(e);
         }
     }
+
+    private SchemaTableName loadSchemaTableName(long tableId) throws SinkException
+    {
+        // metadataService
+        try
+        {
+            if(schemas == null)
+            {
+                schemas = metadataService.getSchemas();
+            }
+            Table table = metadataService.getTable(tableId);
+
+            long schemaId = table.getSchemaId();
+
+            Schema schema = schemas.stream()
+                    .filter(s -> s.getId() == schemaId)
+                    .findFirst()
+                    .orElseThrow(() -> new MetadataException("Schema not found for id: " + schemaId));
+
+            return new SchemaTableName(table.getName(), schema.getName());
+
+        } catch (MetadataException e)
+        {
+            throw new SinkException(e);
+        }
+    }
+
 }

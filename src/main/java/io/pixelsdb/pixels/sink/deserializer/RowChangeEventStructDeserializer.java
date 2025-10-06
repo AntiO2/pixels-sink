@@ -50,6 +50,14 @@ public class RowChangeEventStructDeserializer
         return buildRowRecord(value, operationType);
     }
 
+    public static RowChangeEvent convertToRowChangeEvent(SinkProto.RowRecord rowRecord) throws SinkException
+    {
+        String schemaName = rowRecord.getSource().getDb();
+        String tableName = rowRecord.getSource().getTable();
+        TypeDescription typeDescription = tableMetadataRegistry.getTypeDescription(schemaName, tableName);
+        return new RowChangeEvent(rowRecord, typeDescription);
+    }
+
     private static RowChangeEvent buildRowRecord(Struct value,
                                           SinkProto.OperationType opType) throws SinkException
     {
@@ -105,20 +113,20 @@ public class RowChangeEventStructDeserializer
 
     private static  <T>  SinkProto.SourceInfo.Builder parseSourceInfo(T source) {
         return SinkProto.SourceInfo.newBuilder()
-                .setVersion(DeserializerUtil.getStringSafely(source, "version"))
-                .setConnector(DeserializerUtil.getStringSafely(source, "connector"))
-                .setName(DeserializerUtil.getStringSafely(source, "name"))
-                .setTsMs(DeserializerUtil.getLongSafely(source, "ts_ms"))
-                .setSnapshot(DeserializerUtil.getStringSafely(source, "snapshot"))
+                // .setVersion(DeserializerUtil.getStringSafely(source, "version"))
+                // .setConnector(DeserializerUtil.getStringSafely(source, "connector"))
+//                .setName(DeserializerUtil.getStringSafely(source, "name"))
+//                .setTsMs(DeserializerUtil.getLongSafely(source, "ts_ms"))
+//                .setSnapshot(DeserializerUtil.getStringSafely(source, "snapshot"))
                 .setDb(DeserializerUtil.getStringSafely(source, "db"))
-                .setSequence(DeserializerUtil.getStringSafely(source, "sequence"))
-                .setTsUs(DeserializerUtil.getLongSafely(source, "ts_us"))
-                .setTsNs(DeserializerUtil.getLongSafely(source, "ts_ns"))
+//                .setSequence(DeserializerUtil.getStringSafely(source, "sequence"))
+//                .setTsUs(DeserializerUtil.getLongSafely(source, "ts_us"))
+//                .setTsNs(DeserializerUtil.getLongSafely(source, "ts_ns"))
                 .setSchema(DeserializerUtil.getStringSafely(source, "schema"))
-                .setTable(DeserializerUtil.getStringSafely(source, "table"))
-                .setTxId(DeserializerUtil.getLongSafely(source, "txId"))
-                .setLsn(DeserializerUtil.getLongSafely(source, "lsn"))
-                .setXmin(DeserializerUtil.getLongSafely(source, "xmin"));
+                .setTable(DeserializerUtil.getStringSafely(source, "table"));
+//                .setTxId(DeserializerUtil.getLongSafely(source, "txId"))
+//                .setLsn(DeserializerUtil.getLongSafely(source, "lsn"))
+//                .setXmin(DeserializerUtil.getLongSafely(source, "xmin"));
     }
 
     private static <T> SinkProto.TransactionInfo parseTransactionInfo(T txNode) {

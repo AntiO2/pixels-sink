@@ -15,24 +15,42 @@
  *
  */
 
-package io.pixelsdb.pixels.sink.sink;
+
+package io.pixelsdb.pixels.sink.event;
 
 
-public enum PixelsSinkMode
+/**
+ * @package: io.pixelsdb.pixels.sink.event
+ * @className: ProtoType
+ * @author: AntiO2
+ * @date: 2025/10/5 12:56
+ */
+public enum ProtoType
 {
-    CSV,
-    RETINA,
-    PROTO;
+    ROW(0),
+    TRANS(1);
 
-    public static PixelsSinkMode fromValue(String value)
+    private final int value;
+
+    ProtoType(int value)
     {
-        for (PixelsSinkMode mode : values())
+        this.value = value;
+    }
+
+    public int toInt()
+    {
+        return value;
+    }
+
+    public static ProtoType fromInt(int value)
+    {
+        for (ProtoType type : ProtoType.values())
         {
-            if (mode.name().equalsIgnoreCase(value))
+            if (type.value == value)
             {
-                return mode;
+                return type;
             }
         }
-        throw new RuntimeException(String.format("Can't convert %s to sink type", value));
+        throw new IllegalArgumentException("Unknown ProtoType value: " + value);
     }
 }

@@ -20,9 +20,11 @@ package io.pixelsdb.pixels.sink.event;
 
 
 import io.pixelsdb.pixels.common.metadata.SchemaTableName;
+import io.pixelsdb.pixels.sink.SinkProto;
 import io.pixelsdb.pixels.sink.processor.TableProcessor;
 import org.apache.kafka.connect.source.SourceRecord;
 
+import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -34,13 +36,14 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class TableEnginePipelineManager extends TablePipelineManager
 {
-    private final Map<SchemaTableName, TableEventEngineProvider> pipelines = new ConcurrentHashMap<>();
+    private final Map<SchemaTableName, TableEventEngineProvider> enginePipelines = new ConcurrentHashMap<>();
+    private final Map<SchemaTableName, TableEventStorageProvider> storagePipelines = new ConcurrentHashMap<>();
 
     public void routeRecord(SchemaTableName schemaTableName, SourceRecord record) {
-        TableEventEngineProvider tableEventEngineProvider = pipelines.computeIfAbsent(schemaTableName,
+        TableEventEngineProvider tableEventEngineProvider = enginePipelines.computeIfAbsent(schemaTableName,
                 k->
                 {
-                    TableEventEngineProvider newProvider = createPipeline(k);
+                    TableEventEngineProvider newProvider = createEnginePipeline(k);
                     TableProcessor tableProcessor = activeTableProcessors.computeIfAbsent(schemaTableName, k2 ->
                             new TableProcessor(newProvider, schemaTableName));
                     tableProcessor.run();
@@ -49,8 +52,27 @@ public class TableEnginePipelineManager extends TablePipelineManager
         tableEventEngineProvider.put(record);
     }
 
-    private TableEventEngineProvider createPipeline(SchemaTableName schemaTableName) {
+    public void routeRecord(SchemaTableName schemaTableName, ByteBuffer record) {
+        TableEventStorageProvider tableEventStorageProvider = storagePipelines.computeIfAbsent(schemaTableName,
+                k->
+                {
+                    TableEventStorageProvider newProvider = createStoragePipeline(k);
+                    TableProcessor tableProcessor = activeTableProcessors.computeIfAbsent(schemaTableName, k2 ->
+                            new TableProcessor(newProvider, schemaTableName));
+                    tableProcessor.run();
+                    return newProvider;
+                });
+        tableEventStorageProvider.put(record);
+    }
+
+    private TableEventEngineProvider createEnginePipeline(SchemaTableName schemaTableName) {
         TableEventEngineProvider pipeline = new TableEventEngineProvider(schemaTableName);
+        pipeline.start();
+        return pipeline;
+    }
+
+    private TableEventStorageProvider createStoragePipeline(SchemaTableName schemaTableName) {
+        TableEventStorageProvider pipeline = new TableEventStorageProvider(schemaTableName);
         pipeline.start();
         return pipeline;
     }

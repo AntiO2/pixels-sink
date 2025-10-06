@@ -80,4 +80,14 @@ public class TableMetadata
     {
         return index.getId();
     }
+
+    public long getTableId()
+    {
+        return table.getId();
+    }
+
+    public long getSchemaId()
+    {
+        return table.getSchemaId();
+    }
 }

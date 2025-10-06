@@ -60,4 +60,5 @@ public class PixelsSinkDefaultConfig
     // Mock RPC
     public static final boolean SINK_RPC_ENABLED = true;
     public static final int MOCK_RPC_DELAY = 100;
+    public static final String MAX_RECORDS_PER_FILE = "100000";
 }

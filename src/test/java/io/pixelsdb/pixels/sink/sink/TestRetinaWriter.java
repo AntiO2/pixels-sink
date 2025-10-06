@@ -108,7 +108,7 @@ public class TestRetinaWriter
         tableUpdateData.add(tableUpdateDataBuilder.build());
         retinaService.updateRecord(schemaName, tableUpdateData);
         tableUpdateDataBuilder.setTimestamp(timeStamp);
-        transService.commitTrans(ctx.getTransId(), timeStamp);
+        transService.commitTrans(ctx.getTransId());
     }
 
     @Test
@@ -178,7 +178,7 @@ public class TestRetinaWriter
         tableUpdateDataBuilder.setTimestamp(timeStamp);
         tableUpdateData.add(tableUpdateDataBuilder.build());
         retinaService.updateRecord(schemaName, tableUpdateData);
-        transService.commitTrans(ctx.getTransId(), timeStamp);
+        transService.commitTrans(ctx.getTransId());
     }
 
     @Test
@@ -272,7 +272,7 @@ public class TestRetinaWriter
                 {
                     try
                     {
-                        transService.commitTrans(ctx.getTransId(), timeStamp);
+                        transService.commitTrans(ctx.getTransId());
                     } catch (TransException e)
                     {
                         e.printStackTrace();
@@ -412,7 +412,7 @@ public class TestRetinaWriter
                     logger.debug("writeTrans batch " + batchIndex + " took " + (endTime - startTime) + " ms");
 
                     // commit transaction
-                    transService.commitTrans(ctx.getTransId(), timeStamp);
+                    transService.commitTrans(ctx.getTransId());
 
                 } catch (Exception e)
                 {
@@ -556,7 +556,7 @@ public class TestRetinaWriter
                     // 计算并输出耗时（单位：毫秒）
                     long duration = endTime - startTime;
                     logger.debug("writeTrans took " + duration + " milliseconds");
-                    transService.commitTrans(ctx.getTransId(), timeStamp);
+                    transService.commitTrans(ctx.getTransId());
                 } catch (TransException e)
                 {
                     e.printStackTrace();

@@ -174,7 +174,7 @@ public class TransactionCoordinator
                     }
                 }
         );
-        LOGGER.info("Begin Tx Sync: {}", sourceTxId);
+        LOGGER.trace("Begin Tx Sync: {}", sourceTxId);
     }
 
     private void handleOrphanEvents(SinkContext ctx) throws SinkException
@@ -220,7 +220,7 @@ public class TransactionCoordinator
 
     private void processTxCommit(SinkProto.TransactionMetadata txEnd, String txId, SinkContext ctx)
     {
-        LOGGER.info("Begin to Commit transaction: {}, total event {}; Data Collection {}", txId, txEnd.getEventCount(),
+        LOGGER.trace("Begin to Commit transaction: {}, total event {}; Data Collection {}", txId, txEnd.getEventCount(),
                 txEnd.getDataCollectionsList().stream()
                         .map(dc -> dc.getDataCollection() + "=" +
                                 ctx.tableCursors.getOrDefault(dc.getDataCollection(), 0L) +
@@ -257,7 +257,7 @@ public class TransactionCoordinator
             boolean res = true;
             if (res)
             {
-                LOGGER.info("Committed transaction: {}", txId);
+                LOGGER.trace("Committed transaction: {}", txId);
                 Summary.Timer transLatencyTimer = metricsFacade.startTransLatencyTimer();
                 transactionManager.commitTransAsync(ctx.getPixelsTransCtx());
             } else
@@ -268,7 +268,7 @@ public class TransactionCoordinator
                 {
                     try
                     {
-                        transService.rollbackTrans(ctx.getPixelsTransCtx().getTransId());
+                        transService.rollbackTrans(ctx.getPixelsTransCtx().getTransId(), false);
                     } catch (TransException e)
                     {
                         throw new RuntimeException(e);
@@ -287,7 +287,7 @@ public class TransactionCoordinator
             try
             {
                 LOGGER.info("Catch Exception, Abort transaction: {}", txId);
-                transService.rollbackTrans(ctx.getPixelsTransCtx().getTransId());
+                transService.rollbackTrans(ctx.getPixelsTransCtx().getTransId(), false);
             } catch (TransException ex)
             {
                 LOGGER.error("Failed to abort transaction {}", txId);

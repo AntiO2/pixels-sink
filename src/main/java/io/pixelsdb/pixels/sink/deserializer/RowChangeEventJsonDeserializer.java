@@ -83,10 +83,10 @@ public class RowChangeEventJsonDeserializer implements Deserializer<RowChangeEve
 
         SinkProto.RowRecord.Builder builder = SinkProto.RowRecord.newBuilder();
 
-        builder.setOp(parseOperationType(payloadNode))
-                .setTsMs(payloadNode.path("ts_ms").asLong())
-                .setTsUs(payloadNode.path("ts_us").asLong())
-                .setTsNs(payloadNode.path("ts_ns").asLong());
+        builder.setOp(parseOperationType(payloadNode));
+//                .setTsMs(payloadNode.path("ts_ms").asLong())
+//                .setTsUs(payloadNode.path("ts_us").asLong())
+//                .setTsNs(payloadNode.path("ts_ns").asLong());
 
         String schemaName;
         String tableName;
@@ -138,20 +138,23 @@ public class RowChangeEventJsonDeserializer implements Deserializer<RowChangeEve
     private SinkProto.SourceInfo.Builder parseSourceInfo(JsonNode sourceNode)
     {
         return SinkProto.SourceInfo.newBuilder()
-                .setVersion(sourceNode.path("version").asText())
-                .setConnector(sourceNode.path("connector").asText())
-                .setName(sourceNode.path("name").asText())
-                .setTsMs(sourceNode.path("ts_ms").asLong())
-                .setSnapshot(sourceNode.path("snapshot").asText())
                 .setDb(sourceNode.path("db").asText())
-                .setSequence(sourceNode.path("sequence").asText())
-                .setTsUs(sourceNode.path("ts_us").asLong())
-                .setTsNs(sourceNode.path("ts_ns").asLong())
                 .setSchema(sourceNode.path("schema").asText())
                 .setTable(sourceNode.path("table").asText())
-                .setTxId(sourceNode.path("txId").asLong())
-                .setLsn(sourceNode.path("lsn").asLong())
-                .setXmin(sourceNode.path("xmin").asLong());
+//                .setVersion(sourceNode.path("version").asText())
+//                .setConnector(sourceNode.path("connector").asText())
+//                .setName(sourceNode.path("name").asText())
+//                .setTsMs(sourceNode.path("ts_ms").asLong())
+//                .setSnapshot(sourceNode.path("snapshot").asText())
+
+//                .setSequence(sourceNode.path("sequence").asText())
+//                .setTsUs(sourceNode.path("ts_us").asLong())
+//                .setTsNs(sourceNode.path("ts_ns").asLong())
+
+//                .setTxId(sourceNode.path("txId").asLong())
+//                .setLsn(sourceNode.path("lsn").asLong())
+//                .setXmin(sourceNode.path("xmin").asLong())
+        ;
     }
 
     private SinkProto.TransactionInfo parseTransactionInfo(JsonNode txNode)

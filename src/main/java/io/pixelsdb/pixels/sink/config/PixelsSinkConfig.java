@@ -128,6 +128,14 @@ public class PixelsSinkConfig
     @ConfigKey(value = "sink.datasource", defaultValue = PixelsSinkDefaultConfig.DATA_SOURCE)
     private String dataSource;
 
+    @ConfigKey(value = "sink.proto.dir")
+    private String sinkProtoDir;
+    @ConfigKey(value = "sink.proto.data", defaultValue = "data")
+    private String sinkProtoData;
+
+    @ConfigKey(value = "sink.proto.maxRecords", defaultValue = PixelsSinkDefaultConfig.MAX_RECORDS_PER_FILE)
+    private int maxRecordsPerFile;
+
     public PixelsSinkConfig(String configFilePath) throws IOException
     {
         this.config = ConfigFactory.Instance();

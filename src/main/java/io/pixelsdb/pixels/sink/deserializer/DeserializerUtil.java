@@ -31,41 +31,6 @@ import java.util.Arrays;
 
 public class DeserializerUtil
 {
-    static RowChangeEvent buildErrorEvent(String topic, byte[] rawData, Exception error) throws SinkException
-    {
-        SinkProto.ErrorInfo errorInfo = SinkProto.ErrorInfo.newBuilder()
-                .setMessage(error.getMessage())
-                .setStackTrace(Arrays.toString(error.getStackTrace()))
-                .setOriginalData(ByteString.copyFrom(rawData))
-                .build();
-
-        SinkProto.RowRecord record = SinkProto.RowRecord.newBuilder()
-                .setOp(SinkProto.OperationType.UNRECOGNIZED)
-                .setTsMs(System.currentTimeMillis())
-                .build();
-
-        return new RowChangeEvent(record, null)
-        {
-            @Override
-            public boolean hasError()
-            {
-                return true;
-            }
-
-            @Override
-            public SinkProto.ErrorInfo getErrorInfo()
-            {
-                return errorInfo;
-            }
-
-            @Override
-            public String getTopic()
-            {
-                return topic;
-            }
-        };
-    }
-
     static public <T> SinkProto.TransactionStatus getStatusSafely(T record, String field)
     {
         String statusString = getStringSafely(record, field);

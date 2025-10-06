@@ -85,12 +85,11 @@ class RowDataParser
         if (valueNode == null || valueNode.isNull())
         {
             return SinkProto.ColumnValue.newBuilder()
-                    .setName(fieldName)
+                    // .setName(fieldName)
                     .setValue(ByteString.EMPTY);
         }
 
         SinkProto.ColumnValue.Builder columnValueBuilder = SinkProto.ColumnValue.newBuilder();
-        columnValueBuilder.setName(fieldName);
 
         switch (type.getCategory())
         {
@@ -99,7 +98,7 @@ class RowDataParser
                 int value = valueNode.asInt();
                 byte[] bytes = ByteBuffer.allocate(Integer.BYTES).putInt(value).array();
                 columnValueBuilder.setValue(ByteString.copyFrom(bytes));
-                columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.INT));
+                // columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.INT));
                 break;
             }
             case LONG:
@@ -107,7 +106,7 @@ class RowDataParser
                 long value = valueNode.asLong();
                 byte[] bytes = ByteBuffer.allocate(Long.BYTES).putLong(value).array();
                 columnValueBuilder.setValue(ByteString.copyFrom(bytes));
-                columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.LONG));
+                // columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.LONG));
                 break;
             }
             case CHAR:
@@ -115,8 +114,8 @@ class RowDataParser
                 String text = valueNode.asText();
                 byte[] bytes = new byte[] { (byte) text.charAt(0) };
                 columnValueBuilder.setValue(ByteString.copyFrom(bytes));
-                columnValueBuilder.setType(PixelsProto.Type.newBuilder()
-                        .setKind(PixelsProto.Type.Kind.STRING));
+                // columnValueBuilder.setType(PixelsProto.Type.newBuilder()
+//                        .setKind(PixelsProto.Type.Kind.STRING));
                 break;
             }
             case VARCHAR:
@@ -125,24 +124,24 @@ class RowDataParser
             {
                 String value = valueNode.asText().trim();
                 columnValueBuilder.setValue(ByteString.copyFrom(value, StandardCharsets.UTF_8));
-                columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.STRING));
+                // columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.STRING));
                 break;
             }
             case DECIMAL:
             {
                 String value = parseDecimal(valueNode, type).toString();
                 columnValueBuilder.setValue(ByteString.copyFrom(value, StandardCharsets.UTF_8));
-                columnValueBuilder.setType(PixelsProto.Type.newBuilder()
-                        .setKind(PixelsProto.Type.Kind.DECIMAL)
-                        .setDimension(type.getPrecision())
-                        .setScale(type.getScale()));
+                // columnValueBuilder.setType(PixelsProto.Type.newBuilder()
+//                        .setKind(PixelsProto.Type.Kind.DECIMAL)
+//                        .setDimension(type.getPrecision())
+//                        .setScale(type.getScale()));
                 break;
             }
             case BINARY:
             {
                 String base64 = valueNode.asText(); // assume already base64 encoded
                 columnValueBuilder.setValue(ByteString.copyFrom(base64, StandardCharsets.UTF_8));
-                columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.BINARY));
+                // columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.BINARY));
                 break;
             }
             case STRUCT:
@@ -156,7 +155,7 @@ class RowDataParser
                 long longBits = Double.doubleToLongBits(value);
                 byte[] bytes = ByteBuffer.allocate(Long.BYTES).putLong(longBits).array();
                 columnValueBuilder.setValue(ByteString.copyFrom(bytes));
-                columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.DOUBLE));
+                // columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.DOUBLE));
                 break;
             }
             case FLOAT:
@@ -165,7 +164,7 @@ class RowDataParser
                 int intBits = Float.floatToIntBits(value);
                 byte[] bytes = ByteBuffer.allocate(4).putInt(intBits).array();
                 columnValueBuilder.setValue(ByteString.copyFrom(bytes));
-                columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.FLOAT));
+                // columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.FLOAT));
                 break;
             }
             case DATE:
@@ -173,8 +172,8 @@ class RowDataParser
                 int isoDate = valueNode.asInt();
                 byte[] bytes = ByteBuffer.allocate(Integer.BYTES).putInt(isoDate).array();
                 columnValueBuilder.setValue(ByteString.copyFrom(bytes));
-                columnValueBuilder.setType(PixelsProto.Type.newBuilder()
-                        .setKind(PixelsProto.Type.Kind.DATE));
+                // columnValueBuilder.setType(PixelsProto.Type.newBuilder()
+                //        .setKind(PixelsProto.Type.Kind.DATE));
                 break;
             }
             case TIMESTAMP:
@@ -182,8 +181,8 @@ class RowDataParser
                 long timestamp = valueNode.asLong();
                 byte[] bytes = ByteBuffer.allocate(Long.BYTES).putLong(timestamp).array();
                 columnValueBuilder.setValue(ByteString.copyFrom(bytes));
-                columnValueBuilder.setType(PixelsProto.Type.newBuilder()
-                        .setKind(PixelsProto.Type.Kind.DATE));
+                // columnValueBuilder.setType(PixelsProto.Type.newBuilder()
+                //        .setKind(PixelsProto.Type.Kind.DATE));
                 break;
             }
             default:
@@ -198,7 +197,7 @@ class RowDataParser
     private SinkProto.ColumnValue.Builder parseValue(GenericRecord record, String fieldName, TypeDescription fieldType)
     {
         SinkProto.ColumnValue.Builder columnValueBuilder = SinkProto.ColumnValue.newBuilder();
-        columnValueBuilder.setName(fieldName);
+        // columnValueBuilder.setName(fieldName);
 
         Object raw = record.get(fieldName);
         if (raw == null)
@@ -213,7 +212,7 @@ class RowDataParser
             {
                 int value = (int) raw;
                 columnValueBuilder.setValue(ByteString.copyFrom(Integer.toString(value), StandardCharsets.UTF_8));
-                columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.INT));
+                // columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.INT));
                 break;
             }
 
@@ -221,7 +220,7 @@ class RowDataParser
             {
                 long value = (long) raw;
                 columnValueBuilder.setValue(ByteString.copyFrom(Long.toString(value), StandardCharsets.UTF_8));
-                columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.LONG));
+                // columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.LONG));
                 break;
             }
 
@@ -229,7 +228,7 @@ class RowDataParser
             {
                 String value = raw.toString();
                 columnValueBuilder.setValue(ByteString.copyFrom(value, StandardCharsets.UTF_8));
-                columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.STRING));
+                // columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.STRING));
                 break;
             }
 
@@ -238,10 +237,10 @@ class RowDataParser
                 ByteBuffer buffer = (ByteBuffer) raw;
                 String decimalStr = new String(buffer.array(), StandardCharsets.UTF_8).trim();
                 columnValueBuilder.setValue(ByteString.copyFrom(decimalStr, StandardCharsets.UTF_8));
-                columnValueBuilder.setType(PixelsProto.Type.newBuilder()
-                        .setKind(PixelsProto.Type.Kind.DECIMAL)
-                        .setDimension(fieldType.getPrecision())
-                        .setScale(fieldType.getScale()));
+                // columnValueBuilder.setType(PixelsProto.Type.newBuilder()
+//                        .setKind(PixelsProto.Type.Kind.DECIMAL)
+//                        .setDimension(fieldType.getPrecision())
+//                        .setScale(fieldType.getScale()));
                 break;
             }
 
@@ -250,7 +249,7 @@ class RowDataParser
                 int epochDay = (int) raw;
                 String isoDate = LocalDate.ofEpochDay(epochDay).toString(); // e.g., "2025-07-03"
                 columnValueBuilder.setValue(ByteString.copyFrom(isoDate, StandardCharsets.UTF_8));
-                columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.DATE));
+                // columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.DATE));
                 break;
             }
 
@@ -260,7 +259,7 @@ class RowDataParser
                 // encode as hex or base64 if needed, otherwise just dump as UTF-8 string if it's meant to be readable
                 String base64 = Base64.getEncoder().encodeToString(buffer.array());
                 columnValueBuilder.setValue(ByteString.copyFrom(base64, StandardCharsets.UTF_8));
-                columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.BINARY));
+                // columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.BINARY));
                 break;
             }
             default:
@@ -276,13 +275,11 @@ class RowDataParser
         if (record == null)
         {
             return SinkProto.ColumnValue.newBuilder()
-                    .setName(fieldName)
+                    // .setName(fieldName)
                     .setValue(ByteString.EMPTY);
         }
 
         SinkProto.ColumnValue.Builder columnValueBuilder = SinkProto.ColumnValue.newBuilder();
-        columnValueBuilder.setName(fieldName);
-
         switch (type)
         {
             case INT8:
@@ -292,7 +289,7 @@ class RowDataParser
                 int value = (Integer) record;
                 byte[] bytes = ByteBuffer.allocate(Integer.BYTES).putInt(value).array();
                 columnValueBuilder.setValue(ByteString.copyFrom(bytes));
-                columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.INT));
+                // columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.INT));
                 break;
             }
             case INT64:
@@ -300,14 +297,14 @@ class RowDataParser
                 long value = (Long) record;
                 byte[] bytes = ByteBuffer.allocate(Long.BYTES).putLong(value).array();
                 columnValueBuilder.setValue(ByteString.copyFrom(bytes));
-                columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.LONG));
+                // columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.LONG));
                 break;
             }
             case BYTES:
             {
                 byte[] bytes = (byte[]) record;
                 columnValueBuilder.setValue(ByteString.copyFrom(bytes));
-                columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.BYTE));
+                // columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.BYTE));
                 break;
             }
             case BOOLEAN:
@@ -315,7 +312,7 @@ class RowDataParser
             {
                 String value = (String) record;
                 columnValueBuilder.setValue(ByteString.copyFrom(value, StandardCharsets.UTF_8));
-                columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.STRING));
+                // columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.STRING));
                 break;
             }
             case STRUCT:
@@ -326,10 +323,10 @@ class RowDataParser
             case FLOAT64:
             {
                 double value = (double) record;
-                long longBits = Double.doubleToLongBits(value);
-                byte[] bytes = ByteBuffer.allocate(Long.BYTES).putLong(longBits).array();
+                long doubleBits = Double.doubleToLongBits(value);
+                byte[] bytes = ByteBuffer.allocate(Long.BYTES).putLong(doubleBits).array();
                 columnValueBuilder.setValue(ByteString.copyFrom(bytes));
-                columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.DOUBLE));
+                // columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.DOUBLE));
                 break;
             }
             case FLOAT32:
@@ -338,7 +335,7 @@ class RowDataParser
                 int intBits = Float.floatToIntBits(value);
                 byte[] bytes = ByteBuffer.allocate(4).putInt(intBits).array();
                 columnValueBuilder.setValue(ByteString.copyFrom(bytes));
-                columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.FLOAT));
+                // columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.FLOAT));
                 break;
             }
             default:
