@@ -111,13 +111,11 @@ public class SinkStorageProcessor implements MainProcessor
                             {
                                 case ROW -> {
                                     rowExecutor.submit(() -> {
-                                        metricsFacade.recordRowEvent();
                                         handleRowChangeSourceRecord(keyBuffer, valueBuffer);
                                     });
                                 }
                                 case TRANS -> {
                                     transExecutor.submit(() -> {
-                                        metricsFacade.recordTransaction();
                                         try
                                         {
                                             handleTransactionSourceRecord(valueBuffer);

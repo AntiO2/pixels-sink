@@ -79,7 +79,7 @@ public class TransactionServiceTest
 
         logger.info("ID {}, TS {}", transContext1.getTransId(), transContext1.getTimestamp());
         logger.info("ID {}, TS {}", transContext2.getTransId(), transContext2.getTimestamp());
-        transService.commitTrans(transContext2.getTransId());
+        transService.commitTrans(transContext2.getTransId(), false);
 
         transContext = transService.beginTrans(true);
         logger.info("ID {}, TS {}", transContext.getTransId(), transContext.getTimestamp());

@@ -26,6 +26,7 @@ import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
 import io.pixelsdb.pixels.sink.exception.SinkException;
+import io.pixelsdb.pixels.sink.processor.MetricsFacade;
 import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,7 +50,7 @@ public class TableCrossTxWriter extends TableWriter
     private final Logger LOGGER = LoggerFactory.getLogger(TableCrossTxWriter.class);
     private final int flushBatchSize;
     private final ReentrantLock writeLock = new ReentrantLock();
-
+    private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
     public TableCrossTxWriter(String t) throws IOException
     {
         super(t);
@@ -118,6 +119,7 @@ public class TableCrossTxWriter extends TableWriter
                     resp -> {
                         for(int i = 0; i < txIds.size(); i++)
                         {
+                            metricsFacade.recordRowEvent(tableUpdateCount.get(i));
                             String writeTxId = txIds.get(i);
                             SinkContext sinkContext = TransactionCoordinatorFactory.getCoordinator().getSinkContext(writeTxId);
                             sinkContext.updateCounter(fullTableName.get(i), tableUpdateCount.get(i));

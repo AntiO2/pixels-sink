@@ -71,6 +71,12 @@ public class PixelsSinkConfig
     @ConfigKey(value = "sink.monitor.port", defaultValue = "9464")
     private short monitorPort;
 
+    @ConfigKey(value = "sink.monitor.report.enable", defaultValue = "true")
+    private boolean monitorReportEnabled;
+
+    @ConfigKey(value = "sink.monitor.report.interval", defaultValue = "5000")
+    private short monitorReportInterval;
+
     @ConfigKey(value = "sink.rpc.enable", defaultValue = "false")
     private boolean rpcEnable;
 

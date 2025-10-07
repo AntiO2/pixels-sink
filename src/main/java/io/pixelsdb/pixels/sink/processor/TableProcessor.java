@@ -44,6 +44,8 @@ public class TableProcessor implements StoppableProcessor, Runnable
     private final TransactionCoordinator transactionCoordinator;
     private final TableEventProvider tableEventProvider;
     private final SchemaTableName schemaTableName;
+    private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
+
     public TableProcessor(TableEventProvider tableEventProvider, SchemaTableName schemaTableName)
     {
         this.transactionCoordinator = TransactionCoordinatorFactory.getCoordinator();

@@ -82,7 +82,6 @@ public class TransactionCoordinator
         } else if (txMeta.getStatus() == SinkProto.TransactionStatus.END)
         {
             handleTxEnd(txMeta);
-            metricsFacade.recordTransaction();
         }
     }
 

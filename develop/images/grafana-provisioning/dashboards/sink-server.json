@@ -25,10 +25,24 @@
   "liveNow": false,
   "panels": [
     {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 26,
+      "panels": [],
+      "title": "JVM",
+      "type": "row"
+    },
+    {
       "datasource": {
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
+      "description": "",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -86,7 +100,7 @@
         "h": 8,
         "w": 9,
         "x": 0,
-        "y": 0
+        "y": 1
       },
       "id": 27,
       "options": {
@@ -115,21 +129,8 @@
           "refId": "A"
         }
       ],
-      "title": "Panel Title",
+      "title": "JVM Heap Memory",
       "type": "timeseries"
-    },
-    {
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 8
-      },
-      "id": 26,
-      "panels": [],
-      "title": "JVM",
-      "type": "row"
     },
     {
       "collapsed": false,
@@ -239,7 +240,7 @@
           "useBackend": false
         }
       ],
-      "title": "Panel Title",
+      "title": "Debezium Event Rate",
       "type": "timeseries"
     },
     {
@@ -337,7 +338,7 @@
           "useBackend": false
         }
       ],
-      "title": "Panel Title",
+      "title": "Row Event Rate",
       "type": "timeseries"
     },
     {
@@ -1771,7 +1772,7 @@
       "type": "row"
     }
   ],
-  "refresh": "5s",
+  "refresh": false,
   "schemaVersion": 38,
   "style": "light",
   "tags": [],
@@ -1803,8 +1804,8 @@
     ]
   },
   "time": {
-    "from": "now-5m",
-    "to": "now"
+    "from": "2025-10-07T04:53:37.436Z",
+    "to": "2025-10-07T04:55:21.643Z"
   },
   "timepicker": {},
   "timezone": "",

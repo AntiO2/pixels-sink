@@ -20,6 +20,7 @@ package io.pixelsdb.pixels.sink.sink;
 
 
 import com.google.protobuf.ByteString;
+import io.pixelsdb.pixels.common.physical.*;
 import io.pixelsdb.pixels.common.retina.RetinaService;
 import io.pixelsdb.pixels.common.transaction.TransService;
 import io.pixelsdb.pixels.daemon.TransProto;
@@ -27,11 +28,14 @@ import io.pixelsdb.pixels.sink.SinkProto;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.metadata.TableMetadataRegistry;
 import io.pixelsdb.pixels.sink.util.EtcdFileRegistry;
+import io.pixelsdb.pixels.storage.localfs.PhysicalLocalReader;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 
 /**
@@ -67,6 +71,47 @@ public class TestProtoWriter
     }
 
     @Test
+    public void testWriteFile() throws IOException
+    {
+        String path = "/home/pixels/projects/pixels-sink/tmp/write.dat";
+        PhysicalWriter writer = PhysicalWriterUtil.newPhysicalWriter(Storage.Scheme.file, path);
+
+        int writeNum = 3;
+
+        ByteBuffer buf = ByteBuffer.allocate(writeNum * Integer.BYTES);
+        for(int i = 0; i < 3; i++)
+        {
+            buf.putInt(i);
+        }
+        writer.append(buf);
+        writer.close();
+    }
+
+
+    @Test
+    public void testReadFile() throws IOException
+    {
+        String path = "/home/pixels/projects/pixels-sink/tmp/write.dat";
+        PhysicalLocalReader reader = (PhysicalLocalReader) PhysicalReaderUtil.newPhysicalReader(Storage.Scheme.file, path);
+
+        int writeNum = 12;
+        for(int i = 0; i < writeNum; i++)
+        {
+            reader.readLong(ByteOrder.BIG_ENDIAN);
+        }
+    }
+    @Test
+    public void testReadEmptyFile() throws IOException
+    {
+        String path = "/home/pixels/projects/pixels-sink/tmp/empty.dat";
+        PhysicalReader reader = PhysicalReaderUtil.newPhysicalReader(Storage.Scheme.file, path);
+
+        int v = reader.readInt(ByteOrder.BIG_ENDIAN);
+
+        return;
+    }
+
+    @Test
     public void testWriteRowInfo() throws IOException
     {
         ProtoWriter transWriter = new ProtoWriter();
@@ -94,11 +139,11 @@ public class TestProtoWriter
         SinkProto.RowValue.Builder afterValueBuilder = SinkProto.RowValue.newBuilder();
         afterValueBuilder
                 .addValues(
-                        SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom((cols[0]))).setName("id").build())
+                        SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom((cols[0]))).build())
                 .addValues(
-                        SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom((cols[1]))).setName("age").build())
+                        SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom((cols[1]))).build())
                 .addValues(
-                        SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom((cols[2]))).setName("name").build());
+                        SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom((cols[2]))).build());
 
 
         SinkProto.RowRecord.Builder builder = SinkProto.RowRecord.newBuilder();

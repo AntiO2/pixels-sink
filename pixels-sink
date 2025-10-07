@@ -6,10 +6,11 @@ SOURCE_PATH=$(readlink -f "$BASH_SOURCE") 2>/dev/null
 SINK_DIR=$(dirname "$SOURCE_PATH")
 
 # Environment variable
-export PIXELS_HOME="/home/ubuntu/opt/pixels"
+# export PIXELS_HOME="/home/ubuntu/opt/pixels"
 
 # Application properties file
-PROPERTIES_FILE="/home/ubuntu/pixels-sink/src/main/resources/pixels-sink.aws.properties"
+#PROPERTIES_FILE="/home/ubuntu/pixels-sink/src/main/resources/pixels-sink.aws.properties"
+PROPERTIES_FILE="/home/pixels/projects/pixels-sink/src/main/resources/pixels-sink.local.properties"
 
 # JVM config file
 JVM_CONFIG_FILE="${SINK_DIR}/conf/jvm.conf"

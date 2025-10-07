@@ -79,11 +79,11 @@ public class TestRetinaWriter
             SinkProto.RowValue.Builder afterValueBuilder = SinkProto.RowValue.newBuilder();
             afterValueBuilder
                     .addValues(
-                            SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom((cols[0]))).setName("id").build())
+                            SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom((cols[0]))).build())
                     .addValues(
-                            SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom((cols[1]))).setName("age").build())
+                            SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom((cols[1]))).build())
                     .addValues(
-                            SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom((cols[2]))).setName("name").build());
+                            SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom((cols[2]))).build());
 
 
             SinkProto.RowRecord.Builder builder = SinkProto.RowRecord.newBuilder();
@@ -108,7 +108,7 @@ public class TestRetinaWriter
         tableUpdateData.add(tableUpdateDataBuilder.build());
         retinaService.updateRecord(schemaName, tableUpdateData);
         tableUpdateDataBuilder.setTimestamp(timeStamp);
-        transService.commitTrans(ctx.getTransId());
+        transService.commitTrans(ctx.getTransId(), false);
     }
 
     @Test
@@ -135,21 +135,21 @@ public class TestRetinaWriter
             SinkProto.RowValue.Builder beforeValueBuilder = SinkProto.RowValue.newBuilder();
             beforeValueBuilder
                     .addValues(
-                            SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom((cols[0]))).setName("id").build())
+                            SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom((cols[0]))).build())
                     .addValues(
-                            SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom((cols[1]))).setName("age").build())
+                            SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom((cols[1]))).build())
                     .addValues(
-                            SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom((cols[2]))).setName("name").build());
+                            SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom((cols[2]))).build());
 
 
             SinkProto.RowValue.Builder afterValueBuilder = SinkProto.RowValue.newBuilder();
             afterValueBuilder
                     .addValues(
-                            SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom((cols[0]))).setName("id").build())
+                            SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom((cols[0]))).build())
                     .addValues(
-                            SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom((cols[1]))).setName("age").build())
+                            SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom((cols[1]))).build())
                     .addValues(
-                            SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom((cols[3]))).setName("name").build());
+                            SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom((cols[3]))).build());
             SinkProto.RowRecord.Builder builder = SinkProto.RowRecord.newBuilder();
             builder.setOp(SinkProto.OperationType.UPDATE)
                     .setBefore(beforeValueBuilder)
@@ -178,7 +178,7 @@ public class TestRetinaWriter
         tableUpdateDataBuilder.setTimestamp(timeStamp);
         tableUpdateData.add(tableUpdateDataBuilder.build());
         retinaService.updateRecord(schemaName, tableUpdateData);
-        transService.commitTrans(ctx.getTransId());
+        transService.commitTrans(ctx.getTransId(), false);
     }
 
     @Test
@@ -234,11 +234,11 @@ public class TestRetinaWriter
                     // cols[4] = Long.toString(ts).getBytes(StandardCharsets.UTF_8);
                     // after row
                     SinkProto.RowValue.Builder afterValueBuilder = SinkProto.RowValue.newBuilder()
-                            .addValues(SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom(cols[0])).setName("accountid").build())
-                            .addValues(SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom(cols[1])).setName("userid").build())
-                            .addValues(SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom(cols[2])).setName("balance").build())
-                            .addValues(SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom(cols[3])).setName("isblocked").build())
-                            .addValues(SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom(cols[4])).setName("timestamp").build());
+                            .addValues(SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom(cols[0])).build())
+                            .addValues(SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom(cols[1])).build())
+                            .addValues(SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom(cols[2])).build())
+                            .addValues(SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom(cols[3])).build())
+                            .addValues(SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom(cols[4])).build());
 
                     // RowRecord
                     SinkProto.RowRecord.Builder rowBuilder = SinkProto.RowRecord.newBuilder()
@@ -272,7 +272,7 @@ public class TestRetinaWriter
                 {
                     try
                     {
-                        transService.commitTrans(ctx.getTransId());
+                        transService.commitTrans(ctx.getTransId(), false);
                     } catch (TransException e)
                     {
                         e.printStackTrace();
@@ -362,18 +362,18 @@ public class TestRetinaWriter
 
                         // 构建 before/after row
                         SinkProto.RowValue.Builder beforeValueBuilder = SinkProto.RowValue.newBuilder()
-                                .addValues(SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFromUtf8(Integer.toString(accountID))).setName("accountid").build())
-                                .addValues(SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFromUtf8(Integer.toString(userID))).setName("userid").build())
-                                .addValues(SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFromUtf8(Float.toString(oldBalance))).setName("balance").build())
-                                .addValues(SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFromUtf8(Integer.toString(isBlocked))).setName("isblocked").build())
-                                .addValues(SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFromUtf8(DateUtil.convertDebeziumTimestampToString(oldTs))).setName("timestamp").build());
+                                .addValues(SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFromUtf8(Integer.toString(accountID))).build())
+                                .addValues(SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFromUtf8(Integer.toString(userID))).build())
+                                .addValues(SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFromUtf8(Float.toString(oldBalance))).build())
+                                .addValues(SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFromUtf8(Integer.toString(isBlocked))).build())
+                                .addValues(SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFromUtf8(DateUtil.convertDebeziumTimestampToString(oldTs))).build());
 
                         SinkProto.RowValue.Builder afterValueBuilder = SinkProto.RowValue.newBuilder()
-                                .addValues(SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFromUtf8(Integer.toString(accountID))).setName("accountid").build())
-                                .addValues(SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFromUtf8(Integer.toString(userID))).setName("userid").build())
-                                .addValues(SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFromUtf8(Float.toString(newBalance))).setName("balance").build())
-                                .addValues(SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFromUtf8(Integer.toString(isBlocked))).setName("isblocked").build())
-                                .addValues(SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFromUtf8(DateUtil.convertDebeziumTimestampToString(newTs))).setName("timestamp").build());
+                                .addValues(SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFromUtf8(Integer.toString(accountID))).build())
+                                .addValues(SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFromUtf8(Integer.toString(userID))).build())
+                                .addValues(SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFromUtf8(Float.toString(newBalance))).build())
+                                .addValues(SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFromUtf8(Integer.toString(isBlocked))).build())
+                                .addValues(SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFromUtf8(DateUtil.convertDebeziumTimestampToString(newTs))).build());
 
                         SinkProto.RowRecord.Builder rowBuilder = SinkProto.RowRecord.newBuilder()
                                 .setOp(SinkProto.OperationType.UPDATE)
@@ -412,7 +412,7 @@ public class TestRetinaWriter
                     logger.debug("writeTrans batch " + batchIndex + " took " + (endTime - startTime) + " ms");
 
                     // commit transaction
-                    transService.commitTrans(ctx.getTransId());
+                    transService.commitTrans(ctx.getTransId(), false);
 
                 } catch (Exception e)
                 {
@@ -490,11 +490,11 @@ public class TestRetinaWriter
                 // cols[4] = Long.toString(ts).getBytes(StandardCharsets.UTF_8);
                 // after row
                 SinkProto.RowValue.Builder afterValueBuilder = SinkProto.RowValue.newBuilder()
-                        .addValues(SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom(cols[0])).setName("accountid").build())
-                        .addValues(SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom(cols[1])).setName("userid").build())
-                        .addValues(SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom(cols[2])).setName("balance").build())
-                        .addValues(SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom(cols[3])).setName("isblocked").build())
-                        .addValues(SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom(cols[4])).setName("timestamp").build());
+                        .addValues(SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom(cols[0])).build())
+                        .addValues(SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom(cols[1])).build())
+                        .addValues(SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom(cols[2])).build())
+                        .addValues(SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom(cols[3])).build())
+                        .addValues(SinkProto.ColumnValue.newBuilder().setValue(ByteString.copyFrom(cols[4])).build());
 
                 // RowRecord
                 SinkProto.RowRecord.Builder rowBuilder = SinkProto.RowRecord.newBuilder()
@@ -556,7 +556,7 @@ public class TestRetinaWriter
                     // 计算并输出耗时（单位：毫秒）
                     long duration = endTime - startTime;
                     logger.debug("writeTrans took " + duration + " milliseconds");
-                    transService.commitTrans(ctx.getTransId());
+                    transService.commitTrans(ctx.getTransId(), false);
                 } catch (TransException e)
                 {
                     e.printStackTrace();

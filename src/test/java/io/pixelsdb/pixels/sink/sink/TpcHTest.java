@@ -41,7 +41,7 @@ public class TpcHTest
     @AfterEach
     public void commitTrans() throws TransException
     {
-        transService.commitTrans(transContext.getTransId());
+        transService.commitTrans(transContext.getTransId(), false);
     }
 
 

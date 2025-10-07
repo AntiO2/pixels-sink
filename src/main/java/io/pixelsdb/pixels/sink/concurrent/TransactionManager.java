@@ -17,17 +17,18 @@
 
 package io.pixelsdb.pixels.sink.concurrent;
 
+import io.debezium.pipeline.txmetadata.TransactionContext;
 import io.pixelsdb.pixels.common.exception.TransException;
 import io.pixelsdb.pixels.common.transaction.TransContext;
 import io.pixelsdb.pixels.common.transaction.TransService;
+import io.pixelsdb.pixels.sink.processor.MetricsFacade;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 
 /**
  * This class if for
@@ -41,23 +42,33 @@ public class TransactionManager
     private final TransService transService;
     private final Queue<TransContext> transContextQueue;
     private final Object batchLock = new Object();
-    private final ExecutorService commitExecutor;
+    private final ExecutorService batchCommitExecutor;
+    private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
+    private final BlockingQueue<TransContext> toCommitTransContextQueue;
+
+    private static final int BATCH_SIZE = 100;
+    private static final int WORKER_COUNT = 16;
+    private static final int MAX_WAIT_MS = 100;
+
 
     TransactionManager()
     {
         this.transService = TransService.Instance();
         this.transContextQueue = new ConcurrentLinkedDeque<>();
-
-        this.commitExecutor = Executors.newFixedThreadPool(
-                4096,
-                r ->
-                {
+        this.toCommitTransContextQueue = new LinkedBlockingQueue<>();
+        this.batchCommitExecutor = Executors.newFixedThreadPool(
+                WORKER_COUNT,
+                r -> {
                     Thread t = new Thread(r);
-                    t.setName("commit-trans-thread");
+                    t.setName("commit-trans-batch-thread");
                     t.setDaemon(true);
                     return t;
                 }
         );
+        for (int i = 0; i < WORKER_COUNT; i++)
+        {
+            batchCommitExecutor.submit(this::batchCommitWorker);
+        }
     }
 
     public static TransactionManager Instance()
@@ -102,19 +113,92 @@ public class TransactionManager
 
     public void commitTransAsync(TransContext transContext)
     {
-        commitExecutor.submit(() ->
+        toCommitTransContextQueue.add(transContext);
+    }
+
+    private void batchCommitWorker()
+    {
+        List<Long> batchTransIds = new ArrayList<>(BATCH_SIZE);
+        List<TransContext> batchContexts = new ArrayList<>(BATCH_SIZE);
+
+        while (true)
         {
             try
             {
-                transService.commitTrans(
-                        transContext.getTransId(), false
-                );
-                LOGGER.trace("Success Commit TXID: {} TS: {}", transContext.getTransId(), transContext.getTimestamp());
-            } catch (TransException e)
-            {
-                LOGGER.error("Async commit failed: transId={}", transContext.getTransId());
-                e.printStackTrace();
+                batchContexts.clear();
+                batchTransIds.clear();
+
+                TransContext first = toCommitTransContextQueue.take();
+                batchContexts.add(first);
+                batchTransIds.add(first.getTransId());
+
+                long startTime = System.nanoTime();
+
+                while (batchContexts.size() < BATCH_SIZE)
+                {
+                    long elapsedMs = (System.nanoTime() - startTime) / 1_000_000;
+                    long remainingMs = MAX_WAIT_MS - elapsedMs;
+                    if (remainingMs <= 0)
+                    {
+                        break;
+                    }
+
+                    TransContext ctx = toCommitTransContextQueue.poll(remainingMs, TimeUnit.MILLISECONDS);
+                    if (ctx == null)
+                    {
+                        break;
+                    }
+                    batchContexts.add(ctx);
+                    batchTransIds.add(ctx.getTransId());
+                }
+
+                transService.commitTransBatch(batchTransIds, false);
+                metricsFacade.recordTransaction(batchTransIds.size());
+
+                if (LOGGER.isTraceEnabled())
+                {
+                    LOGGER.trace("[{}] Batch committed {} transactions ({} waited ms)",
+                            Thread.currentThread().getName(),
+                            batchTransIds.size(),
+                            (System.nanoTime() - startTime) / 1_000_000);
+                }
             }
-        });
+            catch (InterruptedException ie)
+            {
+                LOGGER.warn("Batch commit worker interrupted, exiting...");
+                Thread.currentThread().interrupt();
+                break;
+            }
+            catch (TransException e)
+            {
+                LOGGER.error("Batch commit failed: {}", e.getMessage(), e);
+            }
+            catch (Exception e)
+            {
+                LOGGER.error("Unexpected error in batch commit worker", e);
+            }
+        }
+    }
+
+    public void close()
+    {
+        synchronized (batchLock)
+        {
+            while(true)
+            {
+                TransContext ctx = transContextQueue.poll();
+                if (ctx == null)
+                {
+                    break;
+                }
+                try
+                {
+                    transService.rollbackTrans(ctx.getTransId(),false);
+                } catch (TransException e)
+                {
+                    throw new RuntimeException(e);
+                }
+            }
+        }
     }
 }

@@ -25,6 +25,7 @@ import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
 import io.pixelsdb.pixels.sink.exception.SinkException;
+import io.pixelsdb.pixels.sink.processor.MetricsFacade;
 import org.slf4j.Logger;
 
 import java.io.IOException;
@@ -56,6 +57,8 @@ public abstract class TableWriter
     protected ScheduledFuture<?> flushTask = null;
     protected String fullTableName;
     protected PixelsSinkConfig config;
+    private MetricsFacade metricsFacade = MetricsFacade.getInstance();
+
     protected TableWriter(String tableName) throws IOException
     {
         this.config = PixelsSinkConfigFactory.getInstance();

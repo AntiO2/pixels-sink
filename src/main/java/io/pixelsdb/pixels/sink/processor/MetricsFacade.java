@@ -23,9 +23,15 @@ import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Summary;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class MetricsFacade
 {
+    private static final Logger LOGGER =  LoggerFactory.getLogger(MetricsFacade.class);
+
     private static MetricsFacade instance;
     private final boolean enabled;
     private final Counter tableChangeCounter;
@@ -41,6 +47,16 @@ public class MetricsFacade
     private final Summary retinaServiceLatency;
     private final Summary writerLatency;
     private final Summary totalLatency;
+
+    private static final PixelsSinkConfig config = PixelsSinkConfigFactory.getInstance();
+
+    private final boolean monitorReportEnabled;
+    private final int monitorReportInterval;
+    private final AtomicBoolean running = new AtomicBoolean(false);
+    private Thread reportThread;
+
+    private long lastRowChangeCount = 0;
+    private long lastTransactionCount = 0;
 
     private MetricsFacade(boolean enabled)
     {
@@ -150,11 +166,32 @@ public class MetricsFacade
             this.writerLatency = null;
             this.totalLatency = null;
         }
+
+        monitorReportEnabled = config.isMonitorReportEnabled();
+        monitorReportInterval = config.getMonitorReportInterval();
+
+        if(monitorReportEnabled)
+        {
+            running.set(true);
+            reportThread = new Thread(this::run, "Metrics Report Thread");
+            LOGGER.info("Metrics Report Thread Started");
+            reportThread.start();
+        } else {
+            reportThread = null;
+        }
+    }
+    public void stop()
+    {
+        running.set(false);
+        if (reportThread != null)
+        {
+            reportThread.interrupt();
+        }
+        LOGGER.info("Monitor report thread stopped.");
     }
 
     private static synchronized void initialize()
     {
-        PixelsSinkConfig config = PixelsSinkConfigFactory.getInstance();
         if (instance == null)
         {
             instance = new MetricsFacade(config.isMonitorEnabled());
@@ -192,12 +229,17 @@ public class MetricsFacade
         }
     }
 
-    public void recordTransaction()
+    public void recordTransaction(int i)
     {
         if (enabled && transactionCounter != null)
         {
-            transactionCounter.inc();
+            transactionCounter.inc(i);
         }
+    }
+
+    public void recordTransaction()
+    {
+        recordTransaction(1);
     }
 
     public Summary.Timer startProcessLatencyTimer()
@@ -241,9 +283,70 @@ public class MetricsFacade
 
     public void recordRowEvent()
     {
+        recordRowEvent(1);
+    }
+
+    public void recordRowEvent(int i)
+    {
         if (enabled && rowEventCounter != null)
         {
-            rowEventCounter.inc();
+            rowEventCounter.inc(i);
         }
+    }
+
+    public int getRecordRowEvent()
+    {
+        return (int) rowEventCounter.get();
+    }
+
+    public int getTransactionEvent()
+    {
+        return (int) transactionCounter.get();
+    }
+
+
+    public void run()
+    {
+        while (running.get())
+        {
+            try
+            {
+                logPerformance();
+                Thread.sleep(monitorReportInterval);
+            }
+            catch (InterruptedException e)
+            {
+                Thread.currentThread().interrupt();
+                break;
+            }
+            catch (Throwable t)
+            {
+                LOGGER.warn("Error while reporting performance.", t);
+            }
+        }
+    }
+
+
+    public void logPerformance()
+    {
+        long currentRows = (long) rowEventCounter.get();
+        long currentTxns = (long) transactionCounter.get();
+
+        long deltaRows = currentRows - lastRowChangeCount;
+        long deltaTxns = currentTxns - lastTransactionCount;
+
+        lastRowChangeCount = currentRows;
+        lastTransactionCount = currentTxns;
+
+        double seconds = monitorReportInterval / 1000.0;
+        double rowOips = deltaRows / seconds;
+        double txnOips = deltaTxns / seconds;
+
+        LOGGER.info(
+                "Performance report: +{} rows (+{}/s), +{} transactions (+{}/s) in {} ms",
+                deltaRows, String.format("%.2f", rowOips),
+                deltaTxns, String.format("%.2f", txnOips),
+                monitorReportInterval
+        );
     }
 }

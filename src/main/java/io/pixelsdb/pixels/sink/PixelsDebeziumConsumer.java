@@ -103,7 +103,6 @@ public class PixelsDebeziumConsumer implements DebeziumEngine.ChangeConsumer<Rec
                 metricsFacade.recordDebeziumEvent();
                 if(isTransactionEvent(sourceRecord))
                 {
-                    metricsFacade.recordTransaction();
                     switch (pixelsSinkMode)
                     {
                         case RETINA ->
@@ -112,6 +111,7 @@ public class PixelsDebeziumConsumer implements DebeziumEngine.ChangeConsumer<Rec
                         }
                         case PROTO ->
                         {
+                            metricsFacade.recordTransaction();
                             SinkProto.TransactionMetadata transactionMetadata = TransactionStructMessageDeserializer.convertToTransactionMetadata(sourceRecord);
                             protoWriter.writeTrans(transactionMetadata);
                         }
@@ -121,7 +121,6 @@ public class PixelsDebeziumConsumer implements DebeziumEngine.ChangeConsumer<Rec
                         }
                     }
                 } else {
-                    metricsFacade.recordRowEvent();
                     switch (pixelsSinkMode)
                     {
                         case RETINA ->
@@ -134,6 +133,7 @@ public class PixelsDebeziumConsumer implements DebeziumEngine.ChangeConsumer<Rec
                             {
                                 RowChangeEvent rowChangeEvent = RowChangeEventStructDeserializer.convertToRowChangeEvent(sourceRecord);
                                 protoWriter.write(rowChangeEvent);
+                                metricsFacade.recordRowEvent();
                             } catch (SinkException e)
                             {
                                 throw new RuntimeException(e);

@@ -17,6 +17,7 @@
 package io.pixelsdb.pixels.sink;
 
 import io.pixelsdb.pixels.sink.concurrent.TransactionCoordinatorFactory;
+import io.pixelsdb.pixels.sink.concurrent.TransactionManager;
 import io.pixelsdb.pixels.sink.config.CommandLineConfig;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
@@ -42,6 +43,7 @@ public class PixelsSinkApp
     {
         Runtime.getRuntime().addShutdownHook(new Thread(() ->
         {
+            TransactionManager.Instance().close();
             mainProcessor.stopProcessor();
             TransactionCoordinatorFactory.reset();
             LOGGER.info("Pixels Sink Server shutdown complete");
@@ -49,7 +51,7 @@ public class PixelsSinkApp
             {
                 prometheusHttpServer.close();
             }
-
+            MetricsFacade.getInstance().stop();
         }));
 
         init(args);
