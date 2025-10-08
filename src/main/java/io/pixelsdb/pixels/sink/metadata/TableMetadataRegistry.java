@@ -144,7 +144,7 @@ public class TableMetadataRegistry
             {
                 schemas = metadataService.getSchemas();
             }
-            Table table = metadataService.getTable(tableId);
+            Table table = metadataService.getTableById(tableId);
 
             long schemaId = table.getSchemaId();
 

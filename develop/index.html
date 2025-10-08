@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Pixels Sink Performance Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            background-color: #f8fcf8;
+            color: #1f3b2f;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 左侧栏 */
+        #sidebar {
+            width: 240px;
+            background: #e8f4ec;
+            border-right: 1px solid #c4dbc7;
+            padding: 1rem;
+            overflow-y: auto;
+            transition: background 0.3s ease;
+        }
+
+        #sidebar h2 {
+            margin-top: 0;
+            font-size: 1.2rem;
+            color: #204b2a;
+            text-align: center;
+        }
+
+        #sidebar h3 {
+            margin-top: 0;
+            font-size: 1.0rem;
+            color: #204b2a;
+            text-align: center;
+        }
+
+        /* 文件列表 */
+        .file-item {
+            display: flex;
+            align-items: center;
+            padding: 0.4rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .file-item:hover {
+            background: #d4ebd9;
+        }
+
+        /* 勾选框样式 */
+        input[type="checkbox"] {
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border: 2px solid #5ca46b;
+            border-radius: 4px;
+            margin-right: 8px;
+            position: relative;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        input[type="checkbox"]:checked {
+            background-color: #5ca46b;
+        }
+
+        input[type="checkbox"]:checked::after {
+            content: '✔';
+            color: white;
+            position: absolute;
+            top: -2px;
+            left: 3px;
+            font-size: 14px;
+        }
+
+        /* 右侧图表区域 */
+        #main {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 1rem 2rem;
+            overflow: hidden;
+        }
+
+        #header {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        #chart-container {
+            flex-grow: 1;
+            position: relative;
+        }
+
+        #chart {
+            width: 100%;
+            height: 100%;
+        }
+
+        .loading {
+            text-align: center;
+            color: #7a8b7c;
+            font-style: italic;
+            padding-top: 20px;
+        }
+    </style>
+</head>
+<body>
+<div id="sidebar">
+    <h2>Pixels Sink Performance</h2>
+    <h3>测试结果</h3>
+    <div id="fileList" class="loading">加载中...</div>
+</div>
+
+<div id="main">
+    <div id="header">
+        <h2 id="chartTitle">请选择一个或多个测试结果</h2>
+    </div>
+    <div id="chart-container">
+        <canvas id="chart"></canvas>
+    </div>
+</div>
+
+<script>
+const chartCtx = document.getElementById('chart').getContext('2d');
+let chart = new Chart(chartCtx, {
+    type: 'line',
+    data: { labels: [], datasets: [] },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'nearest', intersect: false }, // 改成 false，保证悬停在点附近也显示
+        animation: { duration: 500, easing: 'easeInOutQuad' },
+        plugins: {
+            legend: { labels: { color: '#1f3b2f' } },
+            tooltip: {
+                mode: 'nearest', // 每个点独立显示
+                intersect: true, // 只在点上显示，或者你也可以改成 false
+                enabled: true,
+                callbacks: {
+                    label: (item) => `${item.dataset.label}: ${item.formattedValue}`
+                }
+            }
+        },
+        scales: {
+            x: { ticks: { color: '#1f3b2f' } },
+            y: { ticks: { color: '#1f3b2f' }, beginAtZero: true }
+        },
+        elements: {
+            line: { tension: 0.25 },
+            point: { radius: 4, hoverRadius: 6 } // 放大点半径，提高可悬停区域
+        }
+    }
+});
+
+
+let selectedFiles = [];
+let fileListCache = [];
+
+// 文件列表加载
+async function loadFileList() {
+    try {
+        const res = await fetch('/list');
+        const files = await res.json();
+        if (JSON.stringify(files) === JSON.stringify(fileListCache)) return;
+        fileListCache = files;
+
+        const container = document.getElementById('fileList');
+        if (files.length === 0) {
+            container.innerHTML = '<div class="loading">未找到 CSV 文件</div>';
+            return;
+        }
+        container.innerHTML = '';
+        files.forEach(f => {
+            const name = f.replace('.csv', '');
+            const item = document.createElement('div');
+            item.className = 'file-item';
+            const checked = selectedFiles.includes(f) ? 'checked' : '';
+            item.innerHTML = `
+                <input type="checkbox" value="${f}" ${checked} onchange="toggleFile(this)">
+                <span>${name}</span>
+            `;
+            container.appendChild(item);
+        });
+    } catch (err) {
+        console.error("加载文件列表失败：", err);
+        document.getElementById('fileList').innerHTML = '<div class="loading">加载失败</div>';
+    }
+}
+
+// 勾选文件
+async function toggleFile(checkbox) {
+    if (checkbox.checked) {
+        selectedFiles.push(checkbox.value);
+    } else {
+        selectedFiles = selectedFiles.filter(f => f !== checkbox.value);
+    }
+    updateChart();
+}
+
+// 更新图表
+async function updateChart() {
+    if (selectedFiles.length === 0) {
+        chart.data.labels = [];
+        chart.data.datasets = [];
+        chart.update();
+        document.getElementById('chartTitle').textContent = '请选择一个或多个测试';
+        return;
+    }
+
+    const allData = [];
+    let maxLength = 0;
+    for (const f of selectedFiles) {
+        const res = await fetch(`/data/${f}`);
+        const json = await res.json();
+        const fileKey = Object.keys(json)[0];
+        const data = json
+        maxLength = Math.max(maxLength, data.time.length);
+        allData.push({ name: f.replace('.csv', ''), data });
+    }
+
+    // x 轴索引
+    chart.data.labels = Array.from({ length: maxLength }, (_, i) => i + 1);
+    chart.data.datasets = [];
+
+    const colorPalettes = [
+        ['#4e79a7','#6baed6','#a6cee3','#cce5f0'], // 蓝色系
+        ['#59a14f','#7bc86c','#a8d5a2','#cceace'], // 绿色系
+        ['#f1c40f','#f7d75f','#fbeaa4','#fff4cc'], // 黄色系
+        ['#e15759','#f28e8c','#f7b2b1','#fbdada'], // 红色系
+        ['#af7aa1','#c497c6','#d4b9dd','#e8d4ee'], // 紫色系
+        ['#ff9da6','#ffb6b0','#ffd0cd','#ffe7e5'], // 粉色系
+        ['#bab0ac','#d1c8c5','#e1dbd7','#f1edea'], // 灰色系
+        ['#f28e2b','#f7b874','#fbd7a1','#fde8cc'], // 橙色系
+        ['#76b7b2','#98d0cf','#bfe0de','#ddf0ef'], // 青色系
+        ['#9c755f','#b69b8f','#d1bfb4','#e8dbd2']  // 棕色系
+    ];
+    allData.forEach((f, idx) => {
+        const palette = colorPalettes[idx % colorPalettes.length];
+        const cols = Object.keys(f.data).filter(k => k !== 'time');
+        cols.forEach((col, j) => {
+            const color = palette[j % palette.length];
+            chart.data.datasets.push({
+                label: `${f.name} - ${col}`,
+                data: f.data[col],
+                borderColor: color,
+                backgroundColor: color,
+                fill: false,
+                tension: 0.25,
+                pointRadius: 3,
+                showLine: true
+            });
+        });
+    });
+
+    document.getElementById('chartTitle').textContent =
+        '当前查看测试: ' + selectedFiles.map(f => f.replace('.csv', '')).join(', ');
+    chart.update();
+}
+
+// 初始化
+window.addEventListener('DOMContentLoaded', async () => {
+    await loadFileList();
+    setInterval(loadFileList, 10000);
+});
+</script>
+</body>
+</html>

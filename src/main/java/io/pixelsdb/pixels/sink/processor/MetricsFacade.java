@@ -26,6 +26,10 @@ import io.prometheus.client.Summary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.FileWriter;
+import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class MetricsFacade
@@ -54,6 +58,8 @@ public class MetricsFacade
 
     private final boolean monitorReportEnabled;
     private final int monitorReportInterval;
+    private final String monitorReportPath;
+
     private final AtomicBoolean running = new AtomicBoolean(false);
     private Thread reportThread;
 
@@ -185,6 +191,7 @@ public class MetricsFacade
 
         monitorReportEnabled = config.isMonitorReportEnabled();
         monitorReportInterval = config.getMonitorReportInterval();
+        monitorReportPath = config.getMonitorReportFile();
 
         if(monitorReportEnabled)
         {
@@ -410,5 +417,14 @@ public class MetricsFacade
                 deltaSerdTxs,  String.format("%.2f", serdTxsOips),
                 monitorReportInterval
         );
+
+        String time = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
+        // Append to CSV for plotting
+        try (FileWriter fw = new FileWriter(monitorReportPath, true)) {
+            fw.write(String.format("%s,%.2f,%.2f,%.2f,%.2f,%.2f%n",
+                    time, rowOips, txnOips, dbOips, serdRowsOips, serdTxsOips));
+        } catch (IOException e) {
+            LOGGER.warn("Failed to write perf metrics: " + e.getMessage());
+        }
     }
 }

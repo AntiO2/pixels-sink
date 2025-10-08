@@ -56,9 +56,6 @@ public class PixelsSinkConfig
     @ConfigKey(value = "sink.remote.port", defaultValue = "9090")
     private short remotePort;
 
-    @ConfigKey(value = "sink.batch.size", defaultValue = "5000")
-    private int batchSize;
-
     @ConfigKey(value = "sink.timeout.ms", defaultValue = "30000")
     private int timeoutMs;
 
@@ -85,6 +82,9 @@ public class PixelsSinkConfig
 
     @ConfigKey(value = "sink.monitor.report.interval", defaultValue = "5000")
     private short monitorReportInterval;
+
+    @ConfigKey(value = "sink.monitor.report.file", defaultValue = "/tmp/sink.csv")
+    private String monitorReportFile;
 
     @ConfigKey(value = "sink.rpc.enable", defaultValue = "false")
     private boolean rpcEnable;
