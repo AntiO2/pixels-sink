@@ -113,22 +113,34 @@ public class TableCrossTxWriter extends TableWriter
                 tableUpdateCount.add(smallBatch.size());
             }
 
+            if(sinkMode == PixelsSinkMode.NONE)
+            {
+                // for test reason
+                updateCtxCounters(txIds, fullTableName, tableUpdateCount);
+                return;
+            }
+
             CompletableFuture<RetinaProto.UpdateRecordResponse> updateRecordResponseCompletableFuture = delegate.writeBatchAsync(batch.get(0).getSchemaName(), tableUpdateData);
 
             updateRecordResponseCompletableFuture.thenAccept(
                     resp -> {
-                        for(int i = 0; i < txIds.size(); i++)
-                        {
-                            metricsFacade.recordRowEvent(tableUpdateCount.get(i));
-                            String writeTxId = txIds.get(i);
-                            SinkContext sinkContext = TransactionCoordinatorFactory.getCoordinator().getSinkContext(writeTxId);
-                            sinkContext.updateCounter(fullTableName.get(i), tableUpdateCount.get(i));
-                        }
+                        updateCtxCounters(txIds, fullTableName, tableUpdateCount);
                     }
             );
         } finally
         {
             writeLock.unlock();
+        }
+    }
+
+    private void updateCtxCounters(List<String> txIds, List<String> fullTableName, List<Integer> tableUpdateCount)
+    {
+        for(int i = 0; i < txIds.size(); i++)
+        {
+            metricsFacade.recordRowEvent(tableUpdateCount.get(i));
+            String writeTxId = txIds.get(i);
+            SinkContext sinkContext = TransactionCoordinatorFactory.getCoordinator().getSinkContext(writeTxId);
+            sinkContext.updateCounter(fullTableName.get(i), tableUpdateCount.get(i));
         }
     }
 

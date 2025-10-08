@@ -37,4 +37,5 @@ abstract public class TablePipelineManager
 {
     protected final ExecutorService executorService = Executors.newCachedThreadPool();
     protected final Map<SchemaTableName, TableProcessor> activeTableProcessors = new ConcurrentHashMap<>();
+    protected final Map<Integer, TableProcessor> id2activeTableProcessors = new ConcurrentHashMap<>();
 }

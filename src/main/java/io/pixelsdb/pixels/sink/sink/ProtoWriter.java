@@ -59,10 +59,52 @@ public class ProtoWriter implements PixelsSinkWriter
 
     public boolean writeTrans(SinkProto.TransactionMetadata transactionMetadata)
     {
+
         byte[] transData = transactionMetadata.toByteArray();
-        ByteBuffer buffer = ByteBuffer.allocate(Integer.BYTES);
-        buffer.putInt(ProtoType.TRANS.toInt());
-        return writeData(buffer.array(), transData);
+        return writeData(-1, transData);
+ //       ByteBuffer buffer = ByteBuffer.allocate(Integer.BYTES);
+//        buffer.putInt(ProtoType.TRANS.toInt());
+//        return writeData(buffer.array(), transData);
+    }
+
+    public boolean write(SinkProto.RowRecord rowRecord)
+    {
+        byte[] rowData = rowRecord.toByteArray();
+        String tableName = rowRecord.getSource().getTable();
+        String schemaName = rowRecord.getSource().getDb();
+
+        long tableId;
+        try
+        {
+            tableId = instance.getTableId(schemaName, tableName);
+        } catch (SinkException e)
+        {
+            LOGGER.error("Error while getting schema table id.", e);
+            return false;
+        }
+        {
+            return writeData((int)tableId, rowData);
+        }
+
+//            ByteBuffer keyBuffer = ByteBuffer.allocate(Integer.BYTES + Long.BYTES);
+//            keyBuffer.putInt(ProtoType.ROW.toInt())
+//                    .putLong(tableId);
+        
+
+//        byte[] schemaNameBytes = schemaName.getBytes();
+//        byte[] tableNameBytes = tableName.getBytes();
+//
+//        ByteBuffer keyBuffer = ByteBuffer.allocate(Integer.BYTES * 3 + schemaNameBytes.length + tableNameBytes.length);
+//        keyBuffer.putInt(ProtoType.ROW.toInt()).putInt(schemaNameBytes.length).putInt(tableNameBytes.length);
+//        keyBuffer.put(schemaNameBytes).put(tableNameBytes);
+//        return writeData(keyBuffer.array(), rowData);
+    }
+    // key: -1 means transaction, else means table id
+    private boolean writeData(int key, byte[] data)
+    {
+        ByteBuffer buf = ByteBuffer.allocate(Integer.BYTES + Integer.BYTES + data.length).order(ByteOrder.BIG_ENDIAN); // key + value len + data
+        buf.putInt(key).putInt(data.length).put(data);
+        return writeBuffer(buf);
     }
 
     private boolean writeData(byte[] key, byte[] data)
@@ -70,6 +112,11 @@ public class ProtoWriter implements PixelsSinkWriter
         ByteBuffer buf = ByteBuffer.allocate(Integer.BYTES + Integer.BYTES + key.length + data.length).order(ByteOrder.BIG_ENDIAN); // rowLen + type + data
 
         buf.putInt(key.length).putInt(data.length).put(key).put(data);
+        return writeBuffer(buf);
+    }
+
+    private boolean writeBuffer(ByteBuffer buf)
+    {
         PhysicalWriter writer;
         try {
             writer = writerManager.current();
@@ -89,34 +136,7 @@ public class ProtoWriter implements PixelsSinkWriter
         return write(rowChangeEvent.getRowRecord());
     }
 
-    public boolean write(SinkProto.RowRecord rowRecord)
-    {
-        byte[] rowData = rowRecord.toByteArray();
-        String tableName = rowRecord.getSource().getTable();
-        String schemaName = rowRecord.getSource().getDb();
 
-//        long tableId;
-//        try
-//        {
-//            tableId = instance.getTableId(schemaName, tableName);
-//        } catch (SinkException e)
-//        {
-//            LOGGER.error("Error while getting schema table id.", e);
-//            return false;
-//        }
-//
-//        ByteBuffer keyBuffer = ByteBuffer.allocate(Integer.BYTES + Long.BYTES);
-//        keyBuffer.putInt(ProtoType.ROW.toInt())
-//                .putLong(tableId);
-
-        byte[] schemaNameBytes = schemaName.getBytes();
-        byte[] tableNameBytes = tableName.getBytes();
-
-        ByteBuffer keyBuffer = ByteBuffer.allocate(Integer.BYTES * 3 + schemaNameBytes.length + tableNameBytes.length);
-        keyBuffer.putInt(ProtoType.ROW.toInt()).putInt(schemaNameBytes.length).putInt(tableNameBytes.length);
-        keyBuffer.put(schemaNameBytes).put(tableNameBytes);
-        return writeData(keyBuffer.array(), rowData);
-    }
 
     @Override
     public void flush()

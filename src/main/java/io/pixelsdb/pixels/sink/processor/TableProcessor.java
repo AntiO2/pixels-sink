@@ -43,20 +43,19 @@ public class TableProcessor implements StoppableProcessor, Runnable
     private Thread processorThread;
     private final TransactionCoordinator transactionCoordinator;
     private final TableEventProvider tableEventProvider;
-    private final SchemaTableName schemaTableName;
     private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
 
-    public TableProcessor(TableEventProvider tableEventProvider, SchemaTableName schemaTableName)
+    public TableProcessor(TableEventProvider tableEventProvider)
     {
         this.transactionCoordinator = TransactionCoordinatorFactory.getCoordinator();
         this.tableEventProvider = tableEventProvider;
-        this.schemaTableName = schemaTableName;
+
     }
 
     @Override
     public void run()
     {
-        processorThread = new Thread(this::processLoop, "processor-table" + schemaTableName.getTableName());
+        processorThread = new Thread(this::processLoop);
         processorThread.start();
     }
 
@@ -79,7 +78,7 @@ public class TableProcessor implements StoppableProcessor, Runnable
                 Thread.currentThread().interrupt();
             }
         }
-        LOGGER.info("Processor thread exited for {}", schemaTableName.toString());
+        LOGGER.info("Processor thread exited");
     }
 
     @Override

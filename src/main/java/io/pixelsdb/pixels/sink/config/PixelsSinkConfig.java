@@ -44,6 +44,15 @@ public class PixelsSinkConfig
     @ConfigKey(value = "sink.trans.mode", defaultValue = TransactionConfig.DEFAULT_TRANSACTION_MODE)
     private TransactionMode transactionMode;
 
+    @ConfigKey(value = "sink.commit.batch.size", defaultValue = "500")
+    private int commitBatchSize;
+
+    @ConfigKey(value = "sink.commit.batch.worker", defaultValue = "16")
+    private int commitBatchWorkers;
+
+    @ConfigKey(value = "sink.commit.batch.delay", defaultValue = "200")
+    private  int commitBatchDelay;
+
     @ConfigKey(value = "sink.remote.port", defaultValue = "9090")
     private short remotePort;
 

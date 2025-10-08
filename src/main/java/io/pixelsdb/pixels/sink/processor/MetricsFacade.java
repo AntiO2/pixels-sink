@@ -37,6 +37,8 @@ public class MetricsFacade
     private final Counter tableChangeCounter;
     private final Counter rowChangeCounter;
     private final Counter transactionCounter;
+    private final Counter serdRowRecordCounter;
+    private final Counter serdTxRecordCounter;
     private final Summary processingLatency;
     private final Counter rawDataThroughputCounter;
     private final Counter debeziumEventCounter;
@@ -57,6 +59,9 @@ public class MetricsFacade
 
     private long lastRowChangeCount = 0;
     private long lastTransactionCount = 0;
+    private long lastDebeziumCount = 0;
+    private long lastSerdRowRecordCount = 0;
+    private long lastSerdTxRecordCount = 0;
 
     private MetricsFacade(boolean enabled)
     {
@@ -73,6 +78,15 @@ public class MetricsFacade
                     .help("Debezium Row Event Total")
                     .register();
 
+            this.serdRowRecordCounter = Counter.build()
+                    .name("serd_row_record")
+                    .help("Serialized Row Record Total")
+                    .register();
+
+            this.serdTxRecordCounter = Counter.build()
+                    .name("serd_tx_record")
+                    .help("Serialized Transaction Record Total")
+                    .register();
 
             this.tableChangeCounter = Counter.build()
                     .name("sink_table_changes_total")
@@ -156,6 +170,8 @@ public class MetricsFacade
             this.debeziumEventCounter = null;
             this.rowEventCounter = null;
             this.rowChangeCounter = null;
+            this.serdRowRecordCounter = null;
+            this.serdTxRecordCounter = null;
             this.transactionCounter = null;
             this.processingLatency = null;
             this.tableChangeCounter = null;
@@ -228,6 +244,34 @@ public class MetricsFacade
             rowChangeCounter.labels(table, operation.toString()).inc(rows);
         }
     }
+
+    public void recordSerdRowChange()
+    {
+        recordSerdRowChange(1);
+    }
+
+    public void recordSerdRowChange(int i)
+    {
+        if (enabled && serdRowRecordCounter != null)
+        {
+            serdRowRecordCounter.inc(i);
+        }
+    }
+
+
+    public void recordSerdTxChange()
+    {
+        recordSerdTxChange(1);
+    }
+
+    public void recordSerdTxChange(int i)
+    {
+        if (enabled && serdTxRecordCounter != null)
+        {
+            serdTxRecordCounter.inc(i);
+        }
+    }
+
 
     public void recordTransaction(int i)
     {
@@ -331,21 +375,39 @@ public class MetricsFacade
     {
         long currentRows = (long) rowEventCounter.get();
         long currentTxns = (long) transactionCounter.get();
+        long currentDebezium = (long) debeziumEventCounter.get();
+        long currentSerdRows = (long) serdRowRecordCounter.get();
+        long currentSerdTxs = (long) serdTxRecordCounter.get();
 
         long deltaRows = currentRows - lastRowChangeCount;
         long deltaTxns = currentTxns - lastTransactionCount;
+        long deltaDebezium = currentDebezium - lastDebeziumCount;
+        long deltaSerdRows = currentSerdRows - lastSerdRowRecordCount;
+        long deltaSerdTxs = currentSerdTxs - lastSerdTxRecordCount;
 
         lastRowChangeCount = currentRows;
         lastTransactionCount = currentTxns;
+        lastDebeziumCount = currentDebezium;
+        lastSerdRowRecordCount = currentSerdRows;
+        lastSerdTxRecordCount = currentSerdTxs;
 
         double seconds = monitorReportInterval / 1000.0;
+
         double rowOips = deltaRows / seconds;
         double txnOips = deltaTxns / seconds;
+        double dbOips = deltaDebezium / seconds;
+        double serdRowsOips = deltaSerdRows / seconds;
+        double serdTxsOips = deltaSerdTxs / seconds;
 
         LOGGER.info(
-                "Performance report: +{} rows (+{}/s), +{} transactions (+{}/s) in {} ms",
+                "Performance report: +{} rows (+{}/s), +{} transactions (+{}/s), +{} debezium (+{}/s)" +
+                        ", +{} serdRows (+{}/s), +{} serdTxs (+{}/s)" +
+                        " in {} ms",
                 deltaRows, String.format("%.2f", rowOips),
                 deltaTxns, String.format("%.2f", txnOips),
+                deltaDebezium,  String.format("%.2f", dbOips),
+                deltaSerdRows,  String.format("%.2f", serdRowsOips),
+                deltaSerdTxs,  String.format("%.2f", serdTxsOips),
                 monitorReportInterval
         );
     }

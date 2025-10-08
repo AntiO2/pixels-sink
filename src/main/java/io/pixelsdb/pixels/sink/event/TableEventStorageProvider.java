@@ -24,11 +24,13 @@ import io.pixelsdb.pixels.common.metadata.SchemaTableName;
 import io.pixelsdb.pixels.sink.SinkProto;
 import io.pixelsdb.pixels.sink.deserializer.RowChangeEventStructDeserializer;
 import io.pixelsdb.pixels.sink.exception.SinkException;
+import io.pixelsdb.pixels.sink.processor.MetricsFacade;
 import org.apache.kafka.connect.source.SourceRecord;
 
 import java.nio.ByteBuffer;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.*;
 import java.util.logging.Logger;
 
 /**
@@ -45,10 +47,25 @@ public class TableEventStorageProvider implements TableEventProvider {
     private final BlockingQueue<RowChangeEvent> eventQueue = new LinkedBlockingQueue<>(10000);
     private final Thread processorThread;
 
+    private final MetricsFacade metricsFacade;
+
+    private static final int BATCH_SIZE = 64;
+    private static final int THREAD_NUM = 4;
+    private static final long MAX_WAIT_MS = 5; // configurable
+    private final ExecutorService decodeExecutor = Executors.newFixedThreadPool(THREAD_NUM);
+
     public TableEventStorageProvider(SchemaTableName schemaTableName)
     {
         this.schemaTableName = schemaTableName;
         this.processorThread = new Thread(this::processLoop, "TableEventStorageProvider-" + schemaTableName.getTableName());
+        this.metricsFacade = MetricsFacade.getInstance();
+    }
+
+    public TableEventStorageProvider(int tableId)
+    {
+        this.schemaTableName = null;
+        this.processorThread = new Thread(this::processLoop, "TableEventStorageProvider-" + tableId);
+        this.metricsFacade = MetricsFacade.getInstance();
     }
 
     @Override
@@ -70,27 +87,60 @@ public class TableEventStorageProvider implements TableEventProvider {
     }
 
     private void processLoop() {
+        List<ByteBuffer> batch = new ArrayList<>(BATCH_SIZE);
+
         while (true) {
             try {
-                ByteBuffer data = rawEventQueue.take();
-                SinkProto.RowRecord rowRecord = null;
-                try
-                {
-                    rowRecord = SinkProto.RowRecord.parseFrom(data);
-                } catch (InvalidProtocolBufferException e)
-                {
-                    throw new RuntimeException(e);
+                batch.clear();
+
+                // take first element (blocking)
+                ByteBuffer first = rawEventQueue.take();
+                batch.add(first);
+                long startTime = System.nanoTime();
+
+                // keep polling until batch full or timeout
+                while (batch.size() < BATCH_SIZE) {
+                    long elapsedMs = (System.nanoTime() - startTime) / 1_000_000;
+                    long remainingMs = MAX_WAIT_MS - elapsedMs;
+                    if (remainingMs <= 0) {
+                        break;
+                    }
+
+                    ByteBuffer next = rawEventQueue.poll(remainingMs, TimeUnit.MILLISECONDS);
+                    if (next == null) {
+                        break;
+                    }
+                    batch.add(next);
                 }
-                RowChangeEvent rowChangeEvent = null;
-                try
-                {
-                    rowChangeEvent = RowChangeEventStructDeserializer.convertToRowChangeEvent(rowRecord);
-                } catch (SinkException e)
-                {
-                    LOGGER.warning(e.getMessage());
-                    continue;
+
+                // parallel decode
+                List<Future<RowChangeEvent>> futures = new ArrayList<>(batch.size());
+                for (ByteBuffer data : batch) {
+                    futures.add(decodeExecutor.submit(() -> {
+                        try {
+                            SinkProto.RowRecord rowRecord = SinkProto.RowRecord.parseFrom(data);
+                            return RowChangeEventStructDeserializer.convertToRowChangeEvent(rowRecord);
+                        } catch (InvalidProtocolBufferException e) {
+                            throw new RuntimeException(e);
+                        } catch (SinkException e) {
+                            LOGGER.warning(e.getMessage());
+                            return null;
+                        }
+                    }));
                 }
-                eventQueue.put(rowChangeEvent);
+
+                // ordered put into queue
+                for (Future<RowChangeEvent> future : futures) {
+                    try {
+                        RowChangeEvent event = future.get();
+                        if (event != null) {
+                            metricsFacade.recordSerdRowChange();
+                            eventQueue.put(event);
+                        }
+                    } catch (ExecutionException e) {
+                        LOGGER.warning("Decode failed: " + e.getCause());
+                    }
+                }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 break;

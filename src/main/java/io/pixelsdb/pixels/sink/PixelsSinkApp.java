@@ -64,7 +64,7 @@ public class PixelsSinkApp
             mainProcessor = new SinkEngineProcessor();
         } else if(config.getDataSource().equals("storage"))
         {
-            mainProcessor = new SinkStorageProcessor();
+            mainProcessor = new FasterSinkStorageProcessor();
         } else
         {
             throw new IllegalStateException("Unsupported data source type: " + config.getDataSource());

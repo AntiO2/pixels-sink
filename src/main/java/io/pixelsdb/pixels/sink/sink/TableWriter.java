@@ -57,6 +57,7 @@ public abstract class TableWriter
     protected ScheduledFuture<?> flushTask = null;
     protected String fullTableName;
     protected PixelsSinkConfig config;
+    protected PixelsSinkMode sinkMode;
     private MetricsFacade metricsFacade = MetricsFacade.getInstance();
 
     protected TableWriter(String tableName) throws IOException
@@ -65,6 +66,7 @@ public abstract class TableWriter
         this.tableName = tableName;
         this.delegate = new RetinaWriter();
         this.flushInterval = config.getFlushIntervalMs();
+        this.sinkMode = config.getPixelsSinkMode();
     }
     
     protected static final Map<String, TableWriter> WRITER_REGISTRY = new ConcurrentHashMap<>();

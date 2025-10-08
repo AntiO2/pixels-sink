@@ -25,23 +25,16 @@ import io.pixelsdb.pixels.common.physical.PhysicalReaderUtil;
 import io.pixelsdb.pixels.common.physical.Storage;
 import io.pixelsdb.pixels.core.utils.Pair;
 import io.pixelsdb.pixels.sink.SinkProto;
-import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
-import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
-import io.pixelsdb.pixels.sink.event.ProtoType;
-import io.pixelsdb.pixels.sink.event.TableEnginePipelineManager;
-import io.pixelsdb.pixels.sink.event.TransactionEventEngineProvider;
+import io.pixelsdb.pixels.sink.event.*;
 import io.pixelsdb.pixels.sink.metadata.TableMetadataRegistry;
-import io.pixelsdb.pixels.sink.util.EtcdFileRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * @package: io.pixelsdb.pixels.sink.processor
@@ -49,23 +42,23 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * @author: AntiO2
  * @date: 2025/10/5 11:43
  */
-public class SinkStorageProcessor extends AbstractSinkStorageProcessor implements MainProcessor
+public class FasterSinkStorageProcessor extends AbstractSinkStorageProcessor implements MainProcessor
 {
-    private static final Logger LOGGER = LoggerFactory.getLogger(SinkStorageProcessor.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(FasterSinkStorageProcessor.class);
 
     private final TransactionEventEngineProvider transactionEventProvider = TransactionEventEngineProvider.INSTANCE;
-    private final TableEnginePipelineManager tableEnginePipelineManager = new TableEnginePipelineManager();
+    private final TableStoragePipelineManager tablePipelineManager = new TableStoragePipelineManager();
     private final TransactionProcessor transactionProcessor = new TransactionProcessor(transactionEventProvider);
     private final Thread transactionProcessorThread;
     private final Thread transAdapterThread;
     private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
-    private final Map<SchemaTableName, BlockingQueue<CompletableFuture<ByteBuffer>>> queueMap = new ConcurrentHashMap<>();
-    private final Map<SchemaTableName, Thread> consumerThreads = new ConcurrentHashMap<>();
+    private final Map<Integer, BlockingQueue<CompletableFuture<ByteBuffer>>> queueMap = new ConcurrentHashMap<>();
+    private final Map<Integer, Thread> consumerThreads = new ConcurrentHashMap<>();
     private final int maxQueueCapacity = 10000;
 
 
     private final TableMetadataRegistry tableMetadataRegistry = TableMetadataRegistry.Instance();
-    public SinkStorageProcessor()
+    public FasterSinkStorageProcessor()
     {
         this.transactionProcessorThread = new Thread(transactionProcessor, "debezium-processor");
         this.transAdapterThread = new Thread(this::processTransactionSourceRecord, "transaction-adapter");
@@ -75,7 +68,11 @@ public class SinkStorageProcessor extends AbstractSinkStorageProcessor implement
     @Override
     ProtoType getProtoType(int i)
     {
-        return ProtoType.fromInt(i);
+        if(i == -1)
+        {
+            return ProtoType.TRANS;
+        }
+        return ProtoType.ROW;
     }
 
     private final CompletableFuture<ByteBuffer> POISON_PILL = new CompletableFuture<>();
@@ -99,40 +96,37 @@ public class SinkStorageProcessor extends AbstractSinkStorageProcessor implement
                 while(true)
                 {
                     try {
-                        int keyLen, valueLen;
+                        int key, valueLen;
                         reader.seek(offset);
                         try {
-                            keyLen = reader.readInt(ByteOrder.BIG_ENDIAN);
+                            key = reader.readInt(ByteOrder.BIG_ENDIAN);
                             valueLen = reader.readInt(ByteOrder.BIG_ENDIAN);
                         } catch (IOException e) {
                             // EOF
                             break;
                         }
 
-                        ByteBuffer keyBuffer = copyToHeap(reader.readFully(keyLen)).order(ByteOrder.BIG_ENDIAN);
-                        ProtoType protoType = getProtoType(keyBuffer.getInt());
-                        offset += Integer.BYTES * 2 + keyLen;
+                        ProtoType protoType = getProtoType(key);
+                        offset += Integer.BYTES * 2;
                         CompletableFuture<ByteBuffer> valueFuture = reader.readAsync(offset, valueLen)
                                 .thenApply(this::copyToHeap)
                                 .thenApply(buf -> buf.order(ByteOrder.BIG_ENDIAN));
                         // move offset for next record
                         offset += valueLen;
 
-                        // Compute queue key (for example: schemaName + tableName or protoType)
-                        SchemaTableName queueKey = computeQueueKey(keyBuffer, protoType);
 
                         // Get or create queue
                         BlockingQueue<CompletableFuture<ByteBuffer>> queue =
-                                queueMap.computeIfAbsent(queueKey,
+                                queueMap.computeIfAbsent(key,
                                         k -> new LinkedBlockingQueue<>(maxQueueCapacity));
 
                         // Put future in queue
                         queue.put(valueFuture);
 
                         // Start consumer thread if not exists
-                        consumerThreads.computeIfAbsent(queueKey, k -> {
+                        consumerThreads.computeIfAbsent(key, k -> {
                             Thread t = new Thread(() -> consumeQueue(k, queue, protoType));
-                            t.setName("consumer-" + queueKey);
+                            t.setName("consumer-" + key);
                             t.start();
                             return t;
                         });
@@ -166,9 +160,6 @@ public class SinkStorageProcessor extends AbstractSinkStorageProcessor implement
         });
     }
 
-
-
-
     private ByteBuffer copyToHeap(ByteBuffer directBuffer) {
         ByteBuffer duplicate = directBuffer.duplicate();
         ByteBuffer heapBuffer = ByteBuffer.allocate(duplicate.remaining());
@@ -182,7 +173,7 @@ public class SinkStorageProcessor extends AbstractSinkStorageProcessor implement
         return new String(bytes);
     }
 
-    private void consumeQueue(SchemaTableName key, BlockingQueue<CompletableFuture<ByteBuffer>> queue, ProtoType protoType) {
+    private void consumeQueue(int key, BlockingQueue<CompletableFuture<ByteBuffer>> queue, ProtoType protoType) {
         try {
             while (true) {
                 CompletableFuture<ByteBuffer> value = queue.take();
@@ -205,46 +196,9 @@ public class SinkStorageProcessor extends AbstractSinkStorageProcessor implement
     }
     static SchemaTableName transactionSchemaTableName = new SchemaTableName("freak", "transaction");
 
-    private SchemaTableName computeQueueKey(ByteBuffer keyBuffer, ProtoType protoType) {
-        switch (protoType) {
-            case ROW ->
-            {
-                int schemaLen = keyBuffer.getInt();
-                int tableLen = keyBuffer.getInt();
-                String schemaName = readString(keyBuffer, schemaLen);
-                String tableName = readString(keyBuffer, tableLen);
-                return new SchemaTableName(schemaName, tableName);
-            }
-            case TRANS ->
-            {
-                return transactionSchemaTableName;
-            }
-            default ->
-            {
-                throw new IllegalArgumentException("Proto type " + protoType.toString());
-            }
-        }
-    }
-
-    private void handleRowChangeSourceRecord(SchemaTableName schemaTableName, ByteBuffer dataBuffer)
+    private void handleRowChangeSourceRecord(int key, ByteBuffer dataBuffer)
     {
-        tableEnginePipelineManager.routeRecord(schemaTableName, dataBuffer);
-    }
-    private void handleRowChangeSourceRecord(ByteBuffer keyBuffer, ByteBuffer dataBuffer)
-    {
-        {
-            // CODE BLOCK VERSION 2
-//            long tableId = keyBuffer.getLong();
-//            try
-//            {
-//                schemaTableName = tableMetadataRegistry.getSchemaTableName(tableId);
-//            } catch (SinkException e)
-//            {
-//                throw new RuntimeException(e);
-//            }
-        }
-
-//        tableEnginePipelineManager.routeRecord(schemaTableName, dataBuffer);
+        tablePipelineManager.routeRecord(key, dataBuffer);
     }
 
     private void processTransactionSourceRecord() {

@@ -21,6 +21,8 @@ import io.debezium.pipeline.txmetadata.TransactionContext;
 import io.pixelsdb.pixels.common.exception.TransException;
 import io.pixelsdb.pixels.common.transaction.TransContext;
 import io.pixelsdb.pixels.common.transaction.TransService;
+import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
+import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.processor.MetricsFacade;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,13 +48,18 @@ public class TransactionManager
     private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
     private final BlockingQueue<TransContext> toCommitTransContextQueue;
 
-    private static final int BATCH_SIZE = 100;
-    private static final int WORKER_COUNT = 16;
-    private static final int MAX_WAIT_MS = 100;
+    private final int BATCH_SIZE;
+    private final int WORKER_COUNT;
+    private final int MAX_WAIT_MS;
 
 
     TransactionManager()
     {
+        PixelsSinkConfig pixelsSinkConfig = PixelsSinkConfigFactory.getInstance();
+        BATCH_SIZE = pixelsSinkConfig.getCommitBatchSize();
+        WORKER_COUNT = pixelsSinkConfig.getCommitBatchWorkers();
+        MAX_WAIT_MS = pixelsSinkConfig.getCommitBatchDelay();
+
         this.transService = TransService.Instance();
         this.transContextQueue = new ConcurrentLinkedDeque<>();
         this.toCommitTransContextQueue = new LinkedBlockingQueue<>();
@@ -69,6 +76,8 @@ public class TransactionManager
         {
             batchCommitExecutor.submit(this::batchCommitWorker);
         }
+
+
     }
 
     public static TransactionManager Instance()

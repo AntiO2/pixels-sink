@@ -45,7 +45,7 @@ public class TableEnginePipelineManager extends TablePipelineManager
                 {
                     TableEventEngineProvider newProvider = createEnginePipeline(k);
                     TableProcessor tableProcessor = activeTableProcessors.computeIfAbsent(schemaTableName, k2 ->
-                            new TableProcessor(newProvider, schemaTableName));
+                            new TableProcessor(newProvider));
                     tableProcessor.run();
                     return newProvider;
                 });
@@ -58,7 +58,7 @@ public class TableEnginePipelineManager extends TablePipelineManager
                 {
                     TableEventStorageProvider newProvider = createStoragePipeline(k);
                     TableProcessor tableProcessor = activeTableProcessors.computeIfAbsent(schemaTableName, k2 ->
-                            new TableProcessor(newProvider, schemaTableName));
+                            new TableProcessor(newProvider));
                     tableProcessor.run();
                     return newProvider;
                 });
