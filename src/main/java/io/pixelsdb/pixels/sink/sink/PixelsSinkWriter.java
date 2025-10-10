@@ -17,19 +17,17 @@
 
 package io.pixelsdb.pixels.sink.sink;
 
-import io.pixelsdb.pixels.retina.RetinaProto;
+import io.pixelsdb.pixels.sink.SinkProto;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
 
 import java.io.Closeable;
-import java.util.List;
 
 public interface PixelsSinkWriter extends Closeable
 {
     void flush();
 
-    boolean write(RowChangeEvent rowChangeEvent);
+    boolean writeRow(RowChangeEvent rowChangeEvent);
 
-    boolean writeTrans(String schemaName, List<RetinaProto.TableUpdateData> tableUpdateData, long timestamp);
+    boolean writeTrans(SinkProto.TransactionMetadata transactionMetadata);
 
-    boolean writeBatch(String schemaName, List<RetinaProto.TableUpdateData> tableUpdateData);
 }

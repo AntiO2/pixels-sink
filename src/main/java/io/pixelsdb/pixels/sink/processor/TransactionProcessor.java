@@ -19,31 +19,25 @@
 package io.pixelsdb.pixels.sink.processor;
 
 import io.pixelsdb.pixels.sink.SinkProto;
-import io.pixelsdb.pixels.sink.concurrent.TransactionCoordinator;
-import io.pixelsdb.pixels.sink.concurrent.TransactionCoordinatorFactory;
-import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
-import io.pixelsdb.pixels.sink.event.TransactionEventProvider;
-import io.pixelsdb.pixels.sink.exception.SinkException;
+import io.pixelsdb.pixels.sink.provider.TransactionEventProvider;
+import io.pixelsdb.pixels.sink.sink.PixelsSinkWriter;
+import io.pixelsdb.pixels.sink.sink.PixelsSinkWriterFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Properties;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 
 public class TransactionProcessor implements Runnable, StoppableProcessor
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(TransactionProcessor.class);
-    private final TransactionCoordinator transactionCoordinator;
+    private final PixelsSinkWriter sinkWriter;
     private final AtomicBoolean running = new AtomicBoolean(true);
     private final TransactionEventProvider transactionEventProvider;
 
     public TransactionProcessor(TransactionEventProvider transactionEventProvider)
     {
         this.transactionEventProvider = transactionEventProvider;
-        this.transactionCoordinator = TransactionCoordinatorFactory.getCoordinator();
+        this.sinkWriter = PixelsSinkWriterFactory.getWriter();
     }
 
     @Override
@@ -51,21 +45,9 @@ public class TransactionProcessor implements Runnable, StoppableProcessor
     {
         while (running.get())
         {
-            try
-            {
-                SinkProto.TransactionMetadata transaction = transactionEventProvider.getEventQueue().take();
-                try
-                {
-                    LOGGER.trace("Processing transaction event: {}", transaction.getId());
-                    transactionCoordinator.processTransactionEvent(transaction);
-                } catch (SinkException e)
-                {
-                    throw new RuntimeException(e);
-                }
-            } catch (InterruptedException e)
-            {
-                Thread.currentThread().interrupt();
-            }
+            SinkProto.TransactionMetadata transaction = transactionEventProvider.getTransaction();
+            LOGGER.trace("Processing transaction event: {}", transaction.getId());
+            sinkWriter.writeTrans(transaction);
         }
         LOGGER.info("Processor thread exited for transaction");
     }

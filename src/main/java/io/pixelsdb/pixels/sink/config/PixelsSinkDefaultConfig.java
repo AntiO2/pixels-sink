@@ -17,9 +17,6 @@
 
 package io.pixelsdb.pixels.sink.config;
 
-import io.pixelsdb.pixels.sink.deserializer.RowChangeEventJsonDeserializer;
-import org.apache.kafka.common.serialization.StringDeserializer;
-
 public class PixelsSinkDefaultConfig
 {
     public static final String DATA_SOURCE = "kafka";

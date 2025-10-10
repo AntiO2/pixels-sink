@@ -18,7 +18,7 @@
 package io.pixelsdb.pixels.sink.processor;
 
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
-import io.pixelsdb.pixels.sink.event.TablePipelineManager;
+import io.pixelsdb.pixels.sink.provider.TableEventKafkaProvider;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.ListTopicsResult;
@@ -32,7 +32,7 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
-public class TopicProcessor extends TablePipelineManager implements StoppableProcessor, Runnable
+public class TopicProcessor implements StoppableProcessor, Runnable
 {
 
     private static final Logger log = LoggerFactory.getLogger(TopicProcessor.class);
@@ -44,9 +44,10 @@ public class TopicProcessor extends TablePipelineManager implements StoppablePro
     private final String baseTopic;
 
     private final AtomicBoolean running = new AtomicBoolean(true);
-    private final Map<String, TableMonitor> activeTasks = new ConcurrentHashMap<>(); // track row event consumer
+    private final Map<String, TableEventKafkaProvider> activeTasks = new ConcurrentHashMap<>(); // track row event consumer
     private AdminClient adminClient;
     private Timer timer;
+    private final ExecutorService executorService = Executors.newCachedThreadPool();
 
     public TopicProcessor(PixelsSinkConfig pixelsSinkConfig, Properties kafkaProperties)
     {
@@ -94,7 +95,7 @@ public class TopicProcessor extends TablePipelineManager implements StoppablePro
         activeTasks.forEach((topic, task) ->
         {
             log.info("Stopping consumer for topic: {}", topic);
-            task.shutdown();
+            task.close();
         });
         activeTasks.clear();
     }
@@ -205,7 +206,7 @@ public class TopicProcessor extends TablePipelineManager implements StoppablePro
     {
         try
         {
-            TableMonitor task = new TableMonitor(kafkaProperties, topic);
+            TableEventKafkaProvider task = new TableEventKafkaProvider(kafkaProperties, topic);
             executorService.submit(task);
         } catch (Exception e)
         {
@@ -258,7 +259,7 @@ public class TopicProcessor extends TablePipelineManager implements StoppablePro
                     {
                         try
                         {
-                            TableMonitor task = new TableMonitor(kafkaProperties, topic);
+                            TableEventKafkaProvider task = new TableEventKafkaProvider(kafkaProperties, topic);
                             executorService.submit(task);
                             activeTasks.put(topic, task);
                             subscribedTopics.add(topic);

@@ -17,7 +17,7 @@
 
 package io.pixelsdb.pixels.sink.config;
 
-import io.pixelsdb.pixels.sink.deserializer.TransactionJsonMessageDeserializer;
+import io.pixelsdb.pixels.sink.event.deserializer.TransactionJsonMessageDeserializer;
 
 public class TransactionConfig
 {

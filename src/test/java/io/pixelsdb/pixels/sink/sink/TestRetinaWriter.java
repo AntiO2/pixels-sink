@@ -6,15 +6,15 @@ import io.pixelsdb.pixels.common.exception.TransException;
 import io.pixelsdb.pixels.common.retina.RetinaService;
 import io.pixelsdb.pixels.common.transaction.TransContext;
 import io.pixelsdb.pixels.common.transaction.TransService;
-import io.pixelsdb.pixels.core.TypeDescription;
 import io.pixelsdb.pixels.index.IndexProto;
 import io.pixelsdb.pixels.retina.RetinaProto;
 import io.pixelsdb.pixels.sink.SinkProto;
-import io.pixelsdb.pixels.sink.concurrent.TransactionManager;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
 import io.pixelsdb.pixels.sink.exception.SinkException;
 import io.pixelsdb.pixels.sink.metadata.TableMetadataRegistry;
+import io.pixelsdb.pixels.sink.sink.retina.RetinaServiceProxy;
+import io.pixelsdb.pixels.sink.sink.retina.TransactionProxy;
 import io.pixelsdb.pixels.sink.util.DateUtil;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
@@ -188,9 +188,9 @@ public class TestRetinaWriter
         String schemaName = "pixels_bench_sf1x";
         String tableName = "savingaccount";
 
-        PixelsSinkWriter writer = PixelsSinkWriterFactory.getWriter();
+        RetinaServiceProxy writer = new RetinaServiceProxy();
 
-        TransactionManager manager = TransactionManager.Instance();
+        TransactionProxy manager = TransactionProxy.Instance();
         // Step 1: Insert 10,000 records
         int totalInserts = retinaPerformanceTestMaxId;
         int batchSize = 5;
@@ -202,13 +202,13 @@ public class TestRetinaWriter
 
         List<CompletableFuture<Void>> futures = new ArrayList<>();
 
-        for (int b = 0; b < batchCount;)
+        for (int b = 0; b < batchCount; )
         {
             List<RetinaProto.TableUpdateData> tableUpdateData = new ArrayList<>();
-            for(int sb = 0; sb < samllBatchCount; sb++)
+            for (int sb = 0; sb < samllBatchCount; sb++)
             {
                 ++b;
-                TransContext ctx = manager.getTransContext();
+                TransContext ctx = manager.getNewTransContext();
                 long timeStamp = ctx.getTimestamp();
 
                 RetinaProto.TableUpdateData.Builder tableUpdateDataBuilder =
@@ -283,7 +283,7 @@ public class TestRetinaWriter
                 futures.add(future);
             }
             Assertions.assertNotNull(writer);
-            if (!writer.writeBatch(schemaName, tableUpdateData))
+            if (!writer.writeTrans(schemaName, tableUpdateData))
             {
                 logger.error("Error Write Trans");
                 System.exit(-1);
@@ -319,14 +319,14 @@ public class TestRetinaWriter
         int clientCount = 2; // 可自定义客户端数量
         ExecutorService clientExecutor = Executors.newFixedThreadPool(clientCount);
 
-        List<PixelsSinkWriter> writers = new ArrayList<>();
+        List<RetinaServiceProxy> writers = new ArrayList<>();
         for (int c = 0; c < clientCount; c++)
         {
-            writers.add(PixelsSinkWriterFactory.getWriter());
+            writers.add(new RetinaServiceProxy());
         }
 
         Random random = new Random();
-        TransactionManager manager = TransactionManager.Instance();
+        TransactionProxy manager = TransactionProxy.Instance();
 
         long start = System.currentTimeMillis();
         List<CompletableFuture<Void>> futures = new ArrayList<>();
@@ -339,9 +339,9 @@ public class TestRetinaWriter
                 try
                 {
                     // 轮询选择客户端
-                    PixelsSinkWriter writer = writers.get(batchIndex % clientCount);
+                    RetinaServiceProxy writer = writers.get(batchIndex % clientCount);
 
-                    TransContext ctx = manager.getTransContext();
+                    TransContext ctx = manager.getNewTransContext();
                     long timeStamp = ctx.getTimestamp();
 
                     List<RetinaProto.TableUpdateData> tableUpdateData = new ArrayList<>();
@@ -403,7 +403,7 @@ public class TestRetinaWriter
                     tableUpdateData.add(tableUpdateDataBuilder.build());
 
                     long startTime = System.currentTimeMillis();
-                    if (!writer.writeTrans(schemaName, tableUpdateData, timeStamp))
+                    if (!writer.writeTrans(schemaName, tableUpdateData))
                     {
                         logger.error("Error Write Trans");
                         System.exit(-1);
@@ -448,7 +448,7 @@ public class TestRetinaWriter
         String tableName2 = "savingaccount";
         PixelsSinkWriter writer = PixelsSinkWriterFactory.getWriter();
 
-        TransactionManager manager = TransactionManager.Instance();
+        TransactionProxy manager = TransactionProxy.Instance();
         // Step 1: Insert 10,000 records
         int totalInserts = retinaPerformanceTestRowCount;
         int batchSize = 50;
@@ -461,7 +461,7 @@ public class TestRetinaWriter
 
         for (int b = 0; b < batchCount; b++)
         {
-            TransContext ctx = manager.getTransContext();
+            TransContext ctx = manager.getNewTransContext();
             long timeStamp = ctx.getTimestamp();
 
             List<RetinaProto.TableUpdateData> tableUpdateData = new ArrayList<>();
@@ -549,7 +549,7 @@ public class TestRetinaWriter
                 try
                 {
                     // 执行原始的 writeTrans 方法
-                    writer.writeTrans(schemaName, tableUpdateData, timeStamp);
+                    // writer.writeTrans(schemaName, tableUpdateData, timeStamp);
                     // 记录结束时间
                     long endTime = System.currentTimeMillis();
 

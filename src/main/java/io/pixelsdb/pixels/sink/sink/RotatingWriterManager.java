@@ -39,13 +39,12 @@ public class RotatingWriterManager
     private final String baseDir;
     private final String topic;
     private final int maxRecordsPerFile;
-
+    private final Storage.Scheme scheme;
+    private final EtcdFileRegistry registry;
     private int currentCount = 0;
     private PhysicalWriter currentWriter;
     private String currentFileName;
 
-    private final Storage.Scheme scheme;
-    private final EtcdFileRegistry registry;
     public RotatingWriterManager(String topic) throws IOException
     {
         PixelsSinkConfig sinkConfig = PixelsSinkConfigFactory.getInstance();

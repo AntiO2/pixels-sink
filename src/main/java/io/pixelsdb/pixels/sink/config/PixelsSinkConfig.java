@@ -17,15 +17,14 @@
 package io.pixelsdb.pixels.sink.config;
 
 import io.pixelsdb.pixels.common.utils.ConfigFactory;
-import io.pixelsdb.pixels.sink.concurrent.TransactionMode;
-import io.pixelsdb.pixels.sink.deserializer.RowChangeEventJsonDeserializer;
+import io.pixelsdb.pixels.sink.event.deserializer.RowChangeEventJsonDeserializer;
 import io.pixelsdb.pixels.sink.sink.PixelsSinkMode;
-import io.pixelsdb.pixels.sink.sink.RetinaWriter;
+import io.pixelsdb.pixels.sink.sink.retina.RetinaServiceProxy;
+import io.pixelsdb.pixels.sink.sink.retina.TransactionMode;
 import lombok.Getter;
 import org.apache.kafka.common.serialization.StringDeserializer;
 
 import java.io.IOException;
-import java.util.Objects;
 
 @Getter
 public class PixelsSinkConfig
@@ -39,7 +38,7 @@ public class PixelsSinkConfig
     private PixelsSinkMode pixelsSinkMode;
 
     @ConfigKey(value = "sink.retina.mode", defaultValue = PixelsSinkDefaultConfig.SINK_RETINA_MODE)
-    private RetinaWriter.RetinaWriteMode retinaWriteMode;
+    private RetinaServiceProxy.RetinaWriteMode retinaWriteMode;
 
     @ConfigKey(value = "sink.trans.mode", defaultValue = TransactionConfig.DEFAULT_TRANSACTION_MODE)
     private TransactionMode transactionMode;
@@ -51,7 +50,7 @@ public class PixelsSinkConfig
     private int commitBatchWorkers;
 
     @ConfigKey(value = "sink.commit.batch.delay", defaultValue = "200")
-    private  int commitBatchDelay;
+    private int commitBatchDelay;
 
     @ConfigKey(value = "sink.remote.port", defaultValue = "9090")
     private short remotePort;
@@ -164,7 +163,8 @@ public class PixelsSinkConfig
         ConfigLoader.load(this.config.extractPropertiesByPrefix("", false), this);
     }
 
-    public String[] getIncludeTables() {
+    public String[] getIncludeTables()
+    {
         return includeTablesRaw.isEmpty() ? new String[0] : includeTablesRaw.split(",");
     }
 

@@ -19,15 +19,15 @@
 package io.pixelsdb.pixels.sink.processor;
 
 
-import io.pixelsdb.pixels.common.metadata.SchemaTableName;
-import io.pixelsdb.pixels.sink.concurrent.TransactionCoordinator;
-import io.pixelsdb.pixels.sink.concurrent.TransactionCoordinatorFactory;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
-import io.pixelsdb.pixels.sink.event.TableEventProvider;
-import io.pixelsdb.pixels.sink.exception.SinkException;
+import io.pixelsdb.pixels.sink.provider.TableEventProvider;
+import io.pixelsdb.pixels.sink.sink.PixelsSinkWriter;
+import io.pixelsdb.pixels.sink.sink.PixelsSinkWriterFactory;
+import io.pixelsdb.pixels.sink.util.MetricsFacade;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -40,16 +40,15 @@ public class TableProcessor implements StoppableProcessor, Runnable
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(TableProcessor.class);
     private final AtomicBoolean running = new AtomicBoolean(true);
-    private Thread processorThread;
-    private final TransactionCoordinator transactionCoordinator;
-    private final TableEventProvider tableEventProvider;
+    private final PixelsSinkWriter pixelsSinkWriter;
+    private final TableEventProvider<?> tableEventProvider;
     private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
+    private Thread processorThread;
 
-    public TableProcessor(TableEventProvider tableEventProvider)
+    public TableProcessor(TableEventProvider<?> tableEventProvider)
     {
-        this.transactionCoordinator = TransactionCoordinatorFactory.getCoordinator();
+        this.pixelsSinkWriter = PixelsSinkWriterFactory.getWriter();
         this.tableEventProvider = tableEventProvider;
-
     }
 
     @Override
@@ -63,20 +62,12 @@ public class TableProcessor implements StoppableProcessor, Runnable
     {
         while (running.get())
         {
-            try
+            RowChangeEvent event = tableEventProvider.getRowChangeEvent();
+            if (event == null)
             {
-                RowChangeEvent event = tableEventProvider.getSourceEventQueue().take();
-                try
-                {
-                    transactionCoordinator.processRowEvent(event);
-                } catch (SinkException e)
-                {
-                    throw new RuntimeException(e);
-                }
-            } catch (InterruptedException e)
-            {
-                Thread.currentThread().interrupt();
+                continue;
             }
+            pixelsSinkWriter.writeRow(event);
         }
         LOGGER.info("Processor thread exited");
     }
@@ -86,5 +77,6 @@ public class TableProcessor implements StoppableProcessor, Runnable
     {
         LOGGER.info("Stopping transaction monitor");
         running.set(false);
+        processorThread.interrupt();
     }
 }

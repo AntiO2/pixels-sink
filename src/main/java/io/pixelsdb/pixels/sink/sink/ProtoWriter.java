@@ -20,11 +20,9 @@ package io.pixelsdb.pixels.sink.sink;
 
 
 import io.pixelsdb.pixels.common.physical.PhysicalWriter;
-import io.pixelsdb.pixels.retina.RetinaProto;
 import io.pixelsdb.pixels.sink.SinkProto;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
-import io.pixelsdb.pixels.sink.event.ProtoType;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
 import io.pixelsdb.pixels.sink.exception.SinkException;
 import io.pixelsdb.pixels.sink.metadata.TableMetadataRegistry;
@@ -34,7 +32,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.List;
 
 /**
  * @package: io.pixelsdb.pixels.sink.sink
@@ -53,16 +50,17 @@ public class ProtoWriter implements PixelsSinkWriter
         PixelsSinkConfig sinkConfig = PixelsSinkConfigFactory.getInstance();
 
         String dataPath = sinkConfig.getSinkProtoData();
-        this.writerManager =  new RotatingWriterManager(dataPath);
+        this.writerManager = new RotatingWriterManager(dataPath);
         this.instance = TableMetadataRegistry.Instance();
     }
 
+    @Override
     public boolean writeTrans(SinkProto.TransactionMetadata transactionMetadata)
     {
 
         byte[] transData = transactionMetadata.toByteArray();
         return writeData(-1, transData);
- //       ByteBuffer buffer = ByteBuffer.allocate(Integer.BYTES);
+        //       ByteBuffer buffer = ByteBuffer.allocate(Integer.BYTES);
 //        buffer.putInt(ProtoType.TRANS.toInt());
 //        return writeData(buffer.array(), transData);
     }
@@ -83,13 +81,13 @@ public class ProtoWriter implements PixelsSinkWriter
             return false;
         }
         {
-            return writeData((int)tableId, rowData);
+            return writeData((int) tableId, rowData);
         }
 
 //            ByteBuffer keyBuffer = ByteBuffer.allocate(Integer.BYTES + Long.BYTES);
 //            keyBuffer.putInt(ProtoType.ROW.toInt())
 //                    .putLong(tableId);
-        
+
 
 //        byte[] schemaNameBytes = schemaName.getBytes();
 //        byte[] tableNameBytes = tableName.getBytes();
@@ -99,6 +97,7 @@ public class ProtoWriter implements PixelsSinkWriter
 //        keyBuffer.put(schemaNameBytes).put(tableNameBytes);
 //        return writeData(keyBuffer.array(), rowData);
     }
+
     // key: -1 means transaction, else means table id
     private boolean writeData(int key, byte[] data)
     {
@@ -115,10 +114,11 @@ public class ProtoWriter implements PixelsSinkWriter
         return writeBuffer(buf);
     }
 
-    private boolean writeBuffer(ByteBuffer buf)
+    private synchronized boolean writeBuffer(ByteBuffer buf)
     {
         PhysicalWriter writer;
-        try {
+        try
+        {
             writer = writerManager.current();
             writer.prepare(buf.remaining());
             writer.append(buf.array());
@@ -131,12 +131,10 @@ public class ProtoWriter implements PixelsSinkWriter
     }
 
     @Override
-    public boolean write(RowChangeEvent rowChangeEvent)
+    public boolean writeRow(RowChangeEvent rowChangeEvent)
     {
         return write(rowChangeEvent.getRowRecord());
     }
-
-
 
     @Override
     public void flush()
@@ -149,17 +147,5 @@ public class ProtoWriter implements PixelsSinkWriter
     public void close() throws IOException
     {
         this.writerManager.close();
-    }
-
-    @Override
-    public boolean writeTrans(String schemaName, List<RetinaProto.TableUpdateData> tableUpdateData, long timestamp)
-    {
-        return false;
-    }
-
-    @Override
-    public boolean writeBatch(String schemaName, List<RetinaProto.TableUpdateData> tableUpdateData)
-    {
-        return false;
     }
 }

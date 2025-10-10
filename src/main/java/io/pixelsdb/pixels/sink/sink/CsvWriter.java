@@ -17,7 +17,6 @@
 package io.pixelsdb.pixels.sink.sink;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import io.pixelsdb.pixels.retina.RetinaProto;
 import io.pixelsdb.pixels.sink.SinkProto;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.PixelsSinkDefaultConfig;
@@ -102,7 +101,7 @@ public class CsvWriter implements PixelsSinkWriter
     }
 
     @Override
-    public boolean write(RowChangeEvent event)
+    public boolean writeRow(RowChangeEvent event)
     {
         final String tableName = event.getTable();
         if (event.getOp() == SinkProto.OperationType.DELETE)
@@ -139,15 +138,10 @@ public class CsvWriter implements PixelsSinkWriter
     }
 
     @Override
-    public boolean writeTrans(String schemaName, List<RetinaProto.TableUpdateData> tableUpdateData, long timestamp)
+    public boolean writeTrans(SinkProto.TransactionMetadata transactionMetadata)
     {
-        throw new UnsupportedOperationException("CSV Writer doesn't implement batch write trans");
-    }
-
-    @Override
-    public boolean writeBatch(String schemaName, List<RetinaProto.TableUpdateData> tableUpdateData)
-    {
-        throw new UnsupportedOperationException("CSV Writer doesn't implement batch write batch");
+        // TODO(AntiO2): Write Trans info
+        return false;
     }
 
     private FileChannel getOrCreateChannel(RowChangeEvent event) throws IOException

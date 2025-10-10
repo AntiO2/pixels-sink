@@ -19,58 +19,77 @@
 package io.pixelsdb.pixels.sink.config;
 
 
-import io.pixelsdb.pixels.sink.concurrent.TransactionMode;
 import io.pixelsdb.pixels.sink.sink.PixelsSinkMode;
-import io.pixelsdb.pixels.sink.sink.RetinaWriter;
+import io.pixelsdb.pixels.sink.sink.retina.RetinaServiceProxy;
+import io.pixelsdb.pixels.sink.sink.retina.TransactionMode;
 
 import java.lang.reflect.Field;
 import java.util.Properties;
 
-public class ConfigLoader {
-    public static void load(Properties props, Object target) {
-        try {
+public class ConfigLoader
+{
+    public static void load(Properties props, Object target)
+    {
+        try
+        {
             Class<?> clazz = target.getClass();
-            for (Field field : clazz.getDeclaredFields()) {
+            for (Field field : clazz.getDeclaredFields())
+            {
                 ConfigKey annotation = field.getAnnotation(ConfigKey.class);
-                if (annotation != null) {
+                if (annotation != null)
+                {
                     String key = annotation.value();
                     String value = props.getProperty(key);
-                    if (value == null || value.isEmpty()) {
-                        if (!annotation.defaultValue().isEmpty()) {
+                    if (value == null || value.isEmpty())
+                    {
+                        if (!annotation.defaultValue().isEmpty())
+                        {
                             value = annotation.defaultValue();
-                        } else if (annotation.defaultClass() != Void.class) {
+                        } else if (annotation.defaultClass() != Void.class)
+                        {
                             value = annotation.defaultClass().getName();
                         }
                     }
                     Object parsed = convert(value, field.getType());
                     field.setAccessible(true);
-                    try {
+                    try
+                    {
                         field.set(target, parsed);
-                    } catch (IllegalAccessException e) {
+                    } catch (IllegalAccessException e)
+                    {
                         throw new RuntimeException("Failed to inject config for " + key, e);
                     }
                 }
             }
-        } catch (Exception e) {
+        } catch (Exception e)
+        {
             throw new RuntimeException("Failed to load config", e);
         }
     }
 
-    private static Object convert(String value, Class<?> type) {
-        if (type.equals(int.class) || type.equals(Integer.class)) {
+    private static Object convert(String value, Class<?> type)
+    {
+        if (type.equals(int.class) || type.equals(Integer.class))
+        {
             return Integer.parseInt(value);
-        } else if (type.equals(long.class) || type.equals(Long.class)) {
+        } else if (type.equals(long.class) || type.equals(Long.class))
+        {
             return Long.parseLong(value);
-        } else if (type.equals(short.class) || type.equals(Short.class)) {
+        } else if (type.equals(short.class) || type.equals(Short.class))
+        {
             return Short.parseShort(value);
-        } else if (type.equals(boolean.class) || type.equals(Boolean.class)) {
+        } else if (type.equals(boolean.class) || type.equals(Boolean.class))
+        {
             return Boolean.parseBoolean(value);
-        } else if (type.equals(PixelsSinkMode.class)) {
+        } else if (type.equals(PixelsSinkMode.class))
+        {
             return PixelsSinkMode.fromValue(value);
-        } else if (type.equals(TransactionMode.class)) {
+        } else if (type.equals(TransactionMode.class))
+        {
             return TransactionMode.fromValue(value);
-        } else if (type.equals(RetinaWriter.RetinaWriteMode.class)) {
-            return RetinaWriter.RetinaWriteMode.fromValue(value);
+        } else if (type.equals(RetinaServiceProxy.RetinaWriteMode.class))
+        {
+            return RetinaServiceProxy.RetinaWriteMode.fromValue(value);
         }
         return value;
     }

@@ -16,14 +16,15 @@
  */
 package io.pixelsdb.pixels.sink;
 
-import io.pixelsdb.pixels.sink.concurrent.TransactionCoordinatorFactory;
-import io.pixelsdb.pixels.sink.concurrent.TransactionManager;
 import io.pixelsdb.pixels.sink.config.CommandLineConfig;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
-import io.pixelsdb.pixels.sink.processor.*;
-import io.prometheus.client.hotspot.DefaultExports;
+import io.pixelsdb.pixels.sink.sink.retina.TransactionProxy;
+import io.pixelsdb.pixels.sink.source.SinkSource;
+import io.pixelsdb.pixels.sink.source.SinkSourceFactory;
+import io.pixelsdb.pixels.sink.util.MetricsFacade;
 import io.prometheus.client.exporter.HTTPServer;
+import io.prometheus.client.hotspot.DefaultExports;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,7 +36,7 @@ import java.io.IOException;
 public class PixelsSinkApp
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(PixelsSinkApp.class);
-    private static MainProcessor mainProcessor;
+    private static SinkSource sinkSource;
     private static HTTPServer prometheusHttpServer;
 
 
@@ -43,11 +44,10 @@ public class PixelsSinkApp
     {
         Runtime.getRuntime().addShutdownHook(new Thread(() ->
         {
-            TransactionManager.Instance().close();
-            mainProcessor.stopProcessor();
-            TransactionCoordinatorFactory.reset();
+            TransactionProxy.Instance().close();
+            sinkSource.stopProcessor();
             LOGGER.info("Pixels Sink Server shutdown complete");
-            if(prometheusHttpServer != null)
+            if (prometheusHttpServer != null)
             {
                 prometheusHttpServer.close();
             }
@@ -56,19 +56,7 @@ public class PixelsSinkApp
 
         init(args);
         PixelsSinkConfig config = PixelsSinkConfigFactory.getInstance();
-        if(config.getDataSource().equals("kafka"))
-        {
-            mainProcessor = new SinkKafkaProcessor();
-        } else if(config.getDataSource().equals("engine"))
-        {
-            mainProcessor = new SinkEngineProcessor();
-        } else if(config.getDataSource().equals("storage"))
-        {
-            mainProcessor = new FasterSinkStorageProcessor();
-        } else
-        {
-            throw new IllegalStateException("Unsupported data source type: " + config.getDataSource());
-        }
+        sinkSource = SinkSourceFactory.createSinkSource();
 
         try
         {
@@ -82,7 +70,7 @@ public class PixelsSinkApp
             throw new RuntimeException(e);
         }
 
-        mainProcessor.start();
+        sinkSource.start();
     }
 
     private static void init(String[] args) throws IOException

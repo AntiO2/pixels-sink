@@ -34,17 +34,18 @@ import java.util.List;
 public class EtcdFileRegistryTest
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(EtcdFileRegistryTest.class);
+
     @Test
     public void testCreateFile()
     {
         EtcdFileRegistry etcdFileRegistry = new EtcdFileRegistry("test", "file:///tmp/test/ray");
-        for(int i = 0; i < 10; i++)
+        for (int i = 0; i < 10; i++)
         {
             String newFile = etcdFileRegistry.createNewFile();
             etcdFileRegistry.markFileCompleted(newFile);
         }
         List<String> files = etcdFileRegistry.listAllFiles();
-        for(String file : files)
+        for (String file : files)
         {
             LOGGER.info(file);
         }

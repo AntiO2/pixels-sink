@@ -21,21 +21,17 @@ package io.pixelsdb.pixels.sink.util;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.etcd.jetcd.KeyValue;
 import io.pixelsdb.pixels.common.utils.EtcdUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-
-import io.etcd.jetcd.KeyValue;
 
 /**
  * @package: io.pixelsdb.pixels.sink.util
@@ -43,52 +39,74 @@ import io.etcd.jetcd.KeyValue;
  * @author: AntiO2
  * @date: 2025/10/5 08:24
  */
-public class EtcdFileRegistry {
+public class EtcdFileRegistry
+{
     private static final Logger LOGGER = LoggerFactory.getLogger(EtcdFileRegistry.class);
 
     private static final String REGISTRY_PREFIX = "/sink/proto/registry/";
-
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private final String topic;
     private final String baseDir;
     private final EtcdUtil etcd = EtcdUtil.Instance();
     private final AtomicInteger nextFileId = new AtomicInteger(0);
     private String currentFileKey;
 
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-    public EtcdFileRegistry(String topic, String baseDir) {
+    public EtcdFileRegistry(String topic, String baseDir)
+    {
         this.topic = topic;
         this.baseDir = baseDir;
         initRegistry();
     }
 
-    private void initRegistry() {
+    public static String extractPath(String etcdValue)
+    {
+        try
+        {
+            Map meta = OBJECT_MAPPER.readValue(etcdValue, Map.class);
+            return (String) meta.get("path");
+        } catch (IOException e)
+        {
+            LOGGER.error("Failed to parse etcd value: {}", etcdValue, e);
+            return null;
+        }
+    }
+
+    private void initRegistry()
+    {
         List<KeyValue> files = etcd.getKeyValuesByPrefix(filePrefix());
-        if (!files.isEmpty()) {
+        if (!files.isEmpty())
+        {
             int maxId = files.stream()
                     .mapToInt(kv -> extractFileId(kv.getKey().toString()))
                     .max()
                     .orElse(0);
             nextFileId.set(maxId + 1);
             LOGGER.info("Initialized registry for topic {} with nextFileId={}", topic, nextFileId.get());
-        } else {
+        } else
+        {
             LOGGER.info("No existing files found for topic {}, starting fresh", topic);
         }
     }
 
-    private String topicPrefix() {
+    private String topicPrefix()
+    {
         return REGISTRY_PREFIX + topic;
     }
 
-    private String filePrefix() {
+    private String filePrefix()
+    {
         return topicPrefix() + "/files/";
     }
 
-    private int extractFileId(String key) {
-        try {
+    private int extractFileId(String key)
+    {
+        try
+        {
             String fileName = key.substring(key.lastIndexOf('/') + 1);
             String id = fileName.replace(".proto", "");
             return Integer.parseInt(id);
-        } catch (Exception e) {
+        } catch (Exception e)
+        {
             return 0;
         }
     }
@@ -96,7 +114,8 @@ public class EtcdFileRegistry {
     /**
      * Create a new file and register it in etcd.
      */
-    public synchronized String createNewFile() {
+    public synchronized String createNewFile()
+    {
         String fileName = String.format("%05d.proto", nextFileId.getAndIncrement());
         String fullPath = baseDir + "/" + topic + "/" + fileName;
 
@@ -122,29 +141,20 @@ public class EtcdFileRegistry {
         return fullPath;
     }
 
-    public synchronized String getCurrentFileKey() {
+    public synchronized String getCurrentFileKey()
+    {
         return currentFileKey;
     }
 
-    public static String extractPath(String etcdValue)
-    {
-        try
-        {
-            Map meta = OBJECT_MAPPER.readValue(etcdValue, Map.class);
-            return (String) meta.get("path");
-        } catch (IOException e)
-        {
-            LOGGER.error("Failed to parse etcd value: {}", etcdValue, e);
-            return null;
-        }
-    }
     /**
      * List all files (for readers).
      */
-    public List<String> listAllFiles() {
+    public List<String> listAllFiles()
+    {
         List<KeyValue> files = etcd.getKeyValuesByPrefix(filePrefix());
         return files.stream()
-                .map(kv -> {
+                .map(kv ->
+                {
                     String value = kv.getValue().toString();
                     return extractPath(value);
                 })
@@ -155,7 +165,8 @@ public class EtcdFileRegistry {
     /**
      * Mark a file as completed (for writer rotation).
      */
-    public void markFileCompleted(String fileName) {
+    public void markFileCompleted(String fileName)
+    {
         KeyValue kv = etcd.getKeyValue(fileName);
         if (kv == null) return;
 

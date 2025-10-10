@@ -21,13 +21,8 @@ package io.pixelsdb.pixels.sink.sink;
 
 import com.google.protobuf.ByteString;
 import io.pixelsdb.pixels.common.physical.*;
-import io.pixelsdb.pixels.common.retina.RetinaService;
-import io.pixelsdb.pixels.common.transaction.TransService;
-import io.pixelsdb.pixels.daemon.TransProto;
 import io.pixelsdb.pixels.sink.SinkProto;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
-import io.pixelsdb.pixels.sink.metadata.TableMetadataRegistry;
-import io.pixelsdb.pixels.sink.util.EtcdFileRegistry;
 import io.pixelsdb.pixels.storage.localfs.PhysicalLocalReader;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.BeforeAll;
@@ -54,79 +49,6 @@ public class TestProtoWriter
     {
         PixelsSinkConfigFactory.initialize("/home/pixels/projects/pixels-sink/src/main/resources/pixels-sink.local.properties");
 //        PixelsSinkConfigFactory.initialize("/home/ubuntu/pixels-sink/src/main/resources/pixels-sink.aws.properties");
-    }
-    @SneakyThrows
-    @Test
-    public void testWriteTransInfo()
-    {
-        ProtoWriter transWriter = new ProtoWriter();
-        int maxTx = 1000;
-
-        for (int i = 0; i < maxTx; i++)
-        {
-            transWriter.writeTrans(getTrans(i, SinkProto.TransactionStatus.BEGIN));
-            transWriter.writeTrans(getTrans(i, SinkProto.TransactionStatus.END));
-        }
-        transWriter.close();
-    }
-
-    @Test
-    public void testWriteFile() throws IOException
-    {
-        String path = "/home/pixels/projects/pixels-sink/tmp/write.dat";
-        PhysicalWriter writer = PhysicalWriterUtil.newPhysicalWriter(Storage.Scheme.file, path);
-
-        int writeNum = 3;
-
-        ByteBuffer buf = ByteBuffer.allocate(writeNum * Integer.BYTES);
-        for(int i = 0; i < 3; i++)
-        {
-            buf.putInt(i);
-        }
-        writer.append(buf);
-        writer.close();
-    }
-
-
-    @Test
-    public void testReadFile() throws IOException
-    {
-        String path = "/home/pixels/projects/pixels-sink/tmp/write.dat";
-        PhysicalLocalReader reader = (PhysicalLocalReader) PhysicalReaderUtil.newPhysicalReader(Storage.Scheme.file, path);
-
-        int writeNum = 12;
-        for(int i = 0; i < writeNum; i++)
-        {
-            reader.readLong(ByteOrder.BIG_ENDIAN);
-        }
-    }
-    @Test
-    public void testReadEmptyFile() throws IOException
-    {
-        String path = "/home/pixels/projects/pixels-sink/tmp/empty.dat";
-        PhysicalReader reader = PhysicalReaderUtil.newPhysicalReader(Storage.Scheme.file, path);
-
-        int v = reader.readInt(ByteOrder.BIG_ENDIAN);
-
-        return;
-    }
-
-    @Test
-    public void testWriteRowInfo() throws IOException
-    {
-        ProtoWriter transWriter = new ProtoWriter();
-        int maxTx = 10000000;
-        int rowCnt = 0;
-        for (int i = 0; i < maxTx; i++)
-        {
-            transWriter.writeTrans(getTrans(i, SinkProto.TransactionStatus.BEGIN));
-            for(int j = i; j < 3; j++)
-            {
-                transWriter.write(getRowRecord(rowCnt++));
-            }
-            transWriter.writeTrans(getTrans(i, SinkProto.TransactionStatus.END));
-        }
-        transWriter.close();
     }
 
     private static SinkProto.RowRecord getRowRecord(int i)
@@ -165,5 +87,79 @@ public class TestProtoWriter
         builder.setStatus(status);
         builder.setTimestamp(System.currentTimeMillis());
         return builder.build();
+    }
+
+    @SneakyThrows
+    @Test
+    public void testWriteTransInfo()
+    {
+        ProtoWriter transWriter = new ProtoWriter();
+        int maxTx = 1000;
+
+        for (int i = 0; i < maxTx; i++)
+        {
+            transWriter.writeTrans(getTrans(i, SinkProto.TransactionStatus.BEGIN));
+            transWriter.writeTrans(getTrans(i, SinkProto.TransactionStatus.END));
+        }
+        transWriter.close();
+    }
+
+    @Test
+    public void testWriteFile() throws IOException
+    {
+        String path = "/home/pixels/projects/pixels-sink/tmp/write.dat";
+        PhysicalWriter writer = PhysicalWriterUtil.newPhysicalWriter(Storage.Scheme.file, path);
+
+        int writeNum = 3;
+
+        ByteBuffer buf = ByteBuffer.allocate(writeNum * Integer.BYTES);
+        for (int i = 0; i < 3; i++)
+        {
+            buf.putInt(i);
+        }
+        writer.append(buf);
+        writer.close();
+    }
+
+    @Test
+    public void testReadFile() throws IOException
+    {
+        String path = "/home/pixels/projects/pixels-sink/tmp/write.dat";
+        PhysicalLocalReader reader = (PhysicalLocalReader) PhysicalReaderUtil.newPhysicalReader(Storage.Scheme.file, path);
+
+        int writeNum = 12;
+        for (int i = 0; i < writeNum; i++)
+        {
+            reader.readLong(ByteOrder.BIG_ENDIAN);
+        }
+    }
+
+    @Test
+    public void testReadEmptyFile() throws IOException
+    {
+        String path = "/home/pixels/projects/pixels-sink/tmp/empty.dat";
+        PhysicalReader reader = PhysicalReaderUtil.newPhysicalReader(Storage.Scheme.file, path);
+
+        int v = reader.readInt(ByteOrder.BIG_ENDIAN);
+
+        return;
+    }
+
+    @Test
+    public void testWriteRowInfo() throws IOException
+    {
+        ProtoWriter transWriter = new ProtoWriter();
+        int maxTx = 10000000;
+        int rowCnt = 0;
+        for (int i = 0; i < maxTx; i++)
+        {
+            transWriter.writeTrans(getTrans(i, SinkProto.TransactionStatus.BEGIN));
+            for (int j = i; j < 3; j++)
+            {
+                transWriter.write(getRowRecord(rowCnt++));
+            }
+            transWriter.writeTrans(getTrans(i, SinkProto.TransactionStatus.END));
+        }
+        transWriter.close();
     }
 }

@@ -25,7 +25,7 @@ import io.pixelsdb.pixels.sink.SinkProto;
 import io.pixelsdb.pixels.sink.exception.SinkException;
 import io.pixelsdb.pixels.sink.metadata.TableMetadata;
 import io.pixelsdb.pixels.sink.metadata.TableMetadataRegistry;
-import io.pixelsdb.pixels.sink.processor.MetricsFacade;
+import io.pixelsdb.pixels.sink.util.MetricsFacade;
 import io.prometheus.client.Summary;
 import lombok.Getter;
 import lombok.Setter;
@@ -35,7 +35,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 public class RowChangeEvent
@@ -135,15 +134,11 @@ public class RowChangeEvent
             keyColumnValues.add(value);
             keySize += value.size();
         }
-        keySize += Long.BYTES + (len + 1) * 2; // table id + index key
 
         ByteBuffer byteBuffer = ByteBuffer.allocate(keySize);
-
-        byteBuffer.putLong(index.getTableId()).putChar(':');
         for (ByteString value : keyColumnValues)
         {
             byteBuffer.put(value.toByteArray());
-            byteBuffer.putChar(':');
         }
 
         return IndexProto.IndexKey.newBuilder()

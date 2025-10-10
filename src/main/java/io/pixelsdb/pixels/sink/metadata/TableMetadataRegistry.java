@@ -43,6 +43,7 @@ public class TableMetadataRegistry
     private final ConcurrentMap<SchemaTableName, TableMetadata> registry = new ConcurrentHashMap<>();
     private final ConcurrentMap<Long, SchemaTableName> tableId2SchemaTableName = new ConcurrentHashMap<>();
     private List<Schema> schemas;
+
     private TableMetadataRegistry()
     {
     }
@@ -140,7 +141,7 @@ public class TableMetadataRegistry
         // metadataService
         try
         {
-            if(schemas == null)
+            if (schemas == null)
             {
                 schemas = metadataService.getSchemas();
             }

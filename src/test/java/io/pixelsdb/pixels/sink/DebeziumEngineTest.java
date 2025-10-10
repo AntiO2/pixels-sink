@@ -19,7 +19,6 @@
 package io.pixelsdb.pixels.sink;
 
 
-import io.debezium.config.Configuration;
 import io.debezium.embedded.Connect;
 import io.debezium.engine.DebeziumEngine;
 import io.debezium.engine.RecordChangeEvent;
@@ -27,7 +26,6 @@ import io.debezium.engine.format.ChangeEventFormat;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.junit.jupiter.api.Test;
 
-import javax.swing.event.ChangeEvent;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
@@ -84,13 +82,16 @@ public class DebeziumEngineTest
         ExecutorService executor = Executors.newSingleThreadExecutor();
         executor.execute(engine);
 
-        while (true) {
+        while (true)
+        {
 
         }
     }
 
-    class MyChangeConsumer implements DebeziumEngine.ChangeConsumer<RecordChangeEvent<SourceRecord>> {
-        public void handleBatch(List<RecordChangeEvent<SourceRecord>> event, DebeziumEngine.RecordCommitter<RecordChangeEvent<SourceRecord>> committer) throws InterruptedException {
+    class MyChangeConsumer implements DebeziumEngine.ChangeConsumer<RecordChangeEvent<SourceRecord>>
+    {
+        public void handleBatch(List<RecordChangeEvent<SourceRecord>> event, DebeziumEngine.RecordCommitter<RecordChangeEvent<SourceRecord>> committer) throws InterruptedException
+        {
             committer.markBatchFinished();
         }
     }
