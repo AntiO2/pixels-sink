@@ -1,4 +1,4 @@
-package io.pixelsdb.pixels.sink.sink;
+package io.pixelsdb.pixels.sink.writer;
 
 import io.pixelsdb.pixels.common.exception.RetinaException;
 import io.pixelsdb.pixels.common.exception.TransException;

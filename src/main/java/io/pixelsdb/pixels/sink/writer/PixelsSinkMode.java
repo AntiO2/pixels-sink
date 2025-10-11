@@ -15,19 +15,25 @@
  *
  */
 
-package io.pixelsdb.pixels.sink.sink;
+package io.pixelsdb.pixels.sink.writer;
 
-import io.pixelsdb.pixels.sink.SinkProto;
-import io.pixelsdb.pixels.sink.event.RowChangeEvent;
 
-import java.io.Closeable;
-
-public interface PixelsSinkWriter extends Closeable
+public enum PixelsSinkMode
 {
-    void flush();
+    CSV,
+    RETINA,
+    PROTO,
+    NONE;
 
-    boolean writeRow(RowChangeEvent rowChangeEvent);
-
-    boolean writeTrans(SinkProto.TransactionMetadata transactionMetadata);
-
+    public static PixelsSinkMode fromValue(String value)
+    {
+        for (PixelsSinkMode mode : values())
+        {
+            if (mode.name().equalsIgnoreCase(value))
+            {
+                return mode;
+            }
+        }
+        throw new RuntimeException(String.format("Can't convert %s to writer type", value));
+    }
 }

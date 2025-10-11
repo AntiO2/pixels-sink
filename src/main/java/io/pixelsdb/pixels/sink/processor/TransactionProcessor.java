@@ -20,8 +20,8 @@ package io.pixelsdb.pixels.sink.processor;
 
 import io.pixelsdb.pixels.sink.SinkProto;
 import io.pixelsdb.pixels.sink.provider.TransactionEventProvider;
-import io.pixelsdb.pixels.sink.sink.PixelsSinkWriter;
-import io.pixelsdb.pixels.sink.sink.PixelsSinkWriterFactory;
+import io.pixelsdb.pixels.sink.writer.PixelsSinkWriter;
+import io.pixelsdb.pixels.sink.writer.PixelsSinkWriterFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

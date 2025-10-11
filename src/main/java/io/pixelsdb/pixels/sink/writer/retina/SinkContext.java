@@ -15,7 +15,7 @@
  *
  */
 
-package io.pixelsdb.pixels.sink.sink.retina;
+package io.pixelsdb.pixels.sink.writer.retina;
 
 import io.pixelsdb.pixels.common.transaction.TransContext;
 import io.pixelsdb.pixels.sink.SinkProto;

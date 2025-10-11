@@ -18,7 +18,6 @@
 package io.pixelsdb.pixels.sink.event.deserializer;
 
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
-import io.pixelsdb.pixels.sink.event.deserializer.RowChangeEventJsonDeserializer;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.junit.jupiter.api.Test;
 

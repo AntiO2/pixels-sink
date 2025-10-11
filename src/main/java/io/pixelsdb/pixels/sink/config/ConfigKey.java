@@ -25,7 +25,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * @package: io.pixelsdb.pixels.sink
+ * @package: io.pixelsdb.pixels.sink.config
  * @className: ConfigKey
  * @author: AntiO2
  * @date: 2025/9/26 13:04

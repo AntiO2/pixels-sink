@@ -24,12 +24,8 @@ import io.pixelsdb.pixels.sink.event.deserializer.TransactionStructMessageDeseri
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.source.SourceRecord;
 
-import java.io.IOException;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
-
 /**
- * @package: io.pixelsdb.pixels.sink.event
+ * @package: io.pixelsdb.pixels.sink.provider
  * @className: TransactionEventEngineProvider
  * @author: AntiO2
  * @date: 2025/9/25 13:20

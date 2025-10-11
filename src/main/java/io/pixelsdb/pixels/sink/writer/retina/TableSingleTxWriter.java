@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package io.pixelsdb.pixels.sink.sink.retina;
+package io.pixelsdb.pixels.sink.writer.retina;
 
 import io.pixelsdb.pixels.retina.RetinaProto;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;

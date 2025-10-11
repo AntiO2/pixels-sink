@@ -22,69 +22,43 @@ package io.pixelsdb.pixels.sink.source;
 import io.debezium.engine.DebeziumEngine;
 import io.debezium.engine.RecordChangeEvent;
 import io.pixelsdb.pixels.common.metadata.SchemaTableName;
-import io.pixelsdb.pixels.sink.SinkProto;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
-import io.pixelsdb.pixels.sink.event.RowChangeEvent;
-import io.pixelsdb.pixels.sink.event.deserializer.RowChangeEventStructDeserializer;
-import io.pixelsdb.pixels.sink.event.deserializer.TransactionStructMessageDeserializer;
-import io.pixelsdb.pixels.sink.exception.SinkException;
 import io.pixelsdb.pixels.sink.processor.StoppableProcessor;
 import io.pixelsdb.pixels.sink.processor.TransactionProcessor;
 import io.pixelsdb.pixels.sink.provider.TableProviderAndProcessorPipelineManager;
 import io.pixelsdb.pixels.sink.provider.TransactionEventEngineProvider;
-import io.pixelsdb.pixels.sink.sink.PixelsSinkMode;
-import io.pixelsdb.pixels.sink.sink.ProtoWriter;
 import io.pixelsdb.pixels.sink.util.MetricsFacade;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.source.SourceRecord;
 
-import java.io.IOException;
 import java.util.List;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
 
 /**
- * @package: io.pixelsdb.pixels.sink
+ * @package: io.pixelsdb.pixels.source
  * @className: PixelsDebeziumConsumer
  * @author: AntiO2
  * @date: 2025/9/25 12:51
  */
 public class PixelsDebeziumConsumer implements DebeziumEngine.ChangeConsumer<RecordChangeEvent<SourceRecord>>, StoppableProcessor
 {
-    private final BlockingQueue<SourceRecord> rawTransactionQueue = new LinkedBlockingQueue<>(10000);
     private final String checkTransactionTopic;
-    private final TransactionEventEngineProvider transactionEventProvider = TransactionEventEngineProvider.INSTANCE;
+    private final TransactionEventEngineProvider<SourceRecord> transactionEventProvider = TransactionEventEngineProvider.INSTANCE;
     private final TableProviderAndProcessorPipelineManager<SourceRecord> tableProvidersManagerImpl = new TableProviderAndProcessorPipelineManager<>();
     private final TransactionProcessor processor = new TransactionProcessor(transactionEventProvider);
-    private final Thread adapterThread;
+    private final Thread transactionProviderThread;
+    private final Thread transactionProcessorThread;
     private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
-    private final PixelsSinkMode pixelsSinkMode;
-    private final ProtoWriter protoWriter;
     PixelsSinkConfig pixelsSinkConfig = PixelsSinkConfigFactory.getInstance();
 
     public PixelsDebeziumConsumer()
     {
         this.checkTransactionTopic = pixelsSinkConfig.getDebeziumTopicPrefix() + ".transaction";
-        adapterThread = new Thread(this.transactionEventProvider, "transaction-adapter");
-        adapterThread.start();
-        Thread processorThread = new Thread(processor, "debezium-processor");
-        processorThread.start();
-        pixelsSinkMode = pixelsSinkConfig.getPixelsSinkMode();
+        this.transactionProviderThread = new Thread(this.transactionEventProvider, "transaction-adapter");
+        this.transactionProcessorThread = new Thread(this.processor, "transaction-processor");
 
-        if (pixelsSinkMode == PixelsSinkMode.PROTO)
-        {
-            try
-            {
-                this.protoWriter = new ProtoWriter();
-            } catch (IOException e)
-            {
-                throw new RuntimeException(e);
-            }
-        } else
-        {
-            this.protoWriter = null;
-        }
+        this.transactionProcessorThread.start();
+        this.transactionProviderThread.start();
     }
 
 
@@ -104,49 +78,10 @@ public class PixelsDebeziumConsumer implements DebeziumEngine.ChangeConsumer<Rec
                 metricsFacade.recordDebeziumEvent();
                 if (isTransactionEvent(sourceRecord))
                 {
-                    switch (pixelsSinkMode)
-                    {
-                        case RETINA ->
-                        {
-                            handleTransactionSourceRecord(sourceRecord);
-                        }
-                        case PROTO ->
-                        {
-                            metricsFacade.recordTransaction();
-                            SinkProto.TransactionMetadata transactionMetadata = TransactionStructMessageDeserializer.convertToTransactionMetadata(sourceRecord);
-                            protoWriter.writeTrans(transactionMetadata);
-                        }
-                        default ->
-                        {
-                            throw new RuntimeException("Sink Mode " + pixelsSinkMode.toString() + "is not supported");
-                        }
-                    }
+                    handleTransactionSourceRecord(sourceRecord);
                 } else
                 {
-                    switch (pixelsSinkMode)
-                    {
-                        case RETINA ->
-                        {
-                            handleRowChangeSourceRecord(sourceRecord);
-                        }
-                        case PROTO ->
-                        {
-                            try
-                            {
-                                RowChangeEvent rowChangeEvent = RowChangeEventStructDeserializer.convertToRowChangeEvent(sourceRecord);
-                                protoWriter.writeRow(rowChangeEvent);
-                                metricsFacade.recordRowEvent();
-                            } catch (SinkException e)
-                            {
-                                throw new RuntimeException(e);
-                            }
-
-                        }
-                        default ->
-                        {
-                            throw new RuntimeException("Sink Mode " + pixelsSinkMode.toString() + "is not supported");
-                        }
-                    }
+                    handleRowChangeSourceRecord(sourceRecord);
                 }
             } finally
             {
@@ -159,7 +94,7 @@ public class PixelsDebeziumConsumer implements DebeziumEngine.ChangeConsumer<Rec
 
     private void handleTransactionSourceRecord(SourceRecord sourceRecord) throws InterruptedException
     {
-        rawTransactionQueue.put(sourceRecord);
+        transactionEventProvider.putTransRawEvent(sourceRecord);
     }
 
     private void handleRowChangeSourceRecord(SourceRecord sourceRecord)
@@ -180,17 +115,8 @@ public class PixelsDebeziumConsumer implements DebeziumEngine.ChangeConsumer<Rec
     @Override
     public void stopProcessor()
     {
-        adapterThread.interrupt();
+        transactionProviderThread.interrupt();
         processor.stopProcessor();
-        if (protoWriter != null)
-        {
-            try
-            {
-                protoWriter.close();
-            } catch (IOException e)
-            {
-                throw new RuntimeException(e);
-            }
-        }
+        transactionProcessorThread.interrupt();
     }
 }

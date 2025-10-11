@@ -26,7 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * @package: io.pixelsdb.pixels.sink.deserializer
+ * @package: io.pixelsdb.pixels.sink.event.deserializer
  * @className: TransactionStructMessageDeserializer
  * @author: AntiO2
  * @date: 2025/9/26 12:42

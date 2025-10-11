@@ -27,16 +27,13 @@ import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.errors.WakeupException;
 
-import java.io.IOException;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.Properties;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * @package: io.pixelsdb.pixels.sink.event
+ * @package: io.pixelsdb.pixels.sink.provider
  * @className: TransactionEventKafkaProvider
  * @author: AntiO2
  * @date: 2025/9/25 13:40
@@ -70,7 +67,7 @@ public class TransactionEventKafkaProvider<T> extends TransactionEventProvider<T
 
                 for (ConsumerRecord<String, SinkProto.TransactionMetadata> record : records)
                 {
-                    if(record.value() == null)
+                    if (record.value() == null)
                     {
                         continue;
                     }

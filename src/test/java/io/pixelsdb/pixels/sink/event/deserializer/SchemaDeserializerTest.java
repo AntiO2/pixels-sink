@@ -20,7 +20,6 @@ package io.pixelsdb.pixels.sink.event.deserializer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.pixelsdb.pixels.core.TypeDescription;
-import io.pixelsdb.pixels.sink.event.deserializer.SchemaDeserializer;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

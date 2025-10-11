@@ -29,7 +29,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * @package: io.pixelsdb.pixels.sink.event
+ * @package: io.pixelsdb.pixels.sink.provider
  * @className: TableProviderAndProcessorPipelineManager
  * @author: AntiO2
  * @date: 2025/9/26 10:44

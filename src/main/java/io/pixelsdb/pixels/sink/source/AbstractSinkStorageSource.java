@@ -8,7 +8,9 @@ import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.metadata.TableMetadataRegistry;
 import io.pixelsdb.pixels.sink.processor.TransactionProcessor;
-import io.pixelsdb.pixels.sink.provider.*;
+import io.pixelsdb.pixels.sink.provider.ProtoType;
+import io.pixelsdb.pixels.sink.provider.TableProviderAndProcessorPipelineManager;
+import io.pixelsdb.pixels.sink.provider.TransactionEventStorageProvider;
 import io.pixelsdb.pixels.sink.util.EtcdFileRegistry;
 import io.pixelsdb.pixels.sink.util.MetricsFacade;
 import org.slf4j.Logger;
@@ -31,20 +33,17 @@ public abstract class AbstractSinkStorageSource implements SinkSource
     protected final String baseDir;
     protected final EtcdFileRegistry etcdFileRegistry;
     protected final List<String> files;
-
-    protected TransactionEventStorageProvider transactionEventProvider;
-    protected TransactionProcessor transactionProcessor;
-
-    protected Thread transactionProviderThread;
-    protected Thread transactionProcessorThread;
-
+    protected final CompletableFuture<ByteBuffer> POISON_PILL = new CompletableFuture<>();
     private final Map<Integer, Thread> consumerThreads = new ConcurrentHashMap<>();
     private final int maxQueueCapacity = 10000;
     private final TableMetadataRegistry tableMetadataRegistry = TableMetadataRegistry.Instance();
-    protected final CompletableFuture<ByteBuffer> POISON_PILL = new CompletableFuture<>();
     private final Map<Integer, BlockingQueue<CompletableFuture<ByteBuffer>>> queueMap = new ConcurrentHashMap<>();
     private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
     private final TableProviderAndProcessorPipelineManager<ByteBuffer> tablePipelineManager = new TableProviderAndProcessorPipelineManager<ByteBuffer>();
+    protected TransactionEventStorageProvider transactionEventProvider;
+    protected TransactionProcessor transactionProcessor;
+    protected Thread transactionProviderThread;
+    protected Thread transactionProcessorThread;
 
     protected AbstractSinkStorageSource()
     {

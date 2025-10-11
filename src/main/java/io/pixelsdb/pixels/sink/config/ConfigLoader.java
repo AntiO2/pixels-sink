@@ -19,9 +19,9 @@
 package io.pixelsdb.pixels.sink.config;
 
 
-import io.pixelsdb.pixels.sink.sink.PixelsSinkMode;
-import io.pixelsdb.pixels.sink.sink.retina.RetinaServiceProxy;
-import io.pixelsdb.pixels.sink.sink.retina.TransactionMode;
+import io.pixelsdb.pixels.sink.writer.PixelsSinkMode;
+import io.pixelsdb.pixels.sink.writer.retina.RetinaServiceProxy;
+import io.pixelsdb.pixels.sink.writer.retina.TransactionMode;
 
 import java.lang.reflect.Field;
 import java.util.Properties;

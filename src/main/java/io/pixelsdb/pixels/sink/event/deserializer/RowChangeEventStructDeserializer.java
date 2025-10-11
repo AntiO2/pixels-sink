@@ -31,7 +31,7 @@ import org.apache.kafka.connect.source.SourceRecord;
 import java.util.logging.Logger;
 
 /**
- * @package: io.pixelsdb.pixels.sink.deserializer
+ * @package: io.pixelsdb.pixels.sink.event.deserializer
  * @className: RowChangeEventStructDeserializer
  * @author: AntiO2
  * @date: 2025/9/26 12:00

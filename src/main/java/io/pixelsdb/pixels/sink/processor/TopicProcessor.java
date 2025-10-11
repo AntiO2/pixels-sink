@@ -45,9 +45,9 @@ public class TopicProcessor implements StoppableProcessor, Runnable
 
     private final AtomicBoolean running = new AtomicBoolean(true);
     private final Map<String, TableEventKafkaProvider> activeTasks = new ConcurrentHashMap<>(); // track row event consumer
+    private final ExecutorService executorService = Executors.newCachedThreadPool();
     private AdminClient adminClient;
     private Timer timer;
-    private final ExecutorService executorService = Executors.newCachedThreadPool();
 
     public TopicProcessor(PixelsSinkConfig pixelsSinkConfig, Properties kafkaProperties)
     {

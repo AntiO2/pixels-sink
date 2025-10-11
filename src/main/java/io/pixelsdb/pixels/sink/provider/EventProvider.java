@@ -17,7 +17,6 @@
 
 package io.pixelsdb.pixels.sink.provider;
 
-import io.pixelsdb.pixels.sink.source.FasterSinkStorageSource;
 import io.pixelsdb.pixels.sink.util.MetricsFacade;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

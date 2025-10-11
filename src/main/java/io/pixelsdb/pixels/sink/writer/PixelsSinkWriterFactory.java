@@ -15,11 +15,11 @@
  *
  */
 
-package io.pixelsdb.pixels.sink.sink;
+package io.pixelsdb.pixels.sink.writer;
 
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
-import io.pixelsdb.pixels.sink.sink.retina.RetinaWriter;
+import io.pixelsdb.pixels.sink.writer.retina.RetinaWriter;
 
 import java.io.IOException;
 

@@ -15,15 +15,15 @@
  *
  */
 
-package io.pixelsdb.pixels.sink.sink.retina;
+package io.pixelsdb.pixels.sink.writer.retina;
 
 import io.pixelsdb.pixels.common.exception.RetinaException;
 import io.pixelsdb.pixels.common.retina.RetinaService;
 import io.pixelsdb.pixels.retina.RetinaProto;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
-import io.pixelsdb.pixels.sink.sink.PixelsSinkMode;
 import io.pixelsdb.pixels.sink.util.MetricsFacade;
+import io.pixelsdb.pixels.sink.writer.PixelsSinkMode;
 import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -117,7 +117,7 @@ public class RetinaServiceProxy
                     return mode;
                 }
             }
-            throw new RuntimeException(String.format("Can't convert %s to sink type", value));
+            throw new RuntimeException(String.format("Can't convert %s to Retina writer type", value));
         }
     }
 }

@@ -15,15 +15,19 @@
  *
  */
 
-package io.pixelsdb.pixels.sink.sink;
+package io.pixelsdb.pixels.sink.writer;
 
 import io.pixelsdb.pixels.sink.SinkProto;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
+import io.pixelsdb.pixels.sink.util.MetricsFacade;
 
 import java.io.IOException;
 
 public class NoneWriter implements PixelsSinkWriter
 {
+    private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
+
+
     @Override
     public void flush()
     {
@@ -33,12 +37,17 @@ public class NoneWriter implements PixelsSinkWriter
     @Override
     public boolean writeRow(RowChangeEvent rowChangeEvent)
     {
+        metricsFacade.recordRowEvent();
         return true;
     }
 
     @Override
     public boolean writeTrans(SinkProto.TransactionMetadata transactionMetadata)
     {
+        if (transactionMetadata.getStatus() == SinkProto.TransactionStatus.END)
+        {
+            metricsFacade.recordTransaction();
+        }
         return true;
     }
 

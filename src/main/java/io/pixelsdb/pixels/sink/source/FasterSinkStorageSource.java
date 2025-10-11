@@ -20,29 +20,14 @@ package io.pixelsdb.pixels.sink.source;
 
 
 import io.pixelsdb.pixels.common.metadata.SchemaTableName;
-import io.pixelsdb.pixels.common.physical.PhysicalReader;
-import io.pixelsdb.pixels.common.physical.PhysicalReaderUtil;
-import io.pixelsdb.pixels.common.physical.Storage;
-import io.pixelsdb.pixels.core.utils.Pair;
-import io.pixelsdb.pixels.sink.SinkProto;
-import io.pixelsdb.pixels.sink.metadata.TableMetadataRegistry;
-import io.pixelsdb.pixels.sink.processor.TransactionProcessor;
 import io.pixelsdb.pixels.sink.provider.ProtoType;
-import io.pixelsdb.pixels.sink.provider.TableProviderAndProcessorPipelineManager;
-import io.pixelsdb.pixels.sink.provider.TransactionEventEngineProvider;
-import io.pixelsdb.pixels.sink.provider.TransactionEventStorageProvider;
-import io.pixelsdb.pixels.sink.util.MetricsFacade;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.util.Map;
-import java.util.concurrent.*;
 
 /**
- * @package: io.pixelsdb.pixels.sink.processor
+ * @package: io.pixelsdb.pixels.sink.source
  * @className: LegacySinkStorageSource
  * @author: AntiO2
  * @date: 2025/10/5 11:43

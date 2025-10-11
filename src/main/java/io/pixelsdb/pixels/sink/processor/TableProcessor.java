@@ -21,13 +21,12 @@ package io.pixelsdb.pixels.sink.processor;
 
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
 import io.pixelsdb.pixels.sink.provider.TableEventProvider;
-import io.pixelsdb.pixels.sink.sink.PixelsSinkWriter;
-import io.pixelsdb.pixels.sink.sink.PixelsSinkWriterFactory;
 import io.pixelsdb.pixels.sink.util.MetricsFacade;
+import io.pixelsdb.pixels.sink.writer.PixelsSinkWriter;
+import io.pixelsdb.pixels.sink.writer.PixelsSinkWriterFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**

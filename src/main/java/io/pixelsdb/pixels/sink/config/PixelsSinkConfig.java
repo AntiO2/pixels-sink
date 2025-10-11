@@ -18,9 +18,9 @@ package io.pixelsdb.pixels.sink.config;
 
 import io.pixelsdb.pixels.common.utils.ConfigFactory;
 import io.pixelsdb.pixels.sink.event.deserializer.RowChangeEventJsonDeserializer;
-import io.pixelsdb.pixels.sink.sink.PixelsSinkMode;
-import io.pixelsdb.pixels.sink.sink.retina.RetinaServiceProxy;
-import io.pixelsdb.pixels.sink.sink.retina.TransactionMode;
+import io.pixelsdb.pixels.sink.writer.PixelsSinkMode;
+import io.pixelsdb.pixels.sink.writer.retina.RetinaServiceProxy;
+import io.pixelsdb.pixels.sink.writer.retina.TransactionMode;
 import lombok.Getter;
 import org.apache.kafka.common.serialization.StringDeserializer;
 

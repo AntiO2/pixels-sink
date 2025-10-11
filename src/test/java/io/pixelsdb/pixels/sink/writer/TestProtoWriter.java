@@ -16,7 +16,7 @@
  */
 
 
-package io.pixelsdb.pixels.sink.sink;
+package io.pixelsdb.pixels.sink.writer;
 
 
 import com.google.protobuf.ByteString;
@@ -34,7 +34,7 @@ import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 
 /**
- * @package: io.pixelsdb.pixels.sink.sink
+ * @package: io.pixelsdb.pixels.sink.writer
  * @className: TestProtoWriter
  * @author: AntiO2
  * @date: 2025/10/5 09:24
@@ -47,8 +47,8 @@ public class TestProtoWriter
     @BeforeAll
     public static void setUp() throws IOException
     {
-        PixelsSinkConfigFactory.initialize("/home/pixels/projects/pixels-sink/src/main/resources/pixels-sink.local.properties");
-//        PixelsSinkConfigFactory.initialize("/home/ubuntu/pixels-sink/src/main/resources/pixels-sink.aws.properties");
+        PixelsSinkConfigFactory.initialize("/home/pixels/projects/pixels-writer/src/main/resources/pixels-writer.local.properties");
+//        PixelsSinkConfigFactory.initialize("/home/ubuntu/pixels-writer/src/main/resources/pixels-writer.aws.properties");
     }
 
     private static SinkProto.RowRecord getRowRecord(int i)
@@ -107,7 +107,7 @@ public class TestProtoWriter
     @Test
     public void testWriteFile() throws IOException
     {
-        String path = "/home/pixels/projects/pixels-sink/tmp/write.dat";
+        String path = "/home/pixels/projects/pixels-writer/tmp/write.dat";
         PhysicalWriter writer = PhysicalWriterUtil.newPhysicalWriter(Storage.Scheme.file, path);
 
         int writeNum = 3;
@@ -124,7 +124,7 @@ public class TestProtoWriter
     @Test
     public void testReadFile() throws IOException
     {
-        String path = "/home/pixels/projects/pixels-sink/tmp/write.dat";
+        String path = "/home/pixels/projects/pixels-writer/tmp/write.dat";
         PhysicalLocalReader reader = (PhysicalLocalReader) PhysicalReaderUtil.newPhysicalReader(Storage.Scheme.file, path);
 
         int writeNum = 12;
@@ -137,7 +137,7 @@ public class TestProtoWriter
     @Test
     public void testReadEmptyFile() throws IOException
     {
-        String path = "/home/pixels/projects/pixels-sink/tmp/empty.dat";
+        String path = "/home/pixels/projects/pixels-writer/tmp/empty.dat";
         PhysicalReader reader = PhysicalReaderUtil.newPhysicalReader(Storage.Scheme.file, path);
 
         int v = reader.readInt(ByteOrder.BIG_ENDIAN);

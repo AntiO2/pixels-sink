@@ -20,7 +20,7 @@ package io.pixelsdb.pixels.sink.provider;
 
 
 /**
- * @package: io.pixelsdb.pixels.sink.event
+ * @package: io.pixelsdb.pixels.sink.provider
  * @className: ProtoType
  * @author: AntiO2
  * @date: 2025/10/5 12:56

@@ -16,7 +16,7 @@
  */
 
 
-package io.pixelsdb.pixels.sink.sink;
+package io.pixelsdb.pixels.sink.writer;
 
 
 import io.pixelsdb.pixels.common.physical.PhysicalWriter;
@@ -29,7 +29,7 @@ import io.pixelsdb.pixels.sink.util.EtcdFileRegistry;
 import java.io.IOException;
 
 /**
- * @package: io.pixelsdb.pixels.sink.sink
+ * @package: io.pixelsdb.pixels.sink.writer
  * @className: RotatingWriterManager
  * @author: AntiO2
  * @date: 2025/10/5 07:34

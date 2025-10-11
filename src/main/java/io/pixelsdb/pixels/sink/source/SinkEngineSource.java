@@ -27,12 +27,6 @@ import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-/**
- * @package: PACKAGE_NAME
- * @className: io.pixelsdb.pixels.sink.source.SinkEngineSource
- * @author: AntiO2
- * @date: 2025/9/25 09:17
- */
 public class SinkEngineSource implements SinkSource
 {
     private final PixelsDebeziumConsumer consumer;

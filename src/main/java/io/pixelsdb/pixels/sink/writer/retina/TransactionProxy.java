@@ -15,7 +15,7 @@
  *
  */
 
-package io.pixelsdb.pixels.sink.sink.retina;
+package io.pixelsdb.pixels.sink.writer.retina;
 
 import io.pixelsdb.pixels.common.exception.TransException;
 import io.pixelsdb.pixels.common.transaction.TransContext;

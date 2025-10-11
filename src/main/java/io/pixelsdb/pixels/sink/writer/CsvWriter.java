@@ -14,7 +14,7 @@
  * limitations under the License.
  *
  */
-package io.pixelsdb.pixels.sink.sink;
+package io.pixelsdb.pixels.sink.writer;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.pixelsdb.pixels.sink.SinkProto;

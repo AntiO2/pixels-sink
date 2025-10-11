@@ -24,7 +24,6 @@ import io.pixelsdb.pixels.common.physical.PhysicalReader;
 import io.pixelsdb.pixels.common.physical.PhysicalReaderUtil;
 import io.pixelsdb.pixels.common.physical.Storage;
 import io.pixelsdb.pixels.core.utils.Pair;
-import io.pixelsdb.pixels.sink.SinkProto;
 import io.pixelsdb.pixels.sink.metadata.TableMetadataRegistry;
 import io.pixelsdb.pixels.sink.processor.TransactionProcessor;
 import io.pixelsdb.pixels.sink.provider.ProtoType;
@@ -41,7 +40,7 @@ import java.util.Map;
 import java.util.concurrent.*;
 
 /**
- * @package: io.pixelsdb.pixels.sink.processor
+ * @package: io.pixelsdb.pixels.sink.source
  * @className: LegacySinkStorageSource
  * @author: AntiO2
  * @date: 2025/10/5 11:43

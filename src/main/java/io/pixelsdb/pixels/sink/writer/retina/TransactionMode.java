@@ -15,7 +15,7 @@
  *
  */
 
-package io.pixelsdb.pixels.sink.sink.retina;
+package io.pixelsdb.pixels.sink.writer.retina;
 
 public enum TransactionMode
 {

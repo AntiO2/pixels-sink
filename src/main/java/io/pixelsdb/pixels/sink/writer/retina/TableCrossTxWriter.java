@@ -16,7 +16,7 @@
  */
 
 
-package io.pixelsdb.pixels.sink.sink.retina;
+package io.pixelsdb.pixels.sink.writer.retina;
 
 
 import io.pixelsdb.pixels.retina.RetinaProto;
@@ -33,7 +33,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * @package: io.pixelsdb.pixels.sink.sink
+ * @package: io.pixelsdb.pixels.sink.writer.retina
  * @className: TableCrossTxWriter
  * @author: AntiO2
  * @date: 2025/9/27 09:36

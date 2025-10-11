@@ -28,7 +28,7 @@ import org.slf4j.LoggerFactory;
 
 
 /**
- * @package: io.pixelsdb.pixels.sink.event
+ * @package: io.pixelsdb.pixels.sink.provider
  * @className: TableEventEngineProvider
  * @author: AntiO2
  * @date: 2025/9/26 10:45

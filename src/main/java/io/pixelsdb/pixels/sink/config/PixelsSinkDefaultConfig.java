@@ -29,16 +29,9 @@ public class PixelsSinkDefaultConfig
 
     public static final int SINK_THREAD = 32;
     public static final int SINK_CONSUMER_THREAD = 8;
-    //    sink.remote.host=localhost
-//    sink.remote.port=229422
-//    sink.batch.size=100
-//    sink.timeout.ms=5000
-//    sink.flush.interval.ms=5000
-//    sink.max.retries=3
 
     // Transaction Service
     public static final int TRANSACTION_BATCH_SIZE = 100;
-
 
     // REMOTE BUFFER
     public static final String SINK_REMOTE_HOST = "localhost";

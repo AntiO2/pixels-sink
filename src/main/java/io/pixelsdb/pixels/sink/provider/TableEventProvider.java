@@ -21,7 +21,7 @@ package io.pixelsdb.pixels.sink.provider;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
 
 /**
- * @package: io.pixelsdb.pixels.sink.event
+ * @package: io.pixelsdb.pixels.sink.provider
  * @className: TableEventProvider
  * @author: AntiO2
  * @date: 2025/9/26 07:47

@@ -21,7 +21,7 @@ package io.pixelsdb.pixels.sink.source;
 import io.pixelsdb.pixels.sink.processor.StoppableProcessor;
 
 /**
- * @package: io.pixelsdb.pixels.sink.processor
+ * @package: io.pixelsdb.pixels.sink.source
  * @className: SinkSource
  * @author: AntiO2
  * @date: 2025/9/26 13:45

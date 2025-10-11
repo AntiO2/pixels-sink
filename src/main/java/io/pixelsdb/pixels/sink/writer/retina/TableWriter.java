@@ -16,7 +16,7 @@
  */
 
 
-package io.pixelsdb.pixels.sink.sink.retina;
+package io.pixelsdb.pixels.sink.writer.retina;
 
 
 import io.pixelsdb.pixels.retina.RetinaProto;
@@ -37,7 +37,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * @package: io.pixelsdb.pixels.sink.sink
+ * @package: io.pixelsdb.pixels.sink.writer.retina
  * @className: TableWriter
  * @author: AntiO2
  * @date: 2025/9/27 09:58

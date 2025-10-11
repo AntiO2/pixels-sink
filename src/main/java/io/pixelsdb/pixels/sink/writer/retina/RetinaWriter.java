@@ -15,7 +15,7 @@
  *
  */
 
-package io.pixelsdb.pixels.sink.sink.retina;
+package io.pixelsdb.pixels.sink.writer.retina;
 
 import io.pixelsdb.pixels.common.exception.TransException;
 import io.pixelsdb.pixels.common.transaction.TransService;
@@ -24,8 +24,8 @@ import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
 import io.pixelsdb.pixels.sink.exception.SinkException;
-import io.pixelsdb.pixels.sink.sink.PixelsSinkWriter;
 import io.pixelsdb.pixels.sink.util.MetricsFacade;
+import io.pixelsdb.pixels.sink.writer.PixelsSinkWriter;
 import io.prometheus.client.Summary;
 import org.apache.commons.lang3.RandomUtils;
 import org.slf4j.Logger;

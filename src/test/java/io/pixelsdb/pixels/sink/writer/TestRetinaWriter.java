@@ -1,4 +1,4 @@
-package io.pixelsdb.pixels.sink.sink;
+package io.pixelsdb.pixels.sink.writer;
 
 import com.google.protobuf.ByteString;
 import io.pixelsdb.pixels.common.exception.RetinaException;
@@ -13,9 +13,9 @@ import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
 import io.pixelsdb.pixels.sink.exception.SinkException;
 import io.pixelsdb.pixels.sink.metadata.TableMetadataRegistry;
-import io.pixelsdb.pixels.sink.sink.retina.RetinaServiceProxy;
-import io.pixelsdb.pixels.sink.sink.retina.TransactionProxy;
 import io.pixelsdb.pixels.sink.util.DateUtil;
+import io.pixelsdb.pixels.sink.writer.retina.RetinaServiceProxy;
+import io.pixelsdb.pixels.sink.writer.retina.TransactionProxy;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
