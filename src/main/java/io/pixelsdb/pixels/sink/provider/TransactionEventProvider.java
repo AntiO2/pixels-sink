@@ -30,4 +30,9 @@ public abstract class TransactionEventProvider<SOURCE_RECORD_T> extends EventPro
     {
         return getTargetEvent();
     }
+
+    final protected void recordSerdEvent()
+    {
+        metricsFacade.recordSerdTxChange();
+    }
 }

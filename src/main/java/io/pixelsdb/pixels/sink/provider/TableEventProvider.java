@@ -28,13 +28,23 @@ import io.pixelsdb.pixels.sink.event.RowChangeEvent;
  */
 public abstract class TableEventProvider<SOURCE_RECORD_T> extends EventProvider<SOURCE_RECORD_T, RowChangeEvent>
 {
+    protected void putRowChangeEvent(RowChangeEvent rowChangeEvent)
+    {
+        putTargetEvent(rowChangeEvent);
+    }
+
     public RowChangeEvent getRowChangeEvent()
     {
         return getTargetEvent();
     }
 
-    protected void putRowChangeEvent(RowChangeEvent rowChangeEvent)
+    protected void putRawRowChangeEvent(SOURCE_RECORD_T record)
     {
-        putTargetEvent(rowChangeEvent);
+        putRawEvent(record);
+    }
+
+    final protected void recordSerdEvent()
+    {
+        metricsFacade.recordSerdRowChange();
     }
 }

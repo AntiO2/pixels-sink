@@ -40,7 +40,7 @@ public abstract class AbstractSinkStorageSource implements SinkSource
     private final Map<Integer, BlockingQueue<CompletableFuture<ByteBuffer>>> queueMap = new ConcurrentHashMap<>();
     private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
     private final TableProviderAndProcessorPipelineManager<ByteBuffer> tablePipelineManager = new TableProviderAndProcessorPipelineManager<ByteBuffer>();
-    protected TransactionEventStorageProvider transactionEventProvider;
+    protected TransactionEventStorageProvider<ByteBuffer> transactionEventProvider;
     protected TransactionProcessor transactionProcessor;
     protected Thread transactionProviderThread;
     protected Thread transactionProcessorThread;

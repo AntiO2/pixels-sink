@@ -56,6 +56,7 @@ public class TableProviderAndProcessorPipelineManager<SOURCE_RECORD_T>
                     new TableProcessor(newPipeline)
             );
             tableProcessor.run();
+            newPipeline.run();
             return newPipeline;
         });
         pipeline.putRawEvent(record);
@@ -67,7 +68,7 @@ public class TableProviderAndProcessorPipelineManager<SOURCE_RECORD_T>
         if (recordType == SourceRecord.class)
         {
             return new TableEventEngineProvider<>();
-        } else if (recordType == ByteBuffer.class)
+        } else if (ByteBuffer.class.isAssignableFrom(recordType))
         {
             return new TableEventStorageProvider<>();
         } else

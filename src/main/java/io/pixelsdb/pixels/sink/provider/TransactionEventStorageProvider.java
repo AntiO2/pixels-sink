@@ -28,16 +28,13 @@ public class TransactionEventStorageProvider<T> extends TransactionEventProvider
     SinkProto.TransactionMetadata convertToTargetRecord(T record)
     {
         ByteBuffer buffer = (ByteBuffer) record;
-
         try
         {
             SinkProto.TransactionMetadata tx = SinkProto.TransactionMetadata.parseFrom(buffer);
-            metricsFacade.recordSerdTxChange();
             return tx;
         } catch (InvalidProtocolBufferException e)
         {
             throw new RuntimeException(e);
         }
-
     }
 }

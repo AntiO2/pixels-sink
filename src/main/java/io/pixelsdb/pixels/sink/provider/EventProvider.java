@@ -39,15 +39,20 @@ public abstract class EventProvider<SOURCE_RECORD_T, TARGET_RECORD_T> implements
     private final BlockingQueue<TARGET_RECORD_T> eventQueue = new LinkedBlockingQueue<>(10000);
     private final ExecutorService decodeExecutor = Executors.newFixedThreadPool(THREAD_NUM);
 
+    private Thread providerThread;
+
+
     @Override
     public void run()
     {
-        processLoop();
+        providerThread = new Thread(this::processLoop);
+        providerThread.start();
     }
 
     @Override
     public void close()
     {
+        this.providerThread.interrupt();
         decodeExecutor.shutdown();
     }
 
@@ -98,7 +103,7 @@ public abstract class EventProvider<SOURCE_RECORD_T, TARGET_RECORD_T> implements
                         TARGET_RECORD_T event = future.get();
                         if (event != null)
                         {
-                            metricsFacade.recordSerdRowChange();
+                            recordSerdEvent();
                             putTargetEvent(event);
                         }
                     } catch (ExecutionException e)
@@ -139,7 +144,7 @@ public abstract class EventProvider<SOURCE_RECORD_T, TARGET_RECORD_T> implements
         }
     }
 
-    void putRawEvent(SOURCE_RECORD_T record)
+    protected void putRawEvent(SOURCE_RECORD_T record)
     {
         try
         {
@@ -172,4 +177,6 @@ public abstract class EventProvider<SOURCE_RECORD_T, TARGET_RECORD_T> implements
             return null;
         }
     }
+
+    abstract protected void recordSerdEvent();
 }
