@@ -44,6 +44,7 @@ public abstract class AbstractSinkStorageSource implements SinkSource
     protected TransactionProcessor transactionProcessor;
     protected Thread transactionProviderThread;
     protected Thread transactionProcessorThread;
+    private final boolean storageLoopEnabled;
 
     protected AbstractSinkStorageSource()
     {
@@ -52,6 +53,7 @@ public abstract class AbstractSinkStorageSource implements SinkSource
         this.baseDir = pixelsSinkConfig.getSinkProtoDir();
         this.etcdFileRegistry = new EtcdFileRegistry(topic, baseDir);
         this.files = this.etcdFileRegistry.listAllFiles();
+        this.storageLoopEnabled = pixelsSinkConfig.isSinkStorageLoop();
 
         this.transactionEventProvider = new TransactionEventStorageProvider<>();
         this.transactionProviderThread = new Thread(transactionEventProvider);
@@ -70,69 +72,71 @@ public abstract class AbstractSinkStorageSource implements SinkSource
     @Override
     public void start()
     {
+        this.running.set(true);
         this.transactionProcessorThread.start();
         this.transactionProviderThread.start();
-        for (String file : files)
-        {
-            Storage.Scheme scheme = Storage.Scheme.fromPath(file);
-            LOGGER.info("Start read from file {}", file);
-            try (PhysicalReader reader = PhysicalReaderUtil.newPhysicalReader(scheme, file))
+        do {
+            for (String file : files)
             {
-                long offset = 0;
-                BlockingQueue<Pair<ByteBuffer, CompletableFuture<ByteBuffer>>> rowQueue = new LinkedBlockingQueue<>();
-                BlockingQueue<CompletableFuture<ByteBuffer>> transQueue = new LinkedBlockingQueue<>();
-                while (true)
+                Storage.Scheme scheme = Storage.Scheme.fromPath(file);
+                LOGGER.info("Start read from file {}", file);
+                try (PhysicalReader reader = PhysicalReaderUtil.newPhysicalReader(scheme, file))
                 {
-                    try
+                    long offset = 0;
+                    BlockingQueue<Pair<ByteBuffer, CompletableFuture<ByteBuffer>>> rowQueue = new LinkedBlockingQueue<>();
+                    BlockingQueue<CompletableFuture<ByteBuffer>> transQueue = new LinkedBlockingQueue<>();
+                    while (true)
                     {
-                        int key, valueLen;
-                        reader.seek(offset);
                         try
                         {
-                            key = reader.readInt(ByteOrder.BIG_ENDIAN);
-                            valueLen = reader.readInt(ByteOrder.BIG_ENDIAN);
-                        } catch (IOException e)
+                            int key, valueLen;
+                            reader.seek(offset);
+                            try
+                            {
+                                key = reader.readInt(ByteOrder.BIG_ENDIAN);
+                                valueLen = reader.readInt(ByteOrder.BIG_ENDIAN);
+                            } catch (IOException e)
+                            {
+                                // EOF
+                                break;
+                            }
+
+                            ProtoType protoType = getProtoType(key);
+                            offset += Integer.BYTES * 2;
+                            CompletableFuture<ByteBuffer> valueFuture = reader.readAsync(offset, valueLen)
+                                    .thenApply(this::copyToHeap)
+                                    .thenApply(buf -> buf.order(ByteOrder.BIG_ENDIAN));
+                            // move offset for next record
+                            offset += valueLen;
+
+
+                            // Get or create queue
+                            BlockingQueue<CompletableFuture<ByteBuffer>> queue =
+                                    queueMap.computeIfAbsent(key,
+                                            k -> new LinkedBlockingQueue<>(maxQueueCapacity));
+
+                            // Put future in queue
+                            queue.put(valueFuture);
+
+                            // Start consumer thread if not exists
+                            consumerThreads.computeIfAbsent(key, k ->
+                            {
+                                Thread t = new Thread(() -> consumeQueue(k, queue, protoType));
+                                t.setName("consumer-" + key);
+                                t.start();
+                                return t;
+                            });
+                        } catch (IOException | InterruptedException e)
                         {
-                            // EOF
                             break;
                         }
-
-                        ProtoType protoType = getProtoType(key);
-                        offset += Integer.BYTES * 2;
-                        CompletableFuture<ByteBuffer> valueFuture = reader.readAsync(offset, valueLen)
-                                .thenApply(this::copyToHeap)
-                                .thenApply(buf -> buf.order(ByteOrder.BIG_ENDIAN));
-                        // move offset for next record
-                        offset += valueLen;
-
-
-                        // Get or create queue
-                        BlockingQueue<CompletableFuture<ByteBuffer>> queue =
-                                queueMap.computeIfAbsent(key,
-                                        k -> new LinkedBlockingQueue<>(maxQueueCapacity));
-
-                        // Put future in queue
-                        queue.put(valueFuture);
-
-                        // Start consumer thread if not exists
-                        consumerThreads.computeIfAbsent(key, k ->
-                        {
-                            Thread t = new Thread(() -> consumeQueue(k, queue, protoType));
-                            t.setName("consumer-" + key);
-                            t.start();
-                            return t;
-                        });
-                    } catch (IOException | InterruptedException e)
-                    {
-                        break;
                     }
+                } catch (IOException e)
+                {
+                    throw new RuntimeException(e);
                 }
-            } catch (IOException e)
-            {
-                throw new RuntimeException(e);
             }
-
-        }
+        } while (storageLoopEnabled && isRunning());
 
         // signal all queues to stop
         queueMap.values().forEach(q ->
@@ -201,16 +205,16 @@ public abstract class AbstractSinkStorageSource implements SinkSource
         tablePipelineManager.routeRecord(key, dataBuffer);
     }
 
-
     @Override
     public boolean isRunning()
     {
-        return false;
+        return running.get();
     }
 
     @Override
     public void stopProcessor()
     {
+        running.set(false);
         transactionProviderThread.interrupt();
         transactionProcessorThread.interrupt();
         transactionProcessor.stopProcessor();

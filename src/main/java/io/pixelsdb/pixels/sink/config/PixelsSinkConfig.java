@@ -150,6 +150,10 @@ public class PixelsSinkConfig
     @ConfigKey(value = "sink.proto.maxRecords", defaultValue = PixelsSinkDefaultConfig.MAX_RECORDS_PER_FILE)
     private int maxRecordsPerFile;
 
+    @ConfigKey(value = "sink.storage.loop", defaultValue = "false")
+    private boolean sinkStorageLoop;
+
+
     public PixelsSinkConfig(String configFilePath) throws IOException
     {
         this.config = ConfigFactory.Instance();

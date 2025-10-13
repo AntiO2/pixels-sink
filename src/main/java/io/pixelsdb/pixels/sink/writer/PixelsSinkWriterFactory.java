@@ -44,12 +44,16 @@ public class PixelsSinkWriterFactory
                         {
                             case CSV:
                                 writer = new CsvWriter();
+                                break;
                             case RETINA:
                                 writer = new RetinaWriter();
+                                break;
                             case PROTO:
                                 writer = new ProtoWriter();
+                                break;
                             case NONE:
                                 writer = new NoneWriter();
+                                break;
                         }
                     } catch (IOException e)
                     {

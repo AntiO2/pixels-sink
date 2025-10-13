@@ -108,7 +108,7 @@ public abstract class EventProvider<SOURCE_RECORD_T, TARGET_RECORD_T> implements
                         }
                     } catch (ExecutionException e)
                     {
-                        LOGGER.warn("Decode failed: " + e.getCause());
+                        LOGGER.warn("Decode failed: {}", String.valueOf(e.getCause()));
                     }
                 }
             } catch (InterruptedException e)

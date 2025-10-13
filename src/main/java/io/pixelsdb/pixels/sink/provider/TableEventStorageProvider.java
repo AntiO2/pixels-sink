@@ -51,10 +51,7 @@ public class TableEventStorageProvider<T> extends TableEventProvider<T>
         {
             SinkProto.RowRecord rowRecord = SinkProto.RowRecord.parseFrom(sourceRecord);
             return RowChangeEventStructDeserializer.convertToRowChangeEvent(rowRecord);
-        } catch (InvalidProtocolBufferException e)
-        {
-            throw new RuntimeException(e);
-        } catch (SinkException e)
+        } catch (InvalidProtocolBufferException | SinkException e)
         {
             LOGGER.warning(e.getMessage());
             return null;

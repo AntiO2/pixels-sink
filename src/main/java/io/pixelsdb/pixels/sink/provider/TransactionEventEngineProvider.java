@@ -45,9 +45,6 @@ public class TransactionEventEngineProvider<T> extends TransactionEventProvider<
     {
         SourceRecord sourceRecord = (SourceRecord) record;
         Struct value = (Struct) sourceRecord.value();
-        metricsFacade.recordSerdTxChange();
         return TransactionStructMessageDeserializer.convertToTransactionMetadata(value);
     }
-
-
 }
