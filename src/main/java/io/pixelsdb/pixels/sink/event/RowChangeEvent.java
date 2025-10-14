@@ -17,11 +17,14 @@
 
 package io.pixelsdb.pixels.sink.event;
 
+import com.google.common.hash.Hashing;
 import com.google.protobuf.ByteString;
 import io.pixelsdb.pixels.common.metadata.domain.SinglePointIndex;
 import io.pixelsdb.pixels.core.TypeDescription;
 import io.pixelsdb.pixels.index.IndexProto;
 import io.pixelsdb.pixels.sink.SinkProto;
+import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
+import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.exception.SinkException;
 import io.pixelsdb.pixels.sink.metadata.TableMetadata;
 import io.pixelsdb.pixels.sink.metadata.TableMetadataRegistry;
@@ -29,6 +32,7 @@ import io.pixelsdb.pixels.sink.util.MetricsFacade;
 import io.prometheus.client.Summary;
 import lombok.Getter;
 import lombok.Setter;
+import org.apache.logging.log4j.core.util.Assert;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -63,10 +67,17 @@ public class RowChangeEvent
     @Getter
     private IndexProto.IndexKey afterKey;
 
+    private  boolean indexKeyInited = false;
+
+    @Getter
+    private final long tableId;
+
     public RowChangeEvent(SinkProto.RowRecord rowRecord) throws SinkException
     {
         this.rowRecord = rowRecord;
-        this.schema = TableMetadataRegistry.Instance().getTypeDescription(getSchemaName(), getTable());
+        TableMetadataRegistry tableMetadataRegistry = TableMetadataRegistry.Instance();
+        this.schema = tableMetadataRegistry.getTypeDescription(getSchemaName(), getTable());
+        this.tableId = tableMetadataRegistry.getTableId(getSchemaName(), getTable());
         initColumnValueMap();
         initIndexKey();
     }
@@ -75,6 +86,9 @@ public class RowChangeEvent
     {
         this.rowRecord = rowRecord;
         this.schema = schema;
+
+        TableMetadataRegistry tableMetadataRegistry = TableMetadataRegistry.Instance();
+        this.tableId = tableMetadataRegistry.getTableId(getSchemaName(), getTable());
         initColumnValueMap();
         // initIndexKey();
     }
@@ -102,6 +116,11 @@ public class RowChangeEvent
 
     public void initIndexKey() throws SinkException
     {
+        if(indexKeyInited)
+        {
+            return;
+        }
+
         this.tableMetadata = TableMetadataRegistry.Instance().getMetadata(
                 this.rowRecord.getSource().getDb(),
                 this.rowRecord.getSource().getTable());
@@ -119,7 +138,43 @@ public class RowChangeEvent
         {
             this.afterKey = generateIndexKey(tableMetadata, afterValueMap);
         }
+
+        indexKeyInited = true;
     }
+
+    public int getBucketFromIndex()
+    {
+        assert indexKeyInited;
+
+        if(hasBeforeData())
+        {
+            return getBucketFromIndexKey(beforeKey);
+        }
+
+        if(hasAfterData())
+        {
+            return getBucketFromIndexKey(afterKey);
+        }
+
+        return 0;
+    }
+
+    protected static int getBucketFromIndexKey(IndexProto.IndexKey indexKey)
+    {
+        return getBucketIdFromByteBuffer(indexKey.getKey());
+    }
+
+    protected static int getBucketIdFromByteBuffer(ByteString byteString)
+    {
+        PixelsSinkConfig pixelsSinkConfig = PixelsSinkConfigFactory.getInstance();
+        int bucketNum = pixelsSinkConfig.getRetinaBucketNum();
+        int hash = Math.abs(Hashing.murmur3_32_fixed()
+                .hashBytes(byteString.toByteArray())
+                .asInt());
+
+        return hash % bucketNum;
+    }
+
 
     private IndexProto.IndexKey generateIndexKey(TableMetadata tableMetadata, Map<String, SinkProto.ColumnValue> rowValue)
     {

@@ -11,7 +11,8 @@ SINK_DIR=$(dirname "$SOURCE_PATH")
 # Application properties file
 #PROPERTIES_FILE="/home/ubuntu/pixels-sink/src/main/resources/pixels-sink.aws.properties"
 #PROPERTIES_FILE="/home/pixels/projects/pixels-sink/src/main/resources/pixels-sink.local.properties"
-PROPERTIES_FILE="${SINK_DIR}/conf/pixels-sink.pg.properties"
+#PROPERTIES_FILE="${SINK_DIR}/conf/pixels-sink.pg.properties"
+PROPERTIES_FILE="${SINK_DIR}/conf/pixels-sink.aws.properties"
 
 # JVM config file
 JVM_CONFIG_FILE="${SINK_DIR}/conf/jvm.conf"

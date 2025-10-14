@@ -44,11 +44,13 @@ public class TableCrossTxWriter extends TableWriter
     private final Logger LOGGER = LoggerFactory.getLogger(TableCrossTxWriter.class);
     private final int flushBatchSize;
     private final ReentrantLock writeLock = new ReentrantLock();
+    private final int bucketId;
 
-    public TableCrossTxWriter(String t)
+    public TableCrossTxWriter(String t, int bucketId)
     {
         super(t);
         flushBatchSize = config.getFlushBatchSize();
+        this.bucketId = bucketId;
     }
 
     /**
@@ -89,7 +91,7 @@ public class TableCrossTxWriter extends TableWriter
                 {
                     if (smallBatch != null && !smallBatch.isEmpty())
                     {
-                        tableUpdateData.add(buildTableUpdateDataFromBatch(txId, smallBatch));
+                        tableUpdateData.add(buildTableUpdateDataFromBatch(txId, smallBatch).setBucket(bucketId).build());
                         tableUpdateCount.add(smallBatch.size());
                     }
                     txIds.add(currTxId);
@@ -102,7 +104,7 @@ public class TableCrossTxWriter extends TableWriter
 
             if (smallBatch != null)
             {
-                tableUpdateData.add(buildTableUpdateDataFromBatch(txId, smallBatch));
+                tableUpdateData.add(buildTableUpdateDataFromBatch(txId, smallBatch).setBucket(bucketId).build());
                 tableUpdateCount.add(smallBatch.size());
             }
 
@@ -131,7 +133,7 @@ public class TableCrossTxWriter extends TableWriter
         }
     }
 
-    private RetinaProto.TableUpdateData buildTableUpdateDataFromBatch(String txId, List<RowChangeEvent> smallBatch)
+    private RetinaProto.TableUpdateData.Builder buildTableUpdateDataFromBatch(String txId, List<RowChangeEvent> smallBatch)
     {
         SinkContext sinkContext = SinkContextManager.getInstance().getSinkContext(txId);
         try
@@ -165,7 +167,7 @@ public class TableCrossTxWriter extends TableWriter
         {
             throw new RuntimeException("Flush failed for table " + tableName, e);
         }
-        return builder.build();
+        return builder;
     }
 
     @Override

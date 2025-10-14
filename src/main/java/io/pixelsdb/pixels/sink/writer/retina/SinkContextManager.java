@@ -30,6 +30,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class SinkContextManager
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(SinkContextManager.class);
+    private static final Logger BUCKET_TRACE_LOGGER = LoggerFactory.getLogger("bucket_trace");
+
     private final static SinkContextManager INSTANCE = new SinkContextManager();
 
     private final ConcurrentMap<String, SinkContext> activeTxContexts = new ConcurrentHashMap<>();
@@ -119,7 +121,10 @@ public class SinkContextManager
         String table = event.getTable();
         event.setTimeStamp(ctx.getTimestamp());
         event.initIndexKey();
-        tableWriterProxy.getTableWriter(table).write(event, ctx);
+        int bucket = event.getBucketFromIndex();
+        long tableId = event.getTableId();
+        BUCKET_TRACE_LOGGER.info("{}\t{}\t{}", tableId, bucket, event.getAfterKey().getKey().asReadOnlyByteBuffer().getInt());
+        tableWriterProxy.getTableWriter(table, tableId, bucket).write(event, ctx);
     }
 
     protected SinkContext getSinkContext(String txId)

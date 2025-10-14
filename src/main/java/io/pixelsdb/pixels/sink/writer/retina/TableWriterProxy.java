@@ -28,7 +28,9 @@ public class TableWriterProxy
     private final static TableWriterProxy INSTANCE = new TableWriterProxy();
 
     private final TransactionMode transactionMode;
-    private final Map<String, TableWriter> WRITER_REGISTRY = new ConcurrentHashMap<>();
+
+    record TableKey(long tableId, int bucket) { }
+    private final Map<TableKey, TableWriter> WRITER_REGISTRY = new ConcurrentHashMap<>();
 
     private TableWriterProxy()
     {
@@ -41,19 +43,21 @@ public class TableWriterProxy
         return INSTANCE;
     }
 
-    protected TableWriter getTableWriter(String tableName)
+    protected TableWriter getTableWriter(String tableName, long tableId, int bucket)
     {
-        return WRITER_REGISTRY.computeIfAbsent(tableName, t ->
+        // warn: we assume table id is less than INT.MAX
+        TableKey key = new TableKey(tableId, bucket);
+        return WRITER_REGISTRY.computeIfAbsent(key, t ->
         {
             switch (transactionMode)
             {
                 case SINGLE ->
                 {
-                    return new TableSingleTxWriter(t);
+                    return new TableSingleTxWriter(tableName);
                 }
                 case BATCH ->
                 {
-                    return new TableCrossTxWriter(t);
+                    return new TableCrossTxWriter(tableName, bucket);
                 }
                 default ->
                 {
