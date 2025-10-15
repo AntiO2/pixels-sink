@@ -17,6 +17,8 @@
 
 package io.pixelsdb.pixels.sink.writer.retina;
 
+import io.pixelsdb.pixels.core.TypeDescription;
+import io.pixelsdb.pixels.sink.SinkProto;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
 import io.pixelsdb.pixels.sink.exception.SinkException;
 import org.slf4j.Logger;
@@ -118,14 +120,65 @@ public class SinkContextManager
 
     protected void writeRowChangeEvent(SinkContext ctx, RowChangeEvent event) throws SinkException
     {
+        event.initIndexKey();
+        switch (event.getOp())
+        {
+            case UPDATE ->
+            {
+                if(!event.isPkChanged())
+                {
+                    writeBeforeEvent(ctx, event);
+                } else
+                {
+                    TypeDescription typeDescription = event.getSchema();
+                    ctx.updateCounter(event.getFullTableName(), -1L);
+
+                    SinkProto.RowRecord.Builder deleteBuilder = event.getRowRecord().toBuilder()
+                            .clearAfter().setOp(SinkProto.OperationType.DELETE);
+                    RowChangeEvent deleteEvent = new RowChangeEvent(deleteBuilder.build(), typeDescription);
+                    deleteEvent.initIndexKey();
+                    writeBeforeEvent(ctx, deleteEvent);
+
+                    SinkProto.RowRecord.Builder insertBuilder = event.getRowRecord().toBuilder()
+                            .clearBefore().setOp(SinkProto.OperationType.INSERT);
+                    RowChangeEvent insertEvent = new RowChangeEvent(insertBuilder.build(), typeDescription);
+                    insertEvent.initIndexKey();
+                    writeAfterEvent(ctx, deleteEvent);
+                }
+            }
+            case DELETE ->
+            {
+                writeBeforeEvent(ctx, event);
+            }
+            case INSERT, SNAPSHOT ->
+            {
+                writeAfterEvent(ctx, event);
+            }
+            case UNRECOGNIZED ->
+            {
+                return;
+            }
+        }
+    }
+
+    private boolean writeBeforeEvent(SinkContext ctx, RowChangeEvent event)
+    {
         String table = event.getTable();
         event.setTimeStamp(ctx.getTimestamp());
-        event.initIndexKey();
-        int bucket = event.getBucketFromIndex();
         long tableId = event.getTableId();
-        BUCKET_TRACE_LOGGER.info("{}\t{}\t{}", tableId, bucket, event.getAfterKey().getKey().asReadOnlyByteBuffer().getInt());
-        tableWriterProxy.getTableWriter(table, tableId, bucket).write(event, ctx);
+        int beforeBucketFromIndex = event.getBeforeBucketFromIndex();
+        return tableWriterProxy.getTableWriter(table, tableId, beforeBucketFromIndex).write(event, ctx);
     }
+
+    private boolean writeAfterEvent(SinkContext ctx, RowChangeEvent event)
+    {
+        String table = event.getTable();
+        event.setTimeStamp(ctx.getTimestamp());
+        long tableId = event.getTableId();
+        int afterBucketFromIndex = event.getAfterBucketFromIndex();
+        return tableWriterProxy.getTableWriter(table, tableId, afterBucketFromIndex).write(event, ctx);
+    }
+
 
     protected SinkContext getSinkContext(String txId)
     {

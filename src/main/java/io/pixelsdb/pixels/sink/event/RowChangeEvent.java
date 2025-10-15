@@ -142,21 +142,42 @@ public class RowChangeEvent
         indexKeyInited = true;
     }
 
-    public int getBucketFromIndex()
+    public int getBeforeBucketFromIndex()
     {
         assert indexKeyInited;
-
         if(hasBeforeData())
         {
             return getBucketFromIndexKey(beforeKey);
         }
+        throw new IllegalCallerException("Event dosen't have before data");
+    }
 
+    public boolean isPkChanged() throws SinkException
+    {
+        if(!indexKeyInited)
+        {
+            initIndexKey();
+        }
+
+        if(getOp() != SinkProto.OperationType.UPDATE)
+        {
+            return false;
+        }
+
+        ByteString beforeKey = getBeforeKey().getKey();
+        ByteString afterKey = getAfterKey().getKey();
+
+        return !beforeKey.equals(afterKey);
+    }
+
+    public int getAfterBucketFromIndex()
+    {
+        assert indexKeyInited;
         if(hasAfterData())
         {
             return getBucketFromIndexKey(afterKey);
         }
-
-        return 0;
+        throw new IllegalCallerException("Event dosen't have after data");
     }
 
     protected static int getBucketFromIndexKey(IndexProto.IndexKey indexKey)

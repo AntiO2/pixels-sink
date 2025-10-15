@@ -45,7 +45,6 @@ public class SinkContext
 
 
     final String sourceTxId;
-    final Map<String, Long> tableCursors = new ConcurrentHashMap<>();
     final Map<String, Long> tableCounters = new ConcurrentHashMap<>();
     final AtomicInteger pendingEvents = new AtomicInteger(0);
     final CompletableFuture<Void> completionFuture = new CompletableFuture<>();
@@ -67,20 +66,6 @@ public class SinkContext
         this.pixelsTransCtx = pixelsTransCtx;
     }
 
-    boolean isReadyForDispatch(String table, long collectionOrder)
-    {
-        lock.lock();
-        boolean ready = tableCursors
-                .computeIfAbsent(table, k -> 1L) >= collectionOrder;
-        lock.unlock();
-        return ready;
-    }
-
-    void updateCursor(String table, long currentOrder)
-    {
-        tableCursors.compute(table, (k, v) ->
-                (v == null) ? currentOrder + 1 : Math.max(v, currentOrder + 1));
-    }
 
     void updateCounter(String table)
     {
@@ -104,11 +89,6 @@ public class SinkContext
     public Condition getTableCounterCond()
     {
         return tableCounterCond;
-    }
-
-    Set<String> getTrackedTables()
-    {
-        return tableCursors.keySet();
     }
 
     boolean isCompleted(SinkProto.TransactionMetadata tx)
@@ -159,11 +139,6 @@ public class SinkContext
     public String getSourceTxId()
     {
         return sourceTxId;
-    }
-
-    public Map<String, Long> getTableCursors()
-    {
-        return tableCursors;
     }
 
     public Map<String, Long> getTableCounters()

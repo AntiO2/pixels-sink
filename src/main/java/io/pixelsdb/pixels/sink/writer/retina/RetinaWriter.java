@@ -170,7 +170,7 @@ public class RetinaWriter implements PixelsSinkWriter
         LOGGER.trace("Begin to Commit transaction: {}, total event {}; Data Collection {}", txId, txEnd.getEventCount(),
                 txEnd.getDataCollectionsList().stream()
                         .map(dc -> dc.getDataCollection() + "=" +
-                                ctx.tableCursors.getOrDefault(dc.getDataCollection(), 0L) +
+                                ctx.tableCounters.getOrDefault(dc.getDataCollection(), 0L) +
                                 "/" + dc.getEventCount())
                         .collect(Collectors.joining(", ")));
         if (ctx == null)
