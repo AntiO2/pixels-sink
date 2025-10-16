@@ -91,6 +91,7 @@ public class TableCrossTxWriter extends TableWriter
                 {
                     if (smallBatch != null && !smallBatch.isEmpty())
                     {
+                        // tableUpdateData.add(buildTableUpdateDataFromBatch(txId, smallBatch).setBucketId(bucketId).setTxId(currentTxId).build());
                         tableUpdateData.add(buildTableUpdateDataFromBatch(txId, smallBatch).build());
                         tableUpdateCount.add(smallBatch.size());
                     }
@@ -104,6 +105,7 @@ public class TableCrossTxWriter extends TableWriter
 
             if (smallBatch != null)
             {
+                // tableUpdateData.add(buildTableUpdateDataFromBatch(txId, smallBatch).setBucketId(bucketId).setTxId(currentTxId).build());
                 tableUpdateData.add(buildTableUpdateDataFromBatch(txId, smallBatch).build());
                 tableUpdateCount.add(smallBatch.size());
             }

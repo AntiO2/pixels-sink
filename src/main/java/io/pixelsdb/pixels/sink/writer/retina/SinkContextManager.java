@@ -202,6 +202,7 @@ public class SinkContextManager
 
     protected void writeRowChangeEvent(SinkContext ctx, RowChangeEvent event) throws SinkException
     {
+        event.setTimeStamp(ctx.getTimestamp());
         event.initIndexKey();
         switch (event.getOp())
         {
@@ -246,7 +247,6 @@ public class SinkContextManager
     private boolean writeBeforeEvent(SinkContext ctx, RowChangeEvent event)
     {
         String table = event.getTable();
-        event.setTimeStamp(ctx.getTimestamp());
         long tableId = event.getTableId();
         int beforeBucketFromIndex = event.getBeforeBucketFromIndex();
         return tableWriterProxy.getTableWriter(table, tableId, beforeBucketFromIndex).write(event, ctx);
@@ -255,7 +255,6 @@ public class SinkContextManager
     private boolean writeAfterEvent(SinkContext ctx, RowChangeEvent event)
     {
         String table = event.getTable();
-        event.setTimeStamp(ctx.getTimestamp());
         long tableId = event.getTableId();
         int afterBucketFromIndex = event.getAfterBucketFromIndex();
         return tableWriterProxy.getTableWriter(table, tableId, afterBucketFromIndex).write(event, ctx);

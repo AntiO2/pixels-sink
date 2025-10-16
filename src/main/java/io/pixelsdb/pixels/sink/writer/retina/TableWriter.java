@@ -75,19 +75,32 @@ public abstract class TableWriter
     protected static void addUpdateData(RowChangeEvent rowChangeEvent,
                                         RetinaProto.TableUpdateData.Builder builder) throws SinkException
     {
-        if (rowChangeEvent.hasBeforeData())
+        switch (rowChangeEvent.getOp())
         {
-            RetinaProto.DeleteData.Builder deleteDataBuilder = RetinaProto.DeleteData.newBuilder();
-            deleteDataBuilder.addIndexKeys(rowChangeEvent.getBeforeKey());
-            builder.addDeleteData(deleteDataBuilder);
-        }
-
-        if (rowChangeEvent.hasAfterData())
-        {
-            RetinaProto.InsertData.Builder insertDataBuilder = RetinaProto.InsertData.newBuilder();
-            insertDataBuilder.addIndexKeys(rowChangeEvent.getAfterKey());
-            insertDataBuilder.addAllColValues(rowChangeEvent.getAfterData());
-            builder.addInsertData(insertDataBuilder);
+            case SNAPSHOT, INSERT ->
+            {
+                RetinaProto.InsertData.Builder insertDataBuilder = RetinaProto.InsertData.newBuilder();
+                insertDataBuilder.addIndexKeys(rowChangeEvent.getAfterKey());
+                insertDataBuilder.addAllColValues(rowChangeEvent.getAfterData());
+                builder.addInsertData(insertDataBuilder);
+            }
+            case UPDATE ->
+            {
+                RetinaProto.UpdateData.Builder updateDataBuilder = RetinaProto.UpdateData.newBuilder();
+                updateDataBuilder.addIndexKeys(rowChangeEvent.getAfterKey());
+                updateDataBuilder.addAllColValues(rowChangeEvent.getAfterData());
+                builder.addUpdateData(updateDataBuilder);
+            }
+            case DELETE ->
+            {
+                RetinaProto.DeleteData.Builder deleteDataBuilder = RetinaProto.DeleteData.newBuilder();
+                deleteDataBuilder.addIndexKeys(rowChangeEvent.getBeforeKey());
+                builder.addDeleteData(deleteDataBuilder);
+            }
+            case UNRECOGNIZED ->
+            {
+                throw new SinkException("Unrecognized op: " + rowChangeEvent.getOp());
+            }
         }
     }
 
