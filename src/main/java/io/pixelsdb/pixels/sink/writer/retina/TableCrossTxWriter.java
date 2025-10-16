@@ -91,7 +91,7 @@ public class TableCrossTxWriter extends TableWriter
                 {
                     if (smallBatch != null && !smallBatch.isEmpty())
                     {
-                        tableUpdateData.add(buildTableUpdateDataFromBatch(txId, smallBatch).setBucket(bucketId).build());
+                        tableUpdateData.add(buildTableUpdateDataFromBatch(txId, smallBatch).build());
                         tableUpdateCount.add(smallBatch.size());
                     }
                     txIds.add(currTxId);
@@ -104,7 +104,7 @@ public class TableCrossTxWriter extends TableWriter
 
             if (smallBatch != null)
             {
-                tableUpdateData.add(buildTableUpdateDataFromBatch(txId, smallBatch).setBucket(bucketId).build());
+                tableUpdateData.add(buildTableUpdateDataFromBatch(txId, smallBatch).build());
                 tableUpdateCount.add(smallBatch.size());
             }
 
@@ -113,12 +113,27 @@ public class TableCrossTxWriter extends TableWriter
             updateRecordResponseCompletableFuture.thenAccept(
                     resp ->
                     {
-                        updateCtxCounters(txIds, fullTableName, tableUpdateCount);
+                        if(resp.getHeader().getErrorCode() != 0)
+                        {
+                            failCtxs(txIds);
+                        } else
+                        {
+                            updateCtxCounters(txIds, fullTableName, tableUpdateCount);
+                        }
                     }
             );
         } finally
         {
             writeLock.unlock();
+        }
+    }
+
+    private void failCtxs(List<String> txIds)
+    {
+        for (String writeTxId : txIds)
+        {
+            SinkContext sinkContext = SinkContextManager.getInstance().getSinkContext(writeTxId);
+            sinkContext.setFailed(true);
         }
     }
 

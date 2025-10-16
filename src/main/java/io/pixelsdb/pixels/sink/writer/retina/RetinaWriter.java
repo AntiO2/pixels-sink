@@ -47,7 +47,7 @@ public class RetinaWriter implements PixelsSinkWriter
     private final ScheduledExecutorService timeoutScheduler =
             Executors.newSingleThreadScheduledExecutor();
     private final TransactionProxy transactionProxy = TransactionProxy.Instance();
-    private final TransService transService;
+
     private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
     private final PixelsSinkConfig pixelsSinkConfig = PixelsSinkConfigFactory.getInstance();
 
@@ -55,7 +55,6 @@ public class RetinaWriter implements PixelsSinkWriter
 
     public RetinaWriter()
     {
-        transService = TransService.Instance();
         this.sinkContextManager = SinkContextManager.getInstance();
     }
 
@@ -139,115 +138,12 @@ public class RetinaWriter implements PixelsSinkWriter
 
     private void handleTxEnd(SinkProto.TransactionMetadata txEnd)
     {
-        String txId = txEnd.getId();
-        SinkContext ctx = sinkContextManager.getSinkContext(txId);
-
         transactionExecutor.submit(() ->
                 {
-                    processTxCommit(txEnd, txId, ctx);
+                    sinkContextManager.processTxCommit(txEnd);
                 }
         );
-        switch (pixelsSinkConfig.getTransactionMode())
-        {
-
-//            case BATCH ->
-//            {
-//                processTxCommit(txEnd, txId, ctx);
-//            }
-//            case RECORD ->
-//            {
-//                transactionExecutor.submit(() ->
-//                        {
-//                            processTxCommit(txEnd, txId, ctx);
-//                        }
-//                );
-//            }
-        }
     }
-
-    private void processTxCommit(SinkProto.TransactionMetadata txEnd, String txId, SinkContext ctx)
-    {
-        LOGGER.trace("Begin to Commit transaction: {}, total event {}; Data Collection {}", txId, txEnd.getEventCount(),
-                txEnd.getDataCollectionsList().stream()
-                        .map(dc -> dc.getDataCollection() + "=" +
-                                ctx.tableCounters.getOrDefault(dc.getDataCollection(), 0L) +
-                                "/" + dc.getEventCount())
-                        .collect(Collectors.joining(", ")));
-        if (ctx == null)
-        {
-            LOGGER.warn("Sink Context is null");
-            return;
-        }
-
-        try
-        {
-            try
-            {
-                ctx.tableCounterLock.lock();
-                while (!ctx.isCompleted(txEnd))
-                {
-                    LOGGER.debug("TX End Get Lock {}", txId);
-                    LOGGER.debug("Waiting for events in TX {}: {}", txId,
-                            txEnd.getDataCollectionsList().stream()
-                                    .map(dc -> dc.getDataCollection() + "=" +
-                                            ctx.tableCounters.getOrDefault(dc.getDataCollection(), 0L) +
-                                            "/" + dc.getEventCount())
-                                    .collect(Collectors.joining(", ")));
-                    ctx.tableCounterCond.await();
-                }
-            } finally
-            {
-                ctx.tableCounterLock.unlock();
-            }
-
-
-            sinkContextManager.removeSinkContext(txId);
-            boolean res = true;
-            if (res)
-            {
-                LOGGER.trace("Committed transaction: {}", txId);
-                Summary.Timer transLatencyTimer = metricsFacade.startTransLatencyTimer();
-                transactionProxy.commitTransAsync(ctx.getPixelsTransCtx());
-            } else
-            {
-                LOGGER.info("Abort transaction: {}", txId);
-                Summary.Timer transLatencyTimer = metricsFacade.startTransLatencyTimer();
-                CompletableFuture.runAsync(() ->
-                {
-                    try
-                    {
-                        transService.rollbackTrans(ctx.getPixelsTransCtx().getTransId(), false);
-                    } catch (TransException e)
-                    {
-                        throw new RuntimeException(e);
-                    }
-                }).whenComplete((v, ex) ->
-                {
-                    transLatencyTimer.close();
-                    if (ex != null)
-                    {
-                        LOGGER.error("Rollback failed", ex);
-                    }
-                });
-            }
-        } catch (InterruptedException e)
-        {
-            try
-            {
-                LOGGER.info("Catch Exception, Abort transaction: {}", txId);
-                transService.rollbackTrans(ctx.getPixelsTransCtx().getTransId(), false);
-            } catch (TransException ex)
-            {
-                LOGGER.error("Failed to abort transaction {}", txId);
-                ex.printStackTrace();
-                LOGGER.error(ex.getMessage());
-                throw new RuntimeException(ex);
-            }
-            LOGGER.error(e.getMessage());
-            LOGGER.error("Failed to commit transaction {}", txId, e);
-        }
-    }
-
 
     private void handleNonTxEvent(RowChangeEvent event) throws SinkException
     {

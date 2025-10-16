@@ -17,6 +17,8 @@
 
 package io.pixelsdb.pixels.sink.writer.retina;
 
+import io.pixelsdb.pixels.common.exception.TransException;
+import io.pixelsdb.pixels.common.transaction.TransService;
 import io.pixelsdb.pixels.core.TypeDescription;
 import io.pixelsdb.pixels.sink.SinkProto;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
@@ -25,9 +27,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Queue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 
 public class SinkContextManager
 {
@@ -39,6 +43,7 @@ public class SinkContextManager
     private final ConcurrentMap<String, SinkContext> activeTxContexts = new ConcurrentHashMap<>();
 
     private final TransactionProxy transactionProxy = TransactionProxy.Instance();
+    private final TransService transService = TransService.Instance();
     private final TableWriterProxy tableWriterProxy;
 
     private SinkContextManager()
@@ -104,6 +109,83 @@ public class SinkContextManager
         );
         LOGGER.trace("Begin Tx Sync: {}", sourceTxId);
     }
+
+    void processTxCommit(SinkProto.TransactionMetadata txEnd)
+    {
+        String txId = txEnd.getId();
+        SinkContext ctx = getSinkContext(txId);
+        if (ctx == null)
+        {
+            LOGGER.warn("Sink Context is null");
+            return;
+        }
+
+        try
+        {
+            try
+            {
+                ctx.tableCounterLock.lock();
+                while (!ctx.isCompleted(txEnd))
+                {
+                    LOGGER.debug("TX End Get Lock {}", txId);
+                    LOGGER.debug("Waiting for events in TX {}: {}", txId,
+                            txEnd.getDataCollectionsList().stream()
+                                    .map(dc -> dc.getDataCollection() + "=" +
+                                            ctx.tableCounters.getOrDefault(dc.getDataCollection(), 0L) +
+                                            "/" + dc.getEventCount())
+                                    .collect(Collectors.joining(", ")));
+                    ctx.tableCounterCond.await();
+                }
+            } finally
+            {
+                ctx.tableCounterLock.unlock();
+            }
+
+
+            removeSinkContext(txId);
+            boolean failed = ctx.isFailed();
+            if (!failed)
+            {
+                LOGGER.trace("Committed transaction: {}", txId);
+                transactionProxy.commitTransAsync(ctx.getPixelsTransCtx());
+            } else
+            {
+                LOGGER.info("Abort transaction: {}", txId);
+                CompletableFuture.runAsync(() ->
+                {
+                    try
+                    {
+                        transService.rollbackTrans(ctx.getPixelsTransCtx().getTransId(), false);
+                    } catch (TransException e)
+                    {
+                        throw new RuntimeException(e);
+                    }
+                }).whenComplete((v, ex) ->
+                {
+                    if (ex != null)
+                    {
+                        LOGGER.error("Rollback failed", ex);
+                    }
+                });
+            }
+        } catch (InterruptedException e)
+        {
+            try
+            {
+                LOGGER.info("Catch Exception, Abort transaction: {}", txId);
+                transService.rollbackTrans(ctx.getPixelsTransCtx().getTransId(), false);
+            } catch (TransException ex)
+            {
+                LOGGER.error("Failed to abort transaction {}", txId);
+                ex.printStackTrace();
+                LOGGER.error(ex.getMessage());
+                throw new RuntimeException(ex);
+            }
+            LOGGER.error(e.getMessage());
+            LOGGER.error("Failed to commit transaction {}", txId, e);
+        }
+    }
+
 
     private void handleOrphanEvents(SinkContext ctx) throws SinkException
     {

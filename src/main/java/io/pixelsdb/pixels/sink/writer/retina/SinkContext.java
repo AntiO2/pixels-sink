@@ -21,12 +21,13 @@ import io.pixelsdb.pixels.common.transaction.TransContext;
 import io.pixelsdb.pixels.sink.SinkProto;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
 import io.pixelsdb.pixels.sink.metadata.TableMetadataRegistry;
+import lombok.Getter;
+import lombok.Setter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 import java.util.Queue;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -37,22 +38,36 @@ import java.util.concurrent.locks.ReentrantLock;
 public class SinkContext
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(SinkContext.class);
+    @Getter
     final ReentrantLock lock = new ReentrantLock();
+    @Getter
     final Condition cond = lock.newCondition(); // this cond is wait for pixels tx
 
+    @Getter
     final ReentrantLock tableCounterLock = new ReentrantLock();
+    @Getter
     final Condition tableCounterCond = tableCounterLock.newCondition();
 
 
+    @Getter
     final String sourceTxId;
+    @Getter
     final Map<String, Long> tableCounters = new ConcurrentHashMap<>();
+    @Getter
     final AtomicInteger pendingEvents = new AtomicInteger(0);
+    @Getter
     final CompletableFuture<Void> completionFuture = new CompletableFuture<>();
 
+    @Getter
     final TableMetadataRegistry tableMetadataRegistry = TableMetadataRegistry.Instance();
-    volatile boolean completed = false;
+    @Getter
     Queue<RowChangeEvent> orphanEvent = new ConcurrentLinkedQueue<>();
+    @Getter
+    @Setter
     private TransContext pixelsTransCtx;
+    @Setter
+    @Getter
+    private boolean failed = false;
 
     public SinkContext(String sourceTxId)
     {
@@ -79,16 +94,6 @@ public class SinkContext
                 (v == null) ? count : v + count);
         tableCounterCond.signalAll();
         tableCounterLock.unlock();
-    }
-
-    public ReentrantLock getTableCounterLock()
-    {
-        return tableCounterLock;
-    }
-
-    public Condition getTableCounterCond()
-    {
-        return tableCounterCond;
     }
 
     boolean isCompleted(SinkProto.TransactionMetadata tx)
@@ -119,56 +124,6 @@ public class SinkContext
     public void bufferOrphanedEvent(RowChangeEvent event)
     {
         orphanEvent.add(event);
-    }
-
-    public Queue<RowChangeEvent> getOrphanEvent()
-    {
-        return orphanEvent;
-    }
-
-    public ReentrantLock getLock()
-    {
-        return lock;
-    }
-
-    public Condition getCond()
-    {
-        return cond;
-    }
-
-    public String getSourceTxId()
-    {
-        return sourceTxId;
-    }
-
-    public Map<String, Long> getTableCounters()
-    {
-        return tableCounters;
-    }
-
-    public AtomicInteger getPendingEvents()
-    {
-        return pendingEvents;
-    }
-
-    public CompletableFuture<Void> getCompletionFuture()
-    {
-        return completionFuture;
-    }
-
-    public TableMetadataRegistry getTableMetadataRegistry()
-    {
-        return tableMetadataRegistry;
-    }
-
-    public TransContext getPixelsTransCtx()
-    {
-        return pixelsTransCtx;
-    }
-
-    public void setPixelsTransCtx(TransContext pixelsTransCtx)
-    {
-        this.pixelsTransCtx = pixelsTransCtx;
     }
 
 }
