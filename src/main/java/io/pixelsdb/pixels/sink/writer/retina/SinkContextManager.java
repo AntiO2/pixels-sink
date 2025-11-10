@@ -63,18 +63,31 @@ public class SinkContextManager
         {
             if (sinkContext == null)
             {
+                LOGGER.trace("Allocate new tx {}\torder:{}", sourceTxId, event.getTransaction().getTotalOrder());
                 SinkContext newSinkContext = new SinkContext(sourceTxId);
                 newSinkContext.bufferOrphanedEvent(event);
                 return newSinkContext;
             } else
             {
-                if (sinkContext.getPixelsTransCtx() == null)
+                try
                 {
-                    sinkContext.bufferOrphanedEvent(event);
+                    sinkContext.getLock().lock();
+                    if (sinkContext.getPixelsTransCtx() == null)
+                    {
+                        LOGGER.trace("Buffer in tx {}\torder:{}", sourceTxId, event.getTransaction().getTotalOrder());
+                        canWrite.set(false);
+                        sinkContext.bufferOrphanedEvent(event);
+                        return sinkContext;
+                    }
+                    LOGGER.trace("Ready to write in tx {}\torder:{}", sourceTxId, event.getTransaction().getTotalOrder());
+                    canWrite.set(true);
                     return sinkContext;
+                } finally
+                {
+                    sinkContext.getCond().signalAll();
+                    sinkContext.getLock().unlock();
                 }
-                canWrite.set(true);
-                return sinkContext;
+
             }
         });
     }
@@ -87,6 +100,7 @@ public class SinkContextManager
                 {
                     if (oldCtx == null)
                     {
+                        LOGGER.trace("Start trans {} without buffered events", sourceTxId);
                         return new SinkContext(sourceTxId, transactionProxy.getNewTransContext());
                     } else
                     {
@@ -193,6 +207,7 @@ public class SinkContextManager
 
         if (buffered != null)
         {
+            LOGGER.trace("Handle Orphan Events in {}", ctx.sourceTxId);
             for (RowChangeEvent event : buffered)
             {
                 writeRowChangeEvent(ctx, event);
@@ -246,20 +261,22 @@ public class SinkContextManager
 
     private boolean writeBeforeEvent(SinkContext ctx, RowChangeEvent event)
     {
-        String table = event.getTable();
-        long tableId = event.getTableId();
         int beforeBucketFromIndex = event.getBeforeBucketFromIndex();
-        return tableWriterProxy.getTableWriter(table, tableId, beforeBucketFromIndex).write(event, ctx);
+        return writeBucketEvent(ctx, event, beforeBucketFromIndex);
     }
 
     private boolean writeAfterEvent(SinkContext ctx, RowChangeEvent event)
     {
-        String table = event.getTable();
-        long tableId = event.getTableId();
         int afterBucketFromIndex = event.getAfterBucketFromIndex();
-        return tableWriterProxy.getTableWriter(table, tableId, afterBucketFromIndex).write(event, ctx);
+        return writeBucketEvent(ctx, event, afterBucketFromIndex);
     }
 
+    private boolean writeBucketEvent(SinkContext ctx, RowChangeEvent event, int bucketId)
+    {
+        String table = event.getTable();
+        long tableId = event.getTableId();
+        return tableWriterProxy.getTableWriter(table, tableId, bucketId).write(event, ctx);
+    }
 
     protected SinkContext getSinkContext(String txId)
     {

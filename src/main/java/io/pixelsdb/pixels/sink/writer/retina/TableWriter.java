@@ -47,7 +47,7 @@ public abstract class TableWriter
 
     protected final RetinaServiceProxy delegate; // physical writer
     protected final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
-    protected final ReentrantLock lock = new ReentrantLock();
+    protected final ReentrantLock bufferLock = new ReentrantLock();
     protected final String tableName;
     protected final long flushInterval;
     // Shared state (protected by lock)
@@ -110,7 +110,7 @@ public abstract class TableWriter
     {
         try
         {
-            lock.lock();
+            bufferLock.lock();
             try
             {
                 txId = ctx.getSourceTxId();
@@ -140,7 +140,7 @@ public abstract class TableWriter
                 {
                     try
                     {
-                        lock.lock();
+                        bufferLock.lock();
                         try
                         {
                             if (txId.equals(currentTxId))
@@ -149,7 +149,7 @@ public abstract class TableWriter
                             }
                         } finally
                         {
-                            lock.unlock();
+                            bufferLock.unlock();
                         }
                     } catch (Exception e)
                     {
@@ -158,7 +158,7 @@ public abstract class TableWriter
                 }, flushInterval, TimeUnit.MILLISECONDS);
             } finally
             {
-                lock.unlock();
+                bufferLock.unlock();
             }
             return true;
         } catch (Exception e)

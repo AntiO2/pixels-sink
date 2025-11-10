@@ -59,7 +59,7 @@ public class TableCrossTxWriter extends TableWriter
     public void flush()
     {
         List<RowChangeEvent> batch;
-        lock.lock();
+        bufferLock.lock();
         try
         {
             if (buffer.isEmpty())
@@ -71,14 +71,14 @@ public class TableCrossTxWriter extends TableWriter
             buffer = new LinkedList<>();
         } finally
         {
-            lock.unlock();
+            bufferLock.unlock();
         }
 
         writeLock.lock();
         try
         {
+            // TODO(AntiO2) Fix: At high flush rates, the future task may encounter concurrency issues.
             String txId = null;
-            String schemaName = null;
             List<RowChangeEvent> smallBatch = null;
             List<String> txIds = new ArrayList<>();
             List<String> fullTableName = new ArrayList<>();
@@ -91,7 +91,6 @@ public class TableCrossTxWriter extends TableWriter
                 {
                     if (smallBatch != null && !smallBatch.isEmpty())
                     {
-                        // tableUpdateData.add(buildTableUpdateDataFromBatch(txId, smallBatch).setBucketId(bucketId).setTxId(currentTxId).build());
                         tableUpdateData.add(buildTableUpdateDataFromBatch(txId, smallBatch).build());
                         tableUpdateCount.add(smallBatch.size());
                     }
@@ -141,6 +140,7 @@ public class TableCrossTxWriter extends TableWriter
 
     private void updateCtxCounters(List<String> txIds, List<String> fullTableName, List<Integer> tableUpdateCount)
     {
+        writeLock.lock();
         for (int i = 0; i < txIds.size(); i++)
         {
             metricsFacade.recordRowEvent(tableUpdateCount.get(i));
@@ -148,6 +148,7 @@ public class TableCrossTxWriter extends TableWriter
             SinkContext sinkContext = SinkContextManager.getInstance().getSinkContext(writeTxId);
             sinkContext.updateCounter(fullTableName.get(i), tableUpdateCount.get(i));
         }
+        writeLock.unlock();
     }
 
     private RetinaProto.TableUpdateData.Builder buildTableUpdateDataFromBatch(String txId, List<RowChangeEvent> smallBatch)

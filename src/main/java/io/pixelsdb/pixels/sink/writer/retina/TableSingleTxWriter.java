@@ -46,7 +46,7 @@ public class TableSingleTxWriter extends TableWriter
         String txId;
         RetinaProto.TableUpdateData.Builder toBuild;
         SinkContext sinkContext = null;
-        lock.lock();
+        bufferLock.lock();
         try
         {
             if (buffer.isEmpty() || currentTxId == null)
@@ -78,7 +78,7 @@ public class TableSingleTxWriter extends TableWriter
             throw new RuntimeException(e);
         } finally
         {
-            lock.unlock();
+            bufferLock.unlock();
         }
 
         RowChangeEvent event1 = batch.get(0);
