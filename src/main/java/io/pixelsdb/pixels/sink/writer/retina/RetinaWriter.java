@@ -46,11 +46,8 @@ public class RetinaWriter implements PixelsSinkWriter
     private final ExecutorService transactionExecutor = Executors.newFixedThreadPool(1024);
     private final ScheduledExecutorService timeoutScheduler =
             Executors.newSingleThreadScheduledExecutor();
-    private final TransactionProxy transactionProxy = TransactionProxy.Instance();
 
     private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
-    private final PixelsSinkConfig pixelsSinkConfig = PixelsSinkConfigFactory.getInstance();
-
     private final SinkContextManager sinkContextManager;
 
     public RetinaWriter()

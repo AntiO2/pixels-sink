@@ -39,7 +39,7 @@ import java.util.concurrent.*;
 public class TransactionProxy
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(TransactionProxy.class);
-    private final static TransactionProxy instance = new TransactionProxy();
+    private static volatile TransactionProxy instance;
     private final TransService transService;
     private final Queue<TransContext> transContextQueue;
     private final Object batchLock = new Object();
@@ -82,6 +82,16 @@ public class TransactionProxy
 
     public static TransactionProxy Instance()
     {
+        if(instance == null)
+        {
+            synchronized (TransactionProxy.class)
+            {
+                if(instance == null)
+                {
+                    instance = new TransactionProxy();
+                }
+            }
+        }
         return instance;
     }
 
@@ -205,6 +215,14 @@ public class TransactionProxy
                     throw new RuntimeException(e);
                 }
             }
+        }
+    }
+
+    public static void staticClose()
+    {
+        if(instance != null)
+        {
+            instance.close();
         }
     }
 }

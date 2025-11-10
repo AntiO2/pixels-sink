@@ -22,6 +22,8 @@ import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.source.SinkSource;
 import io.pixelsdb.pixels.sink.source.SinkSourceFactory;
 import io.pixelsdb.pixels.sink.util.MetricsFacade;
+import io.pixelsdb.pixels.sink.writer.PixelsSinkWriter;
+import io.pixelsdb.pixels.sink.writer.PixelsSinkWriterFactory;
 import io.pixelsdb.pixels.sink.writer.retina.TransactionProxy;
 import io.prometheus.client.exporter.HTTPServer;
 import io.prometheus.client.hotspot.DefaultExports;
@@ -44,7 +46,7 @@ public class PixelsSinkApp
     {
         Runtime.getRuntime().addShutdownHook(new Thread(() ->
         {
-            TransactionProxy.Instance().close();
+            TransactionProxy.staticClose();
             sinkSource.stopProcessor();
             LOGGER.info("Pixels Sink Server shutdown complete");
             if (prometheusHttpServer != null)
@@ -52,6 +54,18 @@ public class PixelsSinkApp
                 prometheusHttpServer.close();
             }
             MetricsFacade.getInstance().stop();
+            PixelsSinkWriter pixelsSinkWriter = PixelsSinkWriterFactory.getWriter();
+            if(pixelsSinkWriter != null)
+            {
+                try
+                {
+                    pixelsSinkWriter.close();
+                } catch (IOException e)
+                {
+                    throw new RuntimeException(e);
+                }
+            }
+
         }));
 
         init(args);
