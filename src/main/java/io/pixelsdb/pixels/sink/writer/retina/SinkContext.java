@@ -69,6 +69,10 @@ public class SinkContext
     @Getter
     private boolean failed = false;
 
+    @Getter
+    @Setter
+    private long startTime;
+
     public SinkContext(String sourceTxId)
     {
         this.sourceTxId = sourceTxId;

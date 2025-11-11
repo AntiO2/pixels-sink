@@ -148,6 +148,8 @@ public class SinkContextManager
             return;
         }
 
+        ctx.setStartTime(System.currentTimeMillis());
+
         try
         {
             try
@@ -175,7 +177,7 @@ public class SinkContextManager
             if (!failed)
             {
                 LOGGER.trace("Committed transaction: {}", txId);
-                transactionProxy.commitTransAsync(ctx.getPixelsTransCtx());
+                transactionProxy.commitTransAsync(ctx);
             } else
             {
                 LOGGER.info("Abort transaction: {}", txId);

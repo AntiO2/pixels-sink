@@ -25,6 +25,7 @@ import io.pixelsdb.pixels.sink.writer.retina.SinkContextManager;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Summary;
 import lombok.Setter;
+import org.apache.commons.math3.stat.descriptive.SynchronizedDescriptiveStatistics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,6 +57,9 @@ public class MetricsFacade
     private final Summary totalLatency;
     private final boolean monitorReportEnabled;
     private final int monitorReportInterval;
+
+    private final SynchronizedDescriptiveStatistics freshness;
+
     private final String monitorReportPath;
 
     private final AtomicBoolean running = new AtomicBoolean(false);
@@ -63,7 +67,7 @@ public class MetricsFacade
     @Setter
     private SinkContextManager sinkContextManager;
 
-    private Thread reportThread;
+    private final Thread reportThread;
 
     private long lastRowChangeCount = 0;
     private long lastTransactionCount = 0;
@@ -173,6 +177,7 @@ public class MetricsFacade
                     .quantile(0.99, 0.001)
                     .register();
 
+            this.freshness = new SynchronizedDescriptiveStatistics();
         } else
         {
             this.debeziumEventCounter = null;
@@ -189,6 +194,7 @@ public class MetricsFacade
             this.retinaServiceLatency = null;
             this.writerLatency = null;
             this.totalLatency = null;
+            this.freshness = null;
         }
 
         monitorReportEnabled = config.isMonitorReportEnabled();
@@ -359,6 +365,13 @@ public class MetricsFacade
         return (int) transactionCounter.get();
     }
 
+    public void recordFreshness(double freshnessMill)
+    {
+        if(enabled && freshness != null)
+        {
+            freshness.addValue(freshnessMill);
+        }
+    }
 
     public void run()
     {
@@ -378,7 +391,6 @@ public class MetricsFacade
             }
         }
     }
-
 
     public void logPerformance()
     {
@@ -419,6 +431,20 @@ public class MetricsFacade
                 deltaSerdTxs, String.format("%.2f", serdTxsOips),
                 monitorReportInterval,
                 sinkContextManager.getActiveTxnsNum()
+        );
+
+        LOGGER.info(
+                String.format(
+                        "Freshness Report: Count=%d, Max=%.2f, Min=%.2f, Mean=%.2f, P50=%.2f, P90=%.2f, P95=%.2f, P99=%.2f",
+                        freshness.getN(),
+                        freshness.getMax(),
+                        freshness.getMin(),
+                        freshness.getMean(),
+                        freshness.getPercentile(50),
+                        freshness.getPercentile(90),
+                        freshness.getPercentile(95),
+                        freshness.getPercentile(99)
+                )
         );
 
         String time = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"));

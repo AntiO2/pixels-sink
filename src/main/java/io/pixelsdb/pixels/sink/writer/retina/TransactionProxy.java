@@ -45,7 +45,7 @@ public class TransactionProxy
     private final Object batchLock = new Object();
     private final ExecutorService batchCommitExecutor;
     private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
-    private final BlockingQueue<TransContext> toCommitTransContextQueue;
+    private final BlockingQueue<SinkContext> toCommitTransContextQueue;
 
     private final int BATCH_SIZE;
     private final int WORKER_COUNT;
@@ -130,7 +130,7 @@ public class TransactionProxy
         }
     }
 
-    public void commitTransAsync(TransContext transContext)
+    public void commitTransAsync(SinkContext transContext)
     {
         toCommitTransContextQueue.add(transContext);
     }
@@ -139,18 +139,20 @@ public class TransactionProxy
     {
         List<Long> batchTransIds = new ArrayList<>(BATCH_SIZE);
         List<TransContext> batchContexts = new ArrayList<>(BATCH_SIZE);
-
+        List<Long> txStartTimes = new ArrayList<>(BATCH_SIZE);
         while (true)
         {
             try
             {
                 batchContexts.clear();
                 batchTransIds.clear();
+                txStartTimes.clear();
 
-                TransContext first = toCommitTransContextQueue.take();
-                batchContexts.add(first);
-                batchTransIds.add(first.getTransId());
-
+                SinkContext firstSinkContext = toCommitTransContextQueue.take();
+                TransContext transContext = firstSinkContext.getPixelsTransCtx();
+                batchContexts.add(transContext);
+                batchTransIds.add(transContext.getTransId());
+                txStartTimes.add(firstSinkContext.getStartTime());
                 long startTime = System.nanoTime();
 
                 while (batchContexts.size() < BATCH_SIZE)
@@ -162,17 +164,26 @@ public class TransactionProxy
                         break;
                     }
 
-                    TransContext ctx = toCommitTransContextQueue.poll(remainingMs, TimeUnit.MILLISECONDS);
+                    SinkContext ctx = toCommitTransContextQueue.poll(remainingMs, TimeUnit.MILLISECONDS);
                     if (ctx == null)
                     {
                         break;
                     }
-                    batchContexts.add(ctx);
-                    batchTransIds.add(ctx.getTransId());
+                    transContext = ctx.getPixelsTransCtx();
+                    batchContexts.add(transContext);
+                    batchTransIds.add(transContext.getTransId());
+                    txStartTimes.add(ctx.getStartTime());
                 }
 
                 transService.commitTransBatch(batchTransIds, false);
                 metricsFacade.recordTransaction(batchTransIds.size());
+                long txEndTime = System.currentTimeMillis();
+
+                txStartTimes.forEach(
+                        txStartTime -> {
+                            metricsFacade.recordFreshness(txEndTime- txStartTime);
+                        }
+                );
 
                 if (LOGGER.isTraceEnabled())
                 {
