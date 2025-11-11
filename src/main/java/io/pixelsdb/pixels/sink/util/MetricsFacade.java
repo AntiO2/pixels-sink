@@ -21,8 +21,10 @@ import io.pixelsdb.pixels.sink.SinkProto;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
+import io.pixelsdb.pixels.sink.writer.retina.SinkContextManager;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Summary;
+import lombok.Setter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,6 +59,10 @@ public class MetricsFacade
     private final String monitorReportPath;
 
     private final AtomicBoolean running = new AtomicBoolean(false);
+
+    @Setter
+    private SinkContextManager sinkContextManager;
+
     private Thread reportThread;
 
     private long lastRowChangeCount = 0;
@@ -188,7 +194,6 @@ public class MetricsFacade
         monitorReportEnabled = config.isMonitorReportEnabled();
         monitorReportInterval = config.getMonitorReportInterval();
         monitorReportPath = config.getMonitorReportFile();
-
         if (monitorReportEnabled)
         {
             running.set(true);
@@ -206,6 +211,7 @@ public class MetricsFacade
         if (instance == null)
         {
             instance = new MetricsFacade(config.isMonitorEnabled());
+            LOGGER.info("Init Metrics Facade");
         }
     }
 
@@ -360,8 +366,8 @@ public class MetricsFacade
         {
             try
             {
-                logPerformance();
                 Thread.sleep(monitorReportInterval);
+                logPerformance();
             } catch (InterruptedException e)
             {
                 Thread.currentThread().interrupt();
@@ -405,13 +411,14 @@ public class MetricsFacade
         LOGGER.info(
                 "Performance report: +{} rows (+{}/s), +{} transactions (+{}/s), +{} debezium (+{}/s)" +
                         ", +{} serdRows (+{}/s), +{} serdTxs (+{}/s)" +
-                        " in {} ms",
+                        " in {} ms\t activeTxNum: {}",
                 deltaRows, String.format("%.2f", rowOips),
                 deltaTxns, String.format("%.2f", txnOips),
                 deltaDebezium, String.format("%.2f", dbOips),
                 deltaSerdRows, String.format("%.2f", serdRowsOips),
                 deltaSerdTxs, String.format("%.2f", serdTxsOips),
-                monitorReportInterval
+                monitorReportInterval,
+                sinkContextManager.getActiveTxnsNum()
         );
 
         String time = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"));

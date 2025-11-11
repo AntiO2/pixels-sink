@@ -23,6 +23,7 @@ import io.pixelsdb.pixels.core.TypeDescription;
 import io.pixelsdb.pixels.sink.SinkProto;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
 import io.pixelsdb.pixels.sink.exception.SinkException;
+import io.pixelsdb.pixels.sink.util.BlockingBoundedMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,10 +39,10 @@ public class SinkContextManager
     private static final Logger LOGGER = LoggerFactory.getLogger(SinkContextManager.class);
     private static final Logger BUCKET_TRACE_LOGGER = LoggerFactory.getLogger("bucket_trace");
 
-    private final static SinkContextManager INSTANCE = new SinkContextManager();
 
-    private final ConcurrentMap<String, SinkContext> activeTxContexts = new ConcurrentHashMap<>();
 
+    private final BlockingBoundedMap<String, SinkContext> activeTxContexts = new BlockingBoundedMap<>(100000);
+    // private final ConcurrentMap<String, SinkContext> activeTxContexts = new ConcurrentHashMap<>(10000);
     private final TransactionProxy transactionProxy = TransactionProxy.Instance();
     private final TransService transService = TransService.Instance();
     private final TableWriterProxy tableWriterProxy;
@@ -51,9 +52,17 @@ public class SinkContextManager
         this.tableWriterProxy = TableWriterProxy.getInstance();
     }
 
-    public static SinkContextManager getInstance()
-    {
-        return INSTANCE;
+    private static volatile SinkContextManager instance;
+
+    public static SinkContextManager getInstance() {
+        if (instance == null) {
+            synchronized (SinkContextManager.class) {
+                if (instance == null) {
+                    instance = new SinkContextManager();
+                }
+            }
+        }
+        return instance;
     }
 
     protected SinkContext getActiveTxContext(RowChangeEvent event, AtomicBoolean canWrite)
@@ -107,6 +116,11 @@ public class SinkContextManager
                         oldCtx.getLock().lock();
                         try
                         {
+                            if(oldCtx.getPixelsTransCtx() != null)
+                            {
+                                LOGGER.warn("Previous tx {} has been released, maybe due to loop process", sourceTxId);
+                                oldCtx.tableCounters = new ConcurrentHashMap<>();
+                            }
                             oldCtx.setPixelsTransCtx(transactionProxy.getNewTransContext());
                             handleOrphanEvents(oldCtx);
                             oldCtx.getCond().signalAll();
@@ -291,5 +305,10 @@ public class SinkContextManager
     protected void writeRowChangeEvent(String randomId, RowChangeEvent event) throws SinkException
     {
         writeRowChangeEvent(getSinkContext(randomId), event);
+    }
+
+    public int getActiveTxnsNum()
+    {
+        return activeTxContexts.size();
     }
 }

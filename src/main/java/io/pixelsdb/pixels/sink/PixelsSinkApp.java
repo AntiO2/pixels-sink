@@ -24,6 +24,7 @@ import io.pixelsdb.pixels.sink.source.SinkSourceFactory;
 import io.pixelsdb.pixels.sink.util.MetricsFacade;
 import io.pixelsdb.pixels.sink.writer.PixelsSinkWriter;
 import io.pixelsdb.pixels.sink.writer.PixelsSinkWriterFactory;
+import io.pixelsdb.pixels.sink.writer.retina.SinkContextManager;
 import io.pixelsdb.pixels.sink.writer.retina.TransactionProxy;
 import io.prometheus.client.exporter.HTTPServer;
 import io.prometheus.client.hotspot.DefaultExports;
@@ -91,6 +92,7 @@ public class PixelsSinkApp
     {
         CommandLineConfig cmdLineConfig = new CommandLineConfig(args);
         PixelsSinkConfigFactory.initialize(cmdLineConfig.getConfigPath());
-        MetricsFacade.getInstance();
+        MetricsFacade metricsFacade = MetricsFacade.getInstance();
+        metricsFacade.setSinkContextManager(SinkContextManager.getInstance());
     }
 }

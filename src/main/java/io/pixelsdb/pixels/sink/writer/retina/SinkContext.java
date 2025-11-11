@@ -52,7 +52,7 @@ public class SinkContext
     @Getter
     final String sourceTxId;
     @Getter
-    final Map<String, Long> tableCounters = new ConcurrentHashMap<>();
+    Map<String, Long> tableCounters = new ConcurrentHashMap<>();
     @Getter
     final AtomicInteger pendingEvents = new AtomicInteger(0);
     @Getter
