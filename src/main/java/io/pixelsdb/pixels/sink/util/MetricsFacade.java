@@ -59,6 +59,7 @@ public class MetricsFacade
     private final int monitorReportInterval;
 
     private final SynchronizedDescriptiveStatistics freshness;
+    private final SynchronizedDescriptiveStatistics rowChangeSpeed;
 
     private final String monitorReportPath;
 
@@ -178,6 +179,7 @@ public class MetricsFacade
                     .register();
 
             this.freshness = new SynchronizedDescriptiveStatistics();
+            this.rowChangeSpeed = new SynchronizedDescriptiveStatistics();
         } else
         {
             this.debeziumEventCounter = null;
@@ -195,6 +197,7 @@ public class MetricsFacade
             this.writerLatency = null;
             this.totalLatency = null;
             this.freshness = null;
+            this.rowChangeSpeed = null;
         }
 
         monitorReportEnabled = config.isMonitorReportEnabled();
@@ -420,6 +423,8 @@ public class MetricsFacade
         double serdRowsOips = deltaSerdRows / seconds;
         double serdTxsOips = deltaSerdTxs / seconds;
 
+        rowChangeSpeed.addValue(rowOips);
+
         LOGGER.info(
                 "Performance report: +{} rows (+{}/s), +{} transactions (+{}/s), +{} debezium (+{}/s)" +
                         ", +{} serdRows (+{}/s), +{} serdTxs (+{}/s)" +
@@ -431,6 +436,20 @@ public class MetricsFacade
                 deltaSerdTxs, String.format("%.2f", serdTxsOips),
                 monitorReportInterval,
                 sinkContextManager.getActiveTxnsNum()
+        );
+
+        LOGGER.info(
+                String.format(
+                        "Row Per/Second Summary: Max=%.2f, Min=%.2f, Mean=%.2f, P10=%.2f, P50=%.2f, P90=%.2f, P95=%.2f, P99=%.2f",
+                        rowChangeSpeed.getMax(),
+                        rowChangeSpeed.getMin(),
+                        rowChangeSpeed.getMean(),
+                        rowChangeSpeed.getPercentile(10),
+                        rowChangeSpeed.getPercentile(50),
+                        rowChangeSpeed.getPercentile(90),
+                        rowChangeSpeed.getPercentile(95),
+                        rowChangeSpeed.getPercentile(99)
+                )
         );
 
         LOGGER.info(
