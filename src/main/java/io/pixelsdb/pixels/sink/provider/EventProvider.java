@@ -35,8 +35,8 @@ public abstract class EventProvider<SOURCE_RECORD_T, TARGET_RECORD_T> implements
     private static final long MAX_WAIT_MS = 5; // configurable
 
     protected final MetricsFacade metricsFacade = MetricsFacade.getInstance();
-    private final BlockingQueue<SOURCE_RECORD_T> rawEventQueue = new LinkedBlockingQueue<>(10000);
-    private final BlockingQueue<TARGET_RECORD_T> eventQueue = new LinkedBlockingQueue<>(10000);
+    private final BlockingQueue<SOURCE_RECORD_T> rawEventQueue = new LinkedBlockingQueue<>();
+    private final BlockingQueue<TARGET_RECORD_T> eventQueue = new LinkedBlockingQueue<>();
     private final ExecutorService decodeExecutor = Executors.newFixedThreadPool(THREAD_NUM);
 
     private Thread providerThread;

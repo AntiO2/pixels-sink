@@ -151,6 +151,11 @@ public class PixelsSinkConfig
     @ConfigKey(value = "sink.datasource", defaultValue = PixelsSinkDefaultConfig.DATA_SOURCE)
     private String dataSource;
 
+    @ConfigKey(value = "sink.datasource.rate.limit", defaultValue = "-1")
+    private int sourceRateLimit;
+
+    private boolean enableSourceRateLimit;
+
     @ConfigKey(value = "sink.proto.dir")
     private String sinkProtoDir;
     @ConfigKey(value = "sink.proto.data", defaultValue = "data")
@@ -167,13 +172,13 @@ public class PixelsSinkConfig
     {
         this.config = ConfigFactory.Instance();
         this.config.loadProperties(configFilePath);
-        ConfigLoader.load(this.config.extractPropertiesByPrefix("", false), this);
+        init();
     }
 
     public PixelsSinkConfig(ConfigFactory config)
     {
         this.config = config;
-        ConfigLoader.load(this.config.extractPropertiesByPrefix("", false), this);
+        init();
     }
 
     public String[] getIncludeTables()
@@ -181,4 +186,10 @@ public class PixelsSinkConfig
         return includeTablesRaw.isEmpty() ? new String[0] : includeTablesRaw.split(",");
     }
 
+    private void init()
+    {
+        ConfigLoader.load(this.config.extractPropertiesByPrefix("", false), this);
+
+        this.enableSourceRateLimit = this.sourceRateLimit >= 0;
+    }
 }

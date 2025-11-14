@@ -1,5 +1,6 @@
 package io.pixelsdb.pixels.sink.source;
 
+import com.google.common.util.concurrent.RateLimiter;
 import io.pixelsdb.pixels.common.physical.PhysicalReader;
 import io.pixelsdb.pixels.common.physical.PhysicalReaderUtil;
 import io.pixelsdb.pixels.common.physical.Storage;
@@ -35,7 +36,6 @@ public abstract class AbstractSinkStorageSource implements SinkSource
     protected final List<String> files;
     protected final CompletableFuture<ByteBuffer> POISON_PILL = new CompletableFuture<>();
     private final Map<Integer, Thread> consumerThreads = new ConcurrentHashMap<>();
-    private final int maxQueueCapacity = 10000;
     private final TableMetadataRegistry tableMetadataRegistry = TableMetadataRegistry.Instance();
     private final Map<Integer, BlockingQueue<CompletableFuture<ByteBuffer>>> queueMap = new ConcurrentHashMap<>();
     private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
@@ -45,6 +45,8 @@ public abstract class AbstractSinkStorageSource implements SinkSource
     protected Thread transactionProviderThread;
     protected Thread transactionProcessorThread;
     private final boolean storageLoopEnabled;
+    private final RateLimiter rateLimiter;
+    private final boolean enableRateLimiter;
 
     protected AbstractSinkStorageSource()
     {
@@ -60,6 +62,10 @@ public abstract class AbstractSinkStorageSource implements SinkSource
 
         this.transactionProcessor = new TransactionProcessor(transactionEventProvider);
         this.transactionProcessorThread = new Thread(transactionProcessor, "debezium-processor");
+
+        int sourceRateLimit = pixelsSinkConfig.getSourceRateLimit();
+        this.rateLimiter = RateLimiter.create(sourceRateLimit);
+        this.enableRateLimiter = pixelsSinkConfig.isEnableSourceRateLimit();
     }
 
     abstract ProtoType getProtoType(int i);
@@ -113,7 +119,7 @@ public abstract class AbstractSinkStorageSource implements SinkSource
                             // Get or create queue
                             BlockingQueue<CompletableFuture<ByteBuffer>> queue =
                                     queueMap.computeIfAbsent(key,
-                                            k -> new LinkedBlockingQueue<>(maxQueueCapacity));
+                                            k -> new LinkedBlockingQueue<>());
 
                             // Put future in queue
                             queue.put(valueFuture);
@@ -176,6 +182,10 @@ public abstract class AbstractSinkStorageSource implements SinkSource
                 }
                 ByteBuffer valueBuffer = value.get();
                 metricsFacade.recordDebeziumEvent();
+                if(enableRateLimiter)
+                {
+                    rateLimiter.acquire();
+                }
                 switch (protoType)
                 {
                     case ROW -> handleRowChangeSourceRecord(key, valueBuffer);
