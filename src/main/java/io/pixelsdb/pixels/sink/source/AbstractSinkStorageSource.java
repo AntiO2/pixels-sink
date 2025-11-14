@@ -89,8 +89,6 @@ public abstract class AbstractSinkStorageSource implements SinkSource
                 try (PhysicalReader reader = PhysicalReaderUtil.newPhysicalReader(scheme, file))
                 {
                     long offset = 0;
-                    BlockingQueue<Pair<ByteBuffer, CompletableFuture<ByteBuffer>>> rowQueue = new LinkedBlockingQueue<>();
-                    BlockingQueue<CompletableFuture<ByteBuffer>> transQueue = new LinkedBlockingQueue<>();
                     while (true)
                     {
                         try
@@ -135,6 +133,20 @@ public abstract class AbstractSinkStorageSource implements SinkSource
                         } catch (IOException | InterruptedException e)
                         {
                             break;
+                        }
+                    }
+
+                    boolean allEmpty = false;
+                    while (!allEmpty)
+                    {
+                        allEmpty = true;
+                        // Check each queue
+                        for (BlockingQueue<?> q : queueMap.values())
+                        {
+                            if (!q.isEmpty()) {
+                                allEmpty = false;
+                                break;
+                            }
                         }
                     }
                 } catch (IOException e)
