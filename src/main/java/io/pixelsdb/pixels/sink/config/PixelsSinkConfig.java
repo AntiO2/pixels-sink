@@ -85,6 +85,12 @@ public class PixelsSinkConfig
     @ConfigKey(value = "sink.monitor.report.interval", defaultValue = "5000")
     private short monitorReportInterval;
 
+    @ConfigKey(value = "sink.monitor.freshness.interval", defaultValue = "1000")
+    private int freshnessReportInterval;
+
+    @ConfigKey(value = "sink.monitor.freshness.file", defaultValue = "/tmp/sinkFreshness.csv")
+    private String monitorFreshnessReportFile;
+
     @ConfigKey(value = "sink.monitor.report.file", defaultValue = "/tmp/sink.csv")
     private String monitorReportFile;
 

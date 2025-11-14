@@ -57,11 +57,14 @@ public class MetricsFacade
     private final Summary totalLatency;
     private final boolean monitorReportEnabled;
     private final int monitorReportInterval;
+    private final int freshnessReportInterval;
 
     private final SynchronizedDescriptiveStatistics freshness;
     private final SynchronizedDescriptiveStatistics rowChangeSpeed;
+    private final OneSecondAverage freshnessAvg;
 
     private final String monitorReportPath;
+    private final String freshnessReportPath;
 
     private final AtomicBoolean running = new AtomicBoolean(false);
 
@@ -69,7 +72,7 @@ public class MetricsFacade
     private SinkContextManager sinkContextManager;
 
     private final Thread reportThread;
-
+    private final Thread freshnessThread;
     private long lastRowChangeCount = 0;
     private long lastTransactionCount = 0;
     private long lastDebeziumCount = 0;
@@ -200,6 +203,10 @@ public class MetricsFacade
             this.rowChangeSpeed = null;
         }
 
+        freshnessReportInterval = config.getFreshnessReportInterval();
+        freshnessReportPath = config.getMonitorFreshnessReportFile();
+        freshnessAvg = new OneSecondAverage(freshnessReportInterval);
+
         monitorReportEnabled = config.isMonitorReportEnabled();
         monitorReportInterval = config.getMonitorReportInterval();
         monitorReportPath = config.getMonitorReportFile();
@@ -209,9 +216,12 @@ public class MetricsFacade
             reportThread = new Thread(this::run, "Metrics Report Thread");
             LOGGER.info("Metrics Report Thread Started");
             reportThread.start();
+            freshnessThread = new Thread(this::runFreshness, "Freshness Thread");
+            freshnessThread.start();
         } else
         {
             reportThread = null;
+            freshnessThread = null;
         }
     }
 
@@ -239,6 +249,11 @@ public class MetricsFacade
         if (reportThread != null)
         {
             reportThread.interrupt();
+        }
+
+        if (freshnessThread != null)
+        {
+            freshnessThread.interrupt();
         }
         LOGGER.info("Monitor report thread stopped.");
     }
@@ -374,6 +389,11 @@ public class MetricsFacade
         {
             freshness.addValue(freshnessMill);
         }
+
+        if(freshnessAvg != null)
+        {
+            freshnessAvg.record(freshnessMill);
+        }
     }
 
     public void run()
@@ -384,6 +404,45 @@ public class MetricsFacade
             {
                 Thread.sleep(monitorReportInterval);
                 logPerformance();
+            } catch (InterruptedException e)
+            {
+                Thread.currentThread().interrupt();
+                break;
+            } catch (Throwable t)
+            {
+                LOGGER.warn("Error while reporting performance.", t);
+            }
+        }
+    }
+
+    public void runFreshness()
+    {
+        try
+        {
+            Thread.sleep(monitorReportInterval);
+        } catch (InterruptedException e)
+        {
+            Thread.currentThread().interrupt();
+        }
+        while (running.get())
+        {
+            try
+            {
+                Thread.sleep(freshnessReportInterval);
+                try (FileWriter fw = new FileWriter(monitorReportPath, true))
+                {
+                    long now = System.currentTimeMillis();
+                    double avg = freshnessAvg.getWindowAverage();
+                    if(Double.isNaN(avg))
+                    {
+                        continue;
+                    }
+                    fw.write(now + "," + avg + "\n");
+                    fw.flush();
+                } catch (IOException e)
+                {
+                    LOGGER.warn("Failed to write perf metrics: " + e.getMessage());
+                }
             } catch (InterruptedException e)
             {
                 Thread.currentThread().interrupt();
