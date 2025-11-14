@@ -429,7 +429,7 @@ public class MetricsFacade
             try
             {
                 Thread.sleep(freshnessReportInterval);
-                try (FileWriter fw = new FileWriter(monitorReportPath, true))
+                try (FileWriter fw = new FileWriter(freshnessReportPath, true))
                 {
                     long now = System.currentTimeMillis();
                     double avg = freshnessAvg.getWindowAverage();
