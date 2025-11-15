@@ -33,10 +33,10 @@ public abstract class EventProvider<SOURCE_RECORD_T, TARGET_RECORD_T> implements
     private static final int BATCH_SIZE = 64;
     private static final int THREAD_NUM = 4;
     private static final long MAX_WAIT_MS = 5; // configurable
-
+    private static final int MAX_QUEUE_SIZE = 10_000;
     protected final MetricsFacade metricsFacade = MetricsFacade.getInstance();
-    private final BlockingQueue<SOURCE_RECORD_T> rawEventQueue = new LinkedBlockingQueue<>();
-    private final BlockingQueue<TARGET_RECORD_T> eventQueue = new LinkedBlockingQueue<>();
+    private final BlockingQueue<SOURCE_RECORD_T> rawEventQueue = new LinkedBlockingQueue<>(MAX_QUEUE_SIZE);
+    private final BlockingQueue<TARGET_RECORD_T> eventQueue = new LinkedBlockingQueue<>(MAX_QUEUE_SIZE);
     private final ExecutorService decodeExecutor = Executors.newFixedThreadPool(THREAD_NUM);
 
     private Thread providerThread;

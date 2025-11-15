@@ -51,3 +51,6 @@ resources/*.xml
 
 data/
 tmp/
+
+!requirements.txt
+freshness*.png
