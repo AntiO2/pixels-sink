@@ -45,7 +45,6 @@ public class TableCrossTxWriter extends TableWriter
     private final int flushBatchSize;
     private final ReentrantLock writeLock = new ReentrantLock();
     private final int bucketId;
-
     public TableCrossTxWriter(String t, int bucketId)
     {
         super(t);
@@ -77,7 +76,6 @@ public class TableCrossTxWriter extends TableWriter
         writeLock.lock();
         try
         {
-            // TODO(AntiO2) Fix: At high flush rates, the future task may encounter concurrency issues.
             String txId = null;
             List<RowChangeEvent> smallBatch = null;
             List<String> txIds = new ArrayList<>();
@@ -109,6 +107,12 @@ public class TableCrossTxWriter extends TableWriter
                 tableUpdateCount.add(smallBatch.size());
             }
 
+            flushRateLimiter.acquire(batch.size());
+            long txStartTime = System.currentTimeMillis();
+            for(String writeTxId: txIds)
+            {
+                sinkContextManager.getSinkContext(writeTxId).setCurrStartTime();
+            }
             CompletableFuture<RetinaProto.UpdateRecordResponse> updateRecordResponseCompletableFuture = delegate.writeBatchAsync(batch.get(0).getSchemaName(), tableUpdateData);
 
             updateRecordResponseCompletableFuture.thenAccept(
@@ -119,6 +123,9 @@ public class TableCrossTxWriter extends TableWriter
                             failCtxs(txIds);
                         } else
                         {
+                            long txEndTime = System.currentTimeMillis();
+
+                            metricsFacade.recordFreshness(txEndTime- txStartTime);
                             updateCtxCounters(txIds, fullTableName, tableUpdateCount);
                         }
                     }

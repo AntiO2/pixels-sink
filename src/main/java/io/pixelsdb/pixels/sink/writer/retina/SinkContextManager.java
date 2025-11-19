@@ -148,7 +148,7 @@ public class SinkContextManager
             return;
         }
 
-        ctx.setStartTime(System.currentTimeMillis());
+        // ctx.setStartTime(System.currentTimeMillis());
 
         try
         {

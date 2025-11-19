@@ -6,15 +6,17 @@ import numpy as np
 # 配置 CSV 文件 和 标签
 ##########################################
 csv_files = {
-    "10k": "tmp/freshness10k.csv",
-    "20k": "tmp/freshness20k.csv",
-    "30k": "tmp/freshness30k.csv",
-    "50k": "tmp/freshness50k.csv",
-    # "unlimit": "tmp/freshnessut.csv"
+    "10k": "tmp/freshness10k_2.csv",
+    "20k": "tmp/freshness20k_2.csv",
+    "30k": "tmp/freshness30k_2.csv",
+    "40k": "tmp/freshness40k_2.csv",
+    "50k": "tmp/freshness50k_2.csv",
+    # "50k_old": "tmp/freshness50k.csv",
 }
 
-MAX_SECONDS = 1800          # 只取前 1800 秒
-BIN_SECONDS = 40            # 可调平均窗口（秒）
+MAX_SECONDS = 36000          # 截取前多少秒的数据
+SKIP_SECONDS = 10            # 跳过前多少秒的数据（可调）
+BIN_SECONDS = 60            # 平均窗口（秒）
 
 ##########################################
 # 加载并处理数据
@@ -30,13 +32,20 @@ for label, path in csv_files.items():
     t0 = df["ts"].iloc[0]
     df["sec"] = (df["ts"] - t0).dt.total_seconds()
 
+    # 跳过前 SKIP_SECONDS 秒
+    df = df[df["sec"] >= SKIP_SECONDS]
+
+    # 重新计算时间（所有曲线从 0 秒开始对齐）
+    t_new0 = df["ts"].iloc[0]
+    df["sec"] = (df["ts"] - t_new0).dt.total_seconds()
+
     # 只取前 MAX_SECONDS 秒
     df = df[df["sec"] <= MAX_SECONDS]
 
     # 可调平均窗口采样
     df_bin = df.resample(f"{BIN_SECONDS}s", on="ts").mean().reset_index()
 
-    # 时间对齐（横轴）
+    # 对齐横轴（时间序列）
     df_bin["bin_sec"] = (df_bin["ts"] - df_bin["ts"].iloc[0]).dt.total_seconds()
 
     data[label] = df_bin
@@ -53,7 +62,10 @@ for label, df in data.items():
 plt.xlabel("Time (sec)")
 plt.ylabel(f"Freshness (ms, {BIN_SECONDS}s average)")
 plt.yscale("log")
-plt.title(f"Freshness Over Time ({BIN_SECONDS}-Second Avg, First {MAX_SECONDS}s)")
+plt.title(
+    f"Freshness Over Time ({BIN_SECONDS}-Second Avg, "
+    f"Skip {SKIP_SECONDS}s, First {MAX_SECONDS}s)"
+)
 plt.legend()
 plt.tight_layout()
 plt.savefig("freshness_over_time_variable_bin.png")
@@ -61,7 +73,7 @@ plt.close()
 
 
 ##########################################
-# 图 2：CDF（使用同样的平均窗口数据）
+# 图 2：CDF（同样使用平均窗口后的数据）
 ##########################################
 plt.figure(figsize=(10, 5))
 
@@ -70,10 +82,12 @@ for label, df in data.items():
     y = np.linspace(0, 1, len(vals))
     plt.plot(vals, y, label=label)
 
+plt.xscale("log")
 plt.xlabel(f"Freshness (ms, {BIN_SECONDS}s average)")
-plt.xscale("log") 
 plt.ylabel("CDF")
-plt.title(f"Freshness CDF Distribution ({BIN_SECONDS}-Second Sampled)")
+plt.title(
+    f"Freshness CDF Distribution ({BIN_SECONDS}-Second Sampled, Skip {SKIP_SECONDS}s)"
+)
 plt.legend()
 plt.tight_layout()
 plt.savefig("freshness_cdf_variable_bin.png")

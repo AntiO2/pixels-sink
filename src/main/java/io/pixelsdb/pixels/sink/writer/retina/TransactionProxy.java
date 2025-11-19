@@ -179,11 +179,11 @@ public class TransactionProxy
                 metricsFacade.recordTransaction(batchTransIds.size());
                 long txEndTime = System.currentTimeMillis();
 
-                txStartTimes.forEach(
-                        txStartTime -> {
-                            metricsFacade.recordFreshness(txEndTime- txStartTime);
-                        }
-                );
+//                txStartTimes.forEach(
+//                        txStartTime -> {
+//                            metricsFacade.recordFreshness(txEndTime- txStartTime);
+//                        }
+//                );
 
                 if (LOGGER.isTraceEnabled())
                 {

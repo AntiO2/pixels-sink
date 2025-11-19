@@ -40,8 +40,6 @@ public abstract class AbstractSinkStorageSource implements SinkSource {
     private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
     private final TableProviderAndProcessorPipelineManager<ByteBuffer> tablePipelineManager = new TableProviderAndProcessorPipelineManager<ByteBuffer>();
     private final boolean storageLoopEnabled;
-    private final RateLimiter rateLimiter;
-    private final boolean enableRateLimiter;
     private final int MAX_QUEUE_SIZE = 10_000;
     protected TransactionEventStorageProvider<ByteBuffer> transactionEventProvider;
     protected TransactionProcessor transactionProcessor;
@@ -61,10 +59,6 @@ public abstract class AbstractSinkStorageSource implements SinkSource {
 
         this.transactionProcessor = new TransactionProcessor(transactionEventProvider);
         this.transactionProcessorThread = new Thread(transactionProcessor, "debezium-processor");
-
-        int sourceRateLimit = pixelsSinkConfig.getSourceRateLimit();
-        this.rateLimiter = RateLimiter.create(sourceRateLimit);
-        this.enableRateLimiter = pixelsSinkConfig.isEnableSourceRateLimit();
     }
 
     abstract ProtoType getProtoType(int i);
@@ -178,9 +172,6 @@ public abstract class AbstractSinkStorageSource implements SinkSource {
                 }
                 ByteBuffer valueBuffer = value.get();
                 metricsFacade.recordDebeziumEvent();
-                if (enableRateLimiter) {
-                    rateLimiter.acquire();
-                }
                 switch (protoType) {
                     case ROW -> handleRowChangeSourceRecord(key, valueBuffer);
                     case TRANS -> handleTransactionSourceRecord(valueBuffer);

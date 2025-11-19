@@ -24,6 +24,7 @@ import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
 import io.pixelsdb.pixels.sink.exception.SinkException;
+import io.pixelsdb.pixels.sink.util.FlushRateLimiter;
 import io.pixelsdb.pixels.sink.util.MetricsFacade;
 import org.slf4j.Logger;
 
@@ -58,7 +59,8 @@ public abstract class TableWriter
     protected String fullTableName;
     protected PixelsSinkConfig config;
     protected MetricsFacade metricsFacade = MetricsFacade.getInstance();
-
+    protected final FlushRateLimiter flushRateLimiter;
+    protected final SinkContextManager sinkContextManager;
 
     protected TableWriter(String tableName)
     {
@@ -66,7 +68,8 @@ public abstract class TableWriter
         this.tableName = tableName;
         this.delegate = new RetinaServiceProxy();
         this.flushInterval = config.getFlushIntervalMs();
-
+        this.flushRateLimiter = FlushRateLimiter.getInstance();
+        this.sinkContextManager = SinkContextManager.getInstance();
     }
 
     /**

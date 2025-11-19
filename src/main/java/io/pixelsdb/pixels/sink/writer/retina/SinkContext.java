@@ -70,8 +70,7 @@ public class SinkContext
     private boolean failed = false;
 
     @Getter
-    @Setter
-    private long startTime;
+    private volatile Long startTime = null;
 
     public SinkContext(String sourceTxId)
     {
@@ -130,4 +129,19 @@ public class SinkContext
         orphanEvent.add(event);
     }
 
+    public void setCurrStartTime()
+    {
+        if(startTime != null)
+        {
+            return;
+        }
+
+        synchronized (this)
+        {
+            if(startTime == null)
+            {
+                startTime = System.currentTimeMillis();
+            }
+        }
+    }
 }
