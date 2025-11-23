@@ -124,8 +124,10 @@ public class TableCrossTxWriter extends TableWriter
                         } else
                         {
                             long txEndTime = System.currentTimeMillis();
-
-                            metricsFacade.recordFreshness(txEndTime- txStartTime);
+                            if(freshnessLevel.equals("row"))
+                            {
+                                metricsFacade.recordFreshness(txEndTime- txStartTime);
+                            }
                             updateCtxCounters(txIds, fullTableName, tableUpdateCount);
                         }
                     }

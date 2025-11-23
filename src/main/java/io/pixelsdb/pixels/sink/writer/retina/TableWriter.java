@@ -61,6 +61,7 @@ public abstract class TableWriter
     protected MetricsFacade metricsFacade = MetricsFacade.getInstance();
     protected final FlushRateLimiter flushRateLimiter;
     protected final SinkContextManager sinkContextManager;
+    protected final String freshnessLevel;
 
     protected TableWriter(String tableName)
     {
@@ -70,6 +71,7 @@ public abstract class TableWriter
         this.flushInterval = config.getFlushIntervalMs();
         this.flushRateLimiter = FlushRateLimiter.getInstance();
         this.sinkContextManager = SinkContextManager.getInstance();
+        this.freshnessLevel = config.getSinkMonitorFreshnessLevel();
     }
 
     /**

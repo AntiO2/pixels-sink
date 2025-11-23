@@ -86,6 +86,7 @@ public abstract class AbstractSinkStorageSource implements SinkSource {
         }
         do {
             for (PhysicalReader reader : readers) {
+                LOGGER.info("Start Read {}", reader.getPath());
                 long offset = 0;
                 while (true) {
                     try {

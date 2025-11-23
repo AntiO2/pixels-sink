@@ -21,6 +21,8 @@ import io.pixelsdb.pixels.common.exception.TransException;
 import io.pixelsdb.pixels.common.transaction.TransService;
 import io.pixelsdb.pixels.core.TypeDescription;
 import io.pixelsdb.pixels.sink.SinkProto;
+import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
+import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
 import io.pixelsdb.pixels.sink.exception.SinkException;
 import io.pixelsdb.pixels.sink.util.BlockingBoundedMap;
@@ -46,10 +48,25 @@ public class SinkContextManager
     private final TransactionProxy transactionProxy = TransactionProxy.Instance();
     private final TransService transService = TransService.Instance();
     private final TableWriterProxy tableWriterProxy;
+    private final CommitMethod commitMethod;
+
+    private enum CommitMethod
+    {
+        Sync,
+        Async
+    }
 
     private SinkContextManager()
     {
+        PixelsSinkConfig config = PixelsSinkConfigFactory.getInstance();
         this.tableWriterProxy = TableWriterProxy.getInstance();
+        if(config.getCommitMethod().equals("sync"))
+        {
+            this.commitMethod = CommitMethod.Sync;
+        } else
+        {
+            this.commitMethod = CommitMethod.Async;
+        }
     }
 
     private static volatile SinkContextManager instance;
@@ -177,7 +194,18 @@ public class SinkContextManager
             if (!failed)
             {
                 LOGGER.trace("Committed transaction: {}", txId);
-                transactionProxy.commitTransAsync(ctx);
+                switch(commitMethod)
+                {
+                    case Sync ->
+                    {
+                        transactionProxy.commitTransSync(ctx);
+                    }
+                    case Async ->
+                    {
+                        transactionProxy.commitTransAsync(ctx);
+                    }
+                }
+
             } else
             {
                 LOGGER.info("Abort transaction: {}", txId);

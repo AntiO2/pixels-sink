@@ -6,15 +6,15 @@ import numpy as np
 # 配置 CSV 文件 和 标签
 ##########################################
 csv_files = {
-    "10k": "tmp/freshness10k_2.csv",
-    "20k": "tmp/freshness20k_2.csv",
-    "30k": "tmp/freshness30k_2.csv",
-    "40k": "tmp/freshness40k_2.csv",
-    "50k": "tmp/freshness50k_2.csv",
-    # "50k_old": "tmp/freshness50k.csv",
+    "10k": "tmp/freshness10k_5.csv",
+    "20k": "tmp/freshness20k_5.csv",
+    # "30k": "tmp/freshness30k_2.csv",
+    "40k": "tmp/freshness40k_5.csv",
+    "50k": "tmp/freshness50k_5.csv",
+    "60k": "tmp/freshness60k_5.csv"
 }
 
-MAX_SECONDS = 36000          # 截取前多少秒的数据
+MAX_SECONDS = 1800          # 截取前多少秒的数据
 SKIP_SECONDS = 10            # 跳过前多少秒的数据（可调）
 BIN_SECONDS = 60            # 平均窗口（秒）
 

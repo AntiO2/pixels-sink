@@ -43,7 +43,7 @@ public class RetinaWriter implements PixelsSinkWriter
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(RetinaWriter.class);
     final ExecutorService dispatchExecutor = Executors.newCachedThreadPool();
-    private final ExecutorService transactionExecutor = Executors.newFixedThreadPool(1024);
+    private final ExecutorService transactionExecutor = Executors.newFixedThreadPool(2048);
     private final ScheduledExecutorService timeoutScheduler =
             Executors.newSingleThreadScheduledExecutor();
 

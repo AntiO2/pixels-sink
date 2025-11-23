@@ -46,6 +46,9 @@ public class PixelsSinkConfig
     @ConfigKey(value = "sink.trans.mode", defaultValue = TransactionConfig.DEFAULT_TRANSACTION_MODE)
     private TransactionMode transactionMode;
 
+    @ConfigKey(value = "sink.commit.method", defaultValue = "async")
+    private String commitMethod;
+
     @ConfigKey(value = "sink.commit.batch.size", defaultValue = "500")
     private int commitBatchSize;
 
@@ -167,6 +170,8 @@ public class PixelsSinkConfig
     @ConfigKey(value = "sink.storage.loop", defaultValue = "false")
     private boolean sinkStorageLoop;
 
+    @ConfigKey(value = "sink.monitor.freshness.level", defaultValue = "row") // row or txn
+    private String sinkMonitorFreshnessLevel;
 
     public PixelsSinkConfig(String configFilePath) throws IOException
     {

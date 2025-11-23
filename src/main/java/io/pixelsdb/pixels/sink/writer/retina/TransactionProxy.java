@@ -46,7 +46,7 @@ public class TransactionProxy
     private final ExecutorService batchCommitExecutor;
     private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
     private final BlockingQueue<SinkContext> toCommitTransContextQueue;
-
+    private final String freshnessLevel;
     private final int BATCH_SIZE;
     private final int WORKER_COUNT;
     private final int MAX_WAIT_MS;
@@ -77,7 +77,7 @@ public class TransactionProxy
             batchCommitExecutor.submit(this::batchCommitWorker);
         }
 
-
+        this.freshnessLevel = pixelsSinkConfig.getSinkMonitorFreshnessLevel();
     }
 
     public static TransactionProxy Instance()
@@ -135,6 +135,25 @@ public class TransactionProxy
         toCommitTransContextQueue.add(transContext);
     }
 
+    public void commitTransSync(SinkContext transContext)
+    {
+        try
+        {
+            transService.commitTrans(transContext.getPixelsTransCtx().getTransId(), false);
+            metricsFacade.recordTransaction();
+            long txEndTime = System.currentTimeMillis();
+
+            if(freshnessLevel.equals("txn"))
+            {
+                metricsFacade.recordFreshness(txEndTime- transContext.getStartTime());
+            }
+        }
+        catch (TransException e)
+        {
+            LOGGER.error("Batch commit failed: {}", e.getMessage(), e);
+        }
+    }
+
     private void batchCommitWorker()
     {
         List<Long> batchTransIds = new ArrayList<>(BATCH_SIZE);
@@ -179,12 +198,14 @@ public class TransactionProxy
                 metricsFacade.recordTransaction(batchTransIds.size());
                 long txEndTime = System.currentTimeMillis();
 
-//                txStartTimes.forEach(
-//                        txStartTime -> {
-//                            metricsFacade.recordFreshness(txEndTime- txStartTime);
-//                        }
-//                );
-
+                if(freshnessLevel.equals("txn"))
+                {
+                    txStartTimes.forEach(
+                            txStartTime -> {
+                                metricsFacade.recordFreshness(txEndTime- txStartTime);
+                            }
+                    );
+                }
                 if (LOGGER.isTraceEnabled())
                 {
                     LOGGER.trace("[{}] Batch committed {} transactions ({} waited ms)",
