@@ -32,9 +32,9 @@ public class TableSingleTxWriter extends TableWriter
     @Getter
     private final Logger LOGGER = LoggerFactory.getLogger(TableSingleTxWriter.class);
 
-    public TableSingleTxWriter(String tableName)
+    public TableSingleTxWriter(String tableName, int bucketId)
     {
-        super(tableName);
+        super(tableName, bucketId);
     }
 
     /**

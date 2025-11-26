@@ -17,9 +17,13 @@
 
 package io.pixelsdb.pixels.sink.writer.retina;
 
+import io.pixelsdb.pixels.common.node.BucketCache;
+import io.pixelsdb.pixels.daemon.NodeProto;
+import io.pixelsdb.pixels.retina.RetinaProto;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 
+import java.io.Writer;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -28,14 +32,16 @@ public class TableWriterProxy
     private final static TableWriterProxy INSTANCE = new TableWriterProxy();
 
     private final TransactionMode transactionMode;
+    private final int retinaCliNum;
+    record WriterKey(long tableId, NodeProto.NodeInfo nodeInfo, int cliNo) { }
 
-    record TableKey(long tableId, int bucket) { }
-    private final Map<TableKey, TableWriter> WRITER_REGISTRY = new ConcurrentHashMap<>();
+    private final Map<WriterKey, TableWriter> WRITER_REGISTRY = new ConcurrentHashMap<>();
 
     private TableWriterProxy()
     {
         PixelsSinkConfig pixelsSinkConfig = PixelsSinkConfigFactory.getInstance();
         this.transactionMode = pixelsSinkConfig.getTransactionMode();
+        this.retinaCliNum = pixelsSinkConfig.getRetinaClientNum();
     }
 
     protected static TableWriterProxy getInstance()
@@ -45,15 +51,17 @@ public class TableWriterProxy
 
     protected TableWriter getTableWriter(String tableName, long tableId, int bucket)
     {
+        int cliNo = bucket % retinaCliNum;
         // warn: we assume table id is less than INT.MAX
-        TableKey key = new TableKey(tableId, bucket);
+        WriterKey key = new WriterKey(tableId, BucketCache.getInstance().getRetinaNodeInfoByBucketId(bucket), cliNo);
+
         return WRITER_REGISTRY.computeIfAbsent(key, t ->
         {
             switch (transactionMode)
             {
                 case SINGLE ->
                 {
-                    return new TableSingleTxWriter(tableName);
+                    return new TableSingleTxWriter(tableName, bucket);
                 }
                 case BATCH ->
                 {

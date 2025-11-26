@@ -188,7 +188,7 @@ public class TestRetinaWriter
         String schemaName = "pixels_bench_sf1x";
         String tableName = "savingaccount";
 
-        RetinaServiceProxy writer = new RetinaServiceProxy();
+        RetinaServiceProxy writer = new RetinaServiceProxy(-1);
 
         TransactionProxy manager = TransactionProxy.Instance();
         // Step 1: Insert 10,000 records
@@ -322,7 +322,7 @@ public class TestRetinaWriter
         List<RetinaServiceProxy> writers = new ArrayList<>();
         for (int c = 0; c < clientCount; c++)
         {
-            writers.add(new RetinaServiceProxy());
+            writers.add(new RetinaServiceProxy(-1));
         }
 
         Random random = new Random();

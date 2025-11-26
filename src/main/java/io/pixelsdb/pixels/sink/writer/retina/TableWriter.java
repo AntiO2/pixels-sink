@@ -63,15 +63,15 @@ public abstract class TableWriter
     protected final SinkContextManager sinkContextManager;
     protected final String freshnessLevel;
 
-    protected TableWriter(String tableName)
+    protected TableWriter(String tableName, int bucketId)
     {
         this.config = PixelsSinkConfigFactory.getInstance();
         this.tableName = tableName;
-        this.delegate = new RetinaServiceProxy();
         this.flushInterval = config.getFlushIntervalMs();
         this.flushRateLimiter = FlushRateLimiter.getInstance();
         this.sinkContextManager = SinkContextManager.getInstance();
         this.freshnessLevel = config.getSinkMonitorFreshnessLevel();
+        this.delegate = new RetinaServiceProxy(bucketId);
     }
 
     /**

@@ -40,8 +40,8 @@ public class PixelsSinkConfig
     @ConfigKey(value = "sink.retina.mode", defaultValue = PixelsSinkDefaultConfig.SINK_RETINA_MODE)
     private RetinaServiceProxy.RetinaWriteMode retinaWriteMode;
 
-    @ConfigKey(value = "sink.retina.bucket", defaultValue = "1")
-    private int retinaBucketNum;
+    @ConfigKey(value = "sink.retina.client", defaultValue = "1")
+    private int retinaClientNum;
 
     @ConfigKey(value = "sink.trans.mode", defaultValue = TransactionConfig.DEFAULT_TRANSACTION_MODE)
     private TransactionMode transactionMode;

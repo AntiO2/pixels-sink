@@ -18,7 +18,9 @@
 package io.pixelsdb.pixels.sink.writer.retina;
 
 import io.pixelsdb.pixels.common.exception.RetinaException;
+import io.pixelsdb.pixels.common.node.BucketCache;
 import io.pixelsdb.pixels.common.retina.RetinaService;
+import io.pixelsdb.pixels.common.utils.RetinaUtils;
 import io.pixelsdb.pixels.retina.RetinaProto;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
@@ -41,12 +43,21 @@ public class RetinaServiceProxy
     private static final PixelsSinkConfig config = PixelsSinkConfigFactory.getInstance();
     // private static final IndexService indexService = IndexService.Instance();
     private final AtomicBoolean isClosed = new AtomicBoolean(false);
-    private final RetinaService retinaService = RetinaService.Instance();
+    private final RetinaService retinaService;
     private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
     private RetinaService.StreamHandler retinaStream = null;
 
-    public RetinaServiceProxy()
+    public RetinaServiceProxy(int bucketId)
     {
+        if(bucketId == -1)
+        {
+            this.retinaService = RetinaService.Instance();
+        } else
+        {
+            this.retinaService = RetinaUtils.getRetinaServiceFromBucketId(bucketId);
+        }
+
+
         if (config.getTransactionMode() == TransactionMode.BATCH && config.getRetinaWriteMode() == RetinaWriteMode.STREAM)
         {
             retinaStream = retinaService.startUpdateStream();
@@ -70,7 +81,14 @@ public class RetinaServiceProxy
             }
         } else
         {
-            retinaStream.updateRecord(schemaName, tableUpdateData);
+            try
+            {
+                retinaStream.updateRecord(schemaName, tableUpdateData);
+            } catch (RetinaException e)
+            {
+                e.printStackTrace();
+                return false;
+            }
         }
         return true;
     }
@@ -90,7 +108,14 @@ public class RetinaServiceProxy
             return null;
         } else
         {
-            return retinaStream.updateRecord(schemaName, tableUpdateData);
+            try
+            {
+                return retinaStream.updateRecord(schemaName, tableUpdateData);
+            } catch (RetinaException e)
+            {
+                e.printStackTrace();
+            }
+            return null;
         }
     }
 

@@ -20,6 +20,8 @@ package io.pixelsdb.pixels.sink.event;
 import com.google.common.hash.Hashing;
 import com.google.protobuf.ByteString;
 import io.pixelsdb.pixels.common.metadata.domain.SinglePointIndex;
+import io.pixelsdb.pixels.common.node.BucketCache;
+import io.pixelsdb.pixels.common.utils.RetinaUtils;
 import io.pixelsdb.pixels.core.TypeDescription;
 import io.pixelsdb.pixels.index.IndexProto;
 import io.pixelsdb.pixels.sink.SinkProto;
@@ -187,13 +189,7 @@ public class RowChangeEvent
 
     protected static int getBucketIdFromByteBuffer(ByteString byteString)
     {
-        PixelsSinkConfig pixelsSinkConfig = PixelsSinkConfigFactory.getInstance();
-        int bucketNum = pixelsSinkConfig.getRetinaBucketNum();
-        int hash = Math.abs(Hashing.murmur3_32_fixed()
-                .hashBytes(byteString.toByteArray())
-                .asInt());
-
-        return hash % bucketNum;
+        return RetinaUtils.getBucketIdFromByteBuffer(byteString);
     }
 
 

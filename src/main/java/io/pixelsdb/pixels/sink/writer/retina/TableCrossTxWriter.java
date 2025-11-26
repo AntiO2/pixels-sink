@@ -47,7 +47,7 @@ public class TableCrossTxWriter extends TableWriter
     private final int bucketId;
     public TableCrossTxWriter(String t, int bucketId)
     {
-        super(t);
+        super(t, bucketId);
         flushBatchSize = config.getFlushBatchSize();
         this.bucketId = bucketId;
     }
