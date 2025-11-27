@@ -83,19 +83,6 @@ public class ProtoWriter implements PixelsSinkWriter
         {
             return writeData((int) tableId, rowData);
         }
-
-//            ByteBuffer keyBuffer = ByteBuffer.allocate(Integer.BYTES + Long.BYTES);
-//            keyBuffer.putInt(ProtoType.ROW.toInt())
-//                    .putLong(tableId);
-
-
-//        byte[] schemaNameBytes = schemaName.getBytes();
-//        byte[] tableNameBytes = tableName.getBytes();
-//
-//        ByteBuffer keyBuffer = ByteBuffer.allocate(Integer.BYTES * 3 + schemaNameBytes.length + tableNameBytes.length);
-//        keyBuffer.putInt(ProtoType.ROW.toInt()).putInt(schemaNameBytes.length).putInt(tableNameBytes.length);
-//        keyBuffer.put(schemaNameBytes).put(tableNameBytes);
-//        return writeData(keyBuffer.array(), rowData);
     }
 
     // key: -1 means transaction, else means table id
