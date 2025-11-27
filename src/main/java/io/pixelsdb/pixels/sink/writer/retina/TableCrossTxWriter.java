@@ -19,9 +19,11 @@
 package io.pixelsdb.pixels.sink.writer.retina;
 
 
+import com.google.protobuf.Message;
 import io.pixelsdb.pixels.retina.RetinaProto;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
 import io.pixelsdb.pixels.sink.exception.SinkException;
+import io.pixelsdb.pixels.sink.util.DataTransform;
 import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -80,7 +82,7 @@ public class TableCrossTxWriter extends TableWriter
             List<RowChangeEvent> smallBatch = null;
             List<String> txIds = new ArrayList<>();
             List<String> fullTableName = new ArrayList<>();
-            List<RetinaProto.TableUpdateData> tableUpdateData = new LinkedList<>();
+            List<RetinaProto.TableUpdateData.Builder> tableUpdateDataBuilderList = new LinkedList<>();
             List<Integer> tableUpdateCount = new ArrayList<>();
             for (RowChangeEvent event : batch)
             {
@@ -89,7 +91,7 @@ public class TableCrossTxWriter extends TableWriter
                 {
                     if (smallBatch != null && !smallBatch.isEmpty())
                     {
-                        tableUpdateData.add(buildTableUpdateDataFromBatch(txId, smallBatch).build());
+                        tableUpdateDataBuilderList.add(buildTableUpdateDataFromBatch(txId, smallBatch));
                         tableUpdateCount.add(smallBatch.size());
                     }
                     txIds.add(currTxId);
@@ -103,15 +105,28 @@ public class TableCrossTxWriter extends TableWriter
             if (smallBatch != null)
             {
                 // tableUpdateData.add(buildTableUpdateDataFromBatch(txId, smallBatch).setBucketId(bucketId).setTxId(currentTxId).build());
-                tableUpdateData.add(buildTableUpdateDataFromBatch(txId, smallBatch).build());
+                tableUpdateDataBuilderList.add(buildTableUpdateDataFromBatch(txId, smallBatch));
                 tableUpdateCount.add(smallBatch.size());
             }
 
             flushRateLimiter.acquire(batch.size());
             long txStartTime = System.currentTimeMillis();
+
+            if(freshnessLevel.equals("embed"))
+            {
+                DataTransform.updateTimeStamp(tableUpdateDataBuilderList, txStartTime);
+            }
+
+
             for(String writeTxId: txIds)
             {
                 sinkContextManager.getSinkContext(writeTxId).setCurrStartTime();
+            }
+
+            List<RetinaProto.TableUpdateData> tableUpdateData = new ArrayList<>(tableUpdateDataBuilderList.size());
+            for (RetinaProto.TableUpdateData.Builder tableUpdateDataItem : tableUpdateDataBuilderList)
+            {
+                tableUpdateData.add(tableUpdateDataItem.build());
             }
             CompletableFuture<RetinaProto.UpdateRecordResponse> updateRecordResponseCompletableFuture = delegate.writeBatchAsync(batch.get(0).getSchemaName(), tableUpdateData);
 

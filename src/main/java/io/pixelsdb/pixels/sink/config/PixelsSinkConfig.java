@@ -170,7 +170,7 @@ public class PixelsSinkConfig
     @ConfigKey(value = "sink.storage.loop", defaultValue = "false")
     private boolean sinkStorageLoop;
 
-    @ConfigKey(value = "sink.monitor.freshness.level", defaultValue = "row") // row or txn
+    @ConfigKey(value = "sink.monitor.freshness.level", defaultValue = "row") // row or txn or embed
     private String sinkMonitorFreshnessLevel;
 
     public PixelsSinkConfig(String configFilePath) throws IOException

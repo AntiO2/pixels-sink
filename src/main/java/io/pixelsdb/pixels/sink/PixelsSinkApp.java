@@ -19,6 +19,7 @@ package io.pixelsdb.pixels.sink;
 import io.pixelsdb.pixels.sink.config.CommandLineConfig;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
+import io.pixelsdb.pixels.sink.freshness.FreshnessClient;
 import io.pixelsdb.pixels.sink.source.SinkSource;
 import io.pixelsdb.pixels.sink.source.SinkSourceFactory;
 import io.pixelsdb.pixels.sink.util.MetricsFacade;
@@ -41,15 +42,20 @@ public class PixelsSinkApp
     private static final Logger LOGGER = LoggerFactory.getLogger(PixelsSinkApp.class);
     private static SinkSource sinkSource;
     private static HTTPServer prometheusHttpServer;
-
+    private static FreshnessClient freshnessClient;
 
     public static void main(String[] args) throws IOException
     {
         Runtime.getRuntime().addShutdownHook(new Thread(() ->
         {
+            PixelsSinkConfig config = PixelsSinkConfigFactory.getInstance();
             TransactionProxy.staticClose();
             sinkSource.stopProcessor();
             LOGGER.info("Pixels Sink Server shutdown complete");
+            if (config.getSinkMonitorFreshnessLevel().equals("embed") && freshnessClient != null)
+            {
+                freshnessClient.stop();
+            }
             if (prometheusHttpServer != null)
             {
                 prometheusHttpServer.close();
@@ -85,6 +91,11 @@ public class PixelsSinkApp
             throw new RuntimeException(e);
         }
 
+        if (config.getSinkMonitorFreshnessLevel().equals("embed"))
+        {
+            freshnessClient = new FreshnessClient();
+            freshnessClient.start();
+        }
         sinkSource.start();
     }
 

@@ -23,6 +23,7 @@ import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
 import io.pixelsdb.pixels.sink.writer.retina.SinkContextManager;
 import io.prometheus.client.Counter;
+import io.prometheus.client.Histogram;
 import io.prometheus.client.Summary;
 import lombok.Setter;
 import org.apache.commons.math3.stat.descriptive.SynchronizedDescriptiveStatistics;
@@ -55,6 +56,8 @@ public class MetricsFacade
     private final Summary retinaServiceLatency;
     private final Summary writerLatency;
     private final Summary totalLatency;
+    private final Histogram transactionRowCountHistogram;
+
     private final boolean monitorReportEnabled;
     private final int monitorReportInterval;
     private final int freshnessReportInterval;
@@ -180,6 +183,11 @@ public class MetricsFacade
                     .quantile(0.95, 0.005)
                     .quantile(0.99, 0.001)
                     .register();
+            this.transactionRowCountHistogram = Histogram.build()
+                    .name("transaction_row_count_histogram")
+                    .help("Distribution of row counts within a single transaction")
+                    .buckets(1, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 200)
+                    .register();
 
             this.freshness = new SynchronizedDescriptiveStatistics();
             this.rowChangeSpeed = new SynchronizedDescriptiveStatistics();
@@ -201,6 +209,7 @@ public class MetricsFacade
             this.totalLatency = null;
             this.freshness = null;
             this.rowChangeSpeed = null;
+            this.transactionRowCountHistogram = null;
         }
 
         freshnessReportInterval = config.getFreshnessReportInterval();
