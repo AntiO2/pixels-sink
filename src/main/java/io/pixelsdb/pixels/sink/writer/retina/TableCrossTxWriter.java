@@ -110,7 +110,7 @@ public class TableCrossTxWriter extends TableWriter
                 tableUpdateCount.add(smallBatch.size());
             }
 
-            flushRateLimiter.acquire(batch.size());
+            // flushRateLimiter.acquire(batch.size());
             long txStartTime = System.currentTimeMillis();
 
 //            if(freshnessLevel.equals("embed"))

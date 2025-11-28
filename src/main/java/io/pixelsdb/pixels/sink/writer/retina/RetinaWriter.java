@@ -24,6 +24,7 @@ import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
 import io.pixelsdb.pixels.sink.exception.SinkException;
+import io.pixelsdb.pixels.sink.util.FlushRateLimiter;
 import io.pixelsdb.pixels.sink.util.MetricsFacade;
 import io.pixelsdb.pixels.sink.writer.PixelsSinkWriter;
 import io.prometheus.client.Summary;
@@ -46,13 +47,14 @@ public class RetinaWriter implements PixelsSinkWriter
     private final ExecutorService transactionExecutor = Executors.newFixedThreadPool(2048);
     private final ScheduledExecutorService timeoutScheduler =
             Executors.newSingleThreadScheduledExecutor();
-
+    private final FlushRateLimiter flushRateLimiter;
     private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
     private final SinkContextManager sinkContextManager;
 
     public RetinaWriter()
     {
         this.sinkContextManager = SinkContextManager.getInstance();
+        this.flushRateLimiter = FlushRateLimiter.getInstance();
     }
 
     @Override
@@ -120,6 +122,7 @@ public class RetinaWriter implements PixelsSinkWriter
         // startTrans(txBegin.getId()).get();
         try
         {
+            flushRateLimiter.acquire(1);
             startTransSync(txBegin.getId());
         } catch (SinkException e)
         {
