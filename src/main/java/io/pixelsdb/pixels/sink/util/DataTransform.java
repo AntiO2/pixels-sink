@@ -55,7 +55,6 @@
                      updateBuilder.setColValues(colValueCount - 1, timestampBytes);
                  }
              }
-             tableUpdateDataBuilder.setTimestamp(txStartTime);
          }
      }
  }

@@ -63,17 +63,6 @@ public class TableProviderAndProcessorPipelineManager<SOURCE_RECORD_T>
             );
             tableProcessor.run();
             newPipeline.run();
-            if(PixelsSinkConfigFactory.getInstance().getSinkMonitorFreshnessLevel().equals("embed"))
-            {
-                try
-                {
-                    String tableName = TableMetadataRegistry.Instance().getSchemaTableName(tableId).getTableName();
-                    FreshnessClient.getInstance().addMonitoredTable(tableName);
-                } catch (SinkException e)
-                {
-                    throw new RuntimeException(e);
-                }
-            }
             return newPipeline;
         });
         pipeline.putRawEvent(record);

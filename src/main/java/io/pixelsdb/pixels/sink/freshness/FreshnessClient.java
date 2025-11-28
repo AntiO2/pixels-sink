@@ -20,14 +20,14 @@
 
 package io.pixelsdb.pixels.sink.freshness;
 
+import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
+import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.util.MetricsFacade;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.*;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -40,9 +40,9 @@ public class FreshnessClient {
     private static final Logger LOGGER = LoggerFactory.getLogger(FreshnessClient.class);
 
     // Configuration parameters (should ideally be loaded from a config file)
-    private final String trinoJdbcUrl = "jdbc:trino://realtime-pixels-coordinator:8080/pixels/pixels_bench_sf10x";
-    private final String trinoUser = "pixels";
-    private final String trinoPassword = "password";
+    private final String trinoJdbcUrl;
+    private final String trinoUser;
+    private final String trinoPassword;
 
     // Key modification: Use a thread-safe Set to maintain the list of tables to monitor dynamically.
     private final Set<String> monitoredTables;
@@ -56,6 +56,11 @@ public class FreshnessClient {
     private FreshnessClient() {
         // Initializes the set with thread safety wrapper
         this.monitoredTables = Collections.synchronizedSet(new HashSet<>());
+
+        PixelsSinkConfig config = PixelsSinkConfigFactory.getInstance();
+        this.trinoUser = config.getTrinoUser();
+        this.trinoJdbcUrl = config.getTrinoUrl();
+        this.trinoPassword = config.getTrinoPassword();
 
         // Initializes a single-threaded scheduler for executing freshness queries
         this.scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
@@ -90,7 +95,14 @@ public class FreshnessClient {
     private void establishConnection() throws SQLException
     {
         LOGGER.info("Attempting to connect to Trino via JDBC: {}", trinoJdbcUrl);
-        this.connection = DriverManager.getConnection(trinoJdbcUrl, trinoUser, trinoPassword);
+        try
+        {
+            Class.forName("io.trino.jdbc.TrinoDriver");
+        } catch (ClassNotFoundException e)
+        {
+            throw new SQLException(e);
+        }
+        this.connection = DriverManager.getConnection(trinoJdbcUrl, trinoUser, null);
         LOGGER.info("Trino connection established successfully.");
     }
 
@@ -188,7 +200,7 @@ public class FreshnessClient {
      * The core scheduled task: queries max(freshness_ts) for all monitored tables
      * and calculates the freshness metric.
      */
-    private void queryAndCalculateFreshness() {
+    void queryAndCalculateFreshness() {
         try {
             ensureConnectionValid();
         } catch (SQLException e) {
@@ -199,8 +211,26 @@ public class FreshnessClient {
         // Take a snapshot of the tables to monitor for this cycle.
         // This prevents ConcurrentModificationException if a table is added/removed mid-iteration.
         Set<String> tablesSnapshot = new HashSet<>(monitoredTables);
+        if (tablesSnapshot.isEmpty()) {
+            LOGGER.debug("No tables configured for freshness monitoring. Skipping cycle.");
+            return;
+        }
 
-        for (String tableName : tablesSnapshot) {
+        String tableName;
+        try {
+            List<String> tableList = new ArrayList<>(tablesSnapshot);
+
+            Random random = new Random();
+            int randomIndex = random.nextInt(tableList.size());
+
+            tableName = tableList.get(randomIndex);
+
+            LOGGER.debug("Randomly selected table for this cycle: {}", tableName);
+
+        } catch (Exception e) {
+            LOGGER.error("Error selecting a random table from the monitor list.", e);
+            return;
+        }
 
             // Timestamp when the query is sent (t_send)
             long tSendMillis = System.currentTimeMillis();
@@ -212,27 +242,17 @@ public class FreshnessClient {
             try (Statement statement = connection.createStatement();
                  ResultSet rs = statement.executeQuery(query)) {
 
-                // Timestamp when the result is received (t_receive)
-                long tReceiveMillis = System.currentTimeMillis();
-                long maxFreshnessTs = 0;
+                Timestamp maxFreshnessTs = null;
 
                 if (rs.next()) {
                     // Read the maximum timestamp value
-                    maxFreshnessTs = rs.getLong(1);
+                    maxFreshnessTs = rs.getTimestamp(1);
                 }
 
-                if (maxFreshnessTs > 0) {
-                    // Freshness = t_receive - data_write_time (maxFreshnessTs)
+                if (maxFreshnessTs != null) {
+                    // Freshness = t_send - data_write_time (maxFreshnessTs)
                     // Result is in milliseconds
-                    long freshnessMillis = tReceiveMillis - maxFreshnessTs;
-
-                    LOGGER.debug("Table {}: Max Ts: {}, Freshness: {} ms (Query RTT: {} ms)",
-                            tableName,
-                            maxFreshnessTs,
-                            freshnessMillis,
-                            tReceiveMillis - tSendMillis);
-
-                    // Record the calculated freshness using the MetricsFacade
+                    long freshnessMillis = tSendMillis - maxFreshnessTs.getTime();
                     metricsFacade.recordFreshness(freshnessMillis);
 
                 } else {
@@ -246,6 +266,6 @@ public class FreshnessClient {
                 // Catch potential runtime errors (e.g., in MetricsFacade)
                 LOGGER.error("Error calculating or recording freshness for table {}.", tableName, e);
             }
-        }
+            monitoredTables.clear();
     }
 }

@@ -58,10 +58,12 @@ public class NoneWriter implements PixelsSinkWriter
         if (transactionMetadata.getStatus() == SinkProto.TransactionStatus.END)
         {
             metricsFacade.recordTransaction();
+            int cnt = 0;
             for(SinkProto.DataCollection dataCollection: transactionMetadata.getDataCollectionsList())
             {
-                metricsFacade.recordTransactionRowCount((int) dataCollection.getEventCount());
+                cnt += dataCollection.getEventCount();
             }
+            metricsFacade.recordTransactionRowCount(cnt);
         }
         return true;
     }

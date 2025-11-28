@@ -19,7 +19,11 @@
 package io.pixelsdb.pixels.sink.processor;
 
 
+import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
+import io.pixelsdb.pixels.sink.exception.SinkException;
+import io.pixelsdb.pixels.sink.freshness.FreshnessClient;
+import io.pixelsdb.pixels.sink.metadata.TableMetadataRegistry;
 import io.pixelsdb.pixels.sink.provider.TableEventProvider;
 import io.pixelsdb.pixels.sink.util.MetricsFacade;
 import io.pixelsdb.pixels.sink.writer.PixelsSinkWriter;
@@ -43,7 +47,7 @@ public class TableProcessor implements StoppableProcessor, Runnable
     private final TableEventProvider<?> tableEventProvider;
     private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
     private Thread processorThread;
-
+    private boolean tableAdded = false;
     public TableProcessor(TableEventProvider<?> tableEventProvider)
     {
         this.pixelsSinkWriter = PixelsSinkWriterFactory.getWriter();
@@ -65,6 +69,12 @@ public class TableProcessor implements StoppableProcessor, Runnable
             if (event == null)
             {
                 continue;
+            }
+            if(!tableAdded &&
+                    PixelsSinkConfigFactory.getInstance().getSinkMonitorFreshnessLevel().equals("embed"))
+            {
+                tableAdded = true;
+                FreshnessClient.getInstance().addMonitoredTable(event.getTable());
             }
             pixelsSinkWriter.writeRow(event);
         }

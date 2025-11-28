@@ -23,6 +23,7 @@ import com.google.protobuf.Message;
 import io.pixelsdb.pixels.retina.RetinaProto;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
 import io.pixelsdb.pixels.sink.exception.SinkException;
+import io.pixelsdb.pixels.sink.freshness.FreshnessClient;
 import io.pixelsdb.pixels.sink.util.DataTransform;
 import lombok.Getter;
 import org.slf4j.Logger;
@@ -114,7 +115,9 @@ public class TableCrossTxWriter extends TableWriter
 
             if(freshnessLevel.equals("embed"))
             {
-                DataTransform.updateTimeStamp(tableUpdateDataBuilderList, txStartTime);
+                long freshness_ts = txStartTime * 1000;
+                FreshnessClient.getInstance().addMonitoredTable(tableName);
+                DataTransform.updateTimeStamp(tableUpdateDataBuilderList, freshness_ts);
             }
 
 

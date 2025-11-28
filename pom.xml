@@ -39,6 +39,7 @@
         <dep.lombok.version>1.18.42</dep.lombok.version>
         <dep.debezium.version>3.2.3.Final</dep.debezium.version>
         <plugin.dockerfile-maven.version>1.4.13</plugin.dockerfile-maven.version>
+        <trino.version>440</trino.version>
     </properties>
 
     <dependencies>
@@ -72,7 +73,11 @@
             <groupId>io.grpc</groupId>
             <artifactId>grpc-netty</artifactId>
         </dependency>
-
+        <dependency>
+            <groupId>io.trino</groupId>
+            <artifactId>trino-jdbc</artifactId>
+            <version>${trino.version}</version>
+        </dependency>
         <dependency>
             <groupId>com.alibaba</groupId>
             <artifactId>fastjson</artifactId>
