@@ -94,9 +94,7 @@ public class RpcServer {
         int rpcPort = config.getRemotePort();
 
         // 3. 初始化 FlinkPollingWriter (这是服务的核心依赖)
-        // 注意：这里的初始化方式取决于 FlinkPollingWriter 的设计
-        // 这是一个示例，您需要根据实际情况调整
-        FlinkPollingWriter flinkWriter = FlinkPollingWriter.getInstance(); // 假设它也是单例模式
+        FlinkPollingWriter flinkWriter = new FlinkPollingWriter();
 
         // 4. 创建并启动 RPC 服务器
         final RpcServer rpcServer = new RpcServer(rpcPort, flinkWriter);

@@ -133,29 +133,29 @@ public class FlinkPollingWriter implements PixelsSinkWriter {
         }
 
         // 3. 转换操作类型 (这部分逻辑不变)
-        SinkProto.OperationType opType = convertToOperationType(event.getOp());
+        SinkProto.OperationType opType = event.getOp();
         recordBuilder.setOp(opType);
 
         return recordBuilder.build();
     }
 
-    /**
-     * 辅助方法：将 RowChangeEvent 的操作类型映射到 Protobuf 的 OperationType 枚举。
-     */
-    private SinkProto.OperationType convertToOperationType(RowChangeEvent.Op op) {
-        switch (op) {
-            case INSERT:
-                return SinkProto.OperationType.INSERT;
-            case UPDATE:
-                return SinkProto.OperationType.UPDATE;
-            case DELETE:
-                return SinkProto.OperationType.DELETE;
-            default:
-                LOGGER.warn("Unknown RowChangeEvent.Op type: {}. Defaulting to UNRECOGNIZED.", op);
-                // 使用 UNRECOGNIZED 更符合 Protobuf 3 的实践
-                return SinkProto.OperationType.UNRECOGNIZED;
-        }
-    }
+    // /**
+    //  * 辅助方法：将 RowChangeEvent 的操作类型映射到 Protobuf 的 OperationType 枚举。
+    //  */
+    // private SinkProto.OperationType convertToOperationType(SinkProto.OperationType op) {
+    //     switch (op) {
+    //         case INSERT:
+    //             return SinkProto.OperationType.INSERT;
+    //         case UPDATE:
+    //             return SinkProto.OperationType.UPDATE;
+    //         case DELETE:
+    //             return SinkProto.OperationType.DELETE;
+    //         default:
+    //             LOGGER.warn("Unknown RowChangeEvent.Op type: {}. Defaulting to UNRECOGNIZED.", op);
+    //             // 使用 UNRECOGNIZED 更符合 Protobuf 3 的实践
+    //             return SinkProto.OperationType.UNRECOGNIZED;
+    //     }
+    // }
 
 
     /**
