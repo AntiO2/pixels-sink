@@ -107,8 +107,7 @@ public class SinkContext
             Long targetEventCount = tableCounters.get(dataCollection.getDataCollection());
             long target = targetEventCount == null ? 0 : targetEventCount;
             LOGGER.debug("TX {}, Table {}, event count {}, tableCursors {}", tx.getId(), dataCollection.getDataCollection(), dataCollection.getEventCount(), target);
-//            if (dataCollection.getEventCount() > target)
-            if(false)
+            if (dataCollection.getEventCount() > target)
             {
                 return false;
             }

@@ -173,7 +173,10 @@ public class TableCrossTxWriter extends TableWriter
             metricsFacade.recordRowEvent(tableUpdateCount.get(i));
             String writeTxId = txIds.get(i);
             SinkContext sinkContext = SinkContextManager.getInstance().getSinkContext(writeTxId);
-            sinkContext.updateCounter(fullTableName.get(i), tableUpdateCount.get(i));
+            if(sinkContext !=null)
+            {
+                sinkContext.updateCounter(fullTableName.get(i), tableUpdateCount.get(i));
+            }
         }
         writeLock.unlock();
     }
