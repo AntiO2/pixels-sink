@@ -146,11 +146,6 @@ public class FreshnessClient {
             LOGGER.warn("Attempted to add null or empty table name to freshness monitor.");
             return;
         }
-        if (monitoredTables.add(tableName)) {
-            LOGGER.info("Table '{}' added to freshness monitor list.", tableName);
-        } else {
-            LOGGER.debug("Table '{}' is already in the freshness monitor list.", tableName);
-        }
     }
 
     /**

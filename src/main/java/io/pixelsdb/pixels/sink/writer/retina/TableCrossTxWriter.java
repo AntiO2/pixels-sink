@@ -113,7 +113,8 @@ public class TableCrossTxWriter extends TableWriter
             flushRateLimiter.acquire(batch.size());
             long txStartTime = System.currentTimeMillis();
 
-            if(freshnessLevel.equals("embed"))
+//            if(freshnessLevel.equals("embed"))
+            if(true)
             {
                 long freshness_ts = txStartTime * 1000;
                 FreshnessClient.getInstance().addMonitoredTable(tableName);
