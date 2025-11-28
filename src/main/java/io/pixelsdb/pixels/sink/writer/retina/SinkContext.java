@@ -70,6 +70,7 @@ public class SinkContext
     private boolean failed = false;
 
     @Getter
+    @Setter
     private volatile Long startTime = null;
 
     public SinkContext(String sourceTxId)

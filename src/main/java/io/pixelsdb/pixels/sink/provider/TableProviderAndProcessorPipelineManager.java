@@ -20,6 +20,7 @@ package io.pixelsdb.pixels.sink.provider;
 
 
 import io.pixelsdb.pixels.common.metadata.SchemaTableName;
+import io.pixelsdb.pixels.core.utils.Pair;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.exception.SinkException;
@@ -71,6 +72,10 @@ public class TableProviderAndProcessorPipelineManager<SOURCE_RECORD_T>
     private TableEventProvider<SOURCE_RECORD_T> createProvider(SOURCE_RECORD_T record)
     {
         Class<?> recordType = record.getClass();
+        if (recordType == Pair.class)
+        {
+            return new TableEventStorageLoopProvider<>();
+        }
         if (recordType == SourceRecord.class)
         {
             return new TableEventEngineProvider<>();

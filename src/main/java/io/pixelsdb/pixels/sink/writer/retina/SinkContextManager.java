@@ -33,6 +33,7 @@ import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
@@ -165,15 +166,20 @@ public class SinkContextManager
             return;
         }
 
-        // ctx.setStartTime(System.currentTimeMillis());
-
+        ctx.setStartTime(System.currentTimeMillis());
+        boolean abort = false;
         try
         {
             try
             {
                 ctx.tableCounterLock.lock();
+                long startTs= System.currentTimeMillis();
                 while (!ctx.isCompleted(txEnd))
                 {
+                    if(abort)
+                    {
+                        break;
+                    }
                     LOGGER.debug("TX End Get Lock {}", txId);
                     LOGGER.debug("Waiting for events in TX {}: {}", txId,
                             txEnd.getDataCollectionsList().stream()
@@ -181,7 +187,12 @@ public class SinkContextManager
                                             ctx.tableCounters.getOrDefault(dc.getDataCollection(), 0L) +
                                             "/" + dc.getEventCount())
                                     .collect(Collectors.joining(", ")));
-                    ctx.tableCounterCond.await();
+                    ctx.tableCounterCond.await(10, TimeUnit.SECONDS);
+                    if(System.currentTimeMillis()-startTs> 20 * 1000)
+                    {
+                        abort = true;
+                        LOGGER.warn("Long Transaction {}, took {}", txId, System.currentTimeMillis()-startTs);
+                    }
                 }
             } finally
             {
@@ -190,7 +201,7 @@ public class SinkContextManager
 
 
             removeSinkContext(txId);
-            boolean failed = ctx.isFailed();
+            boolean failed = ctx.isFailed() | abort;
             if (!failed)
             {
                 LOGGER.trace("Committed transaction: {}", txId);

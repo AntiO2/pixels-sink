@@ -122,7 +122,7 @@ public class RetinaWriter implements PixelsSinkWriter
         // startTrans(txBegin.getId()).get();
         try
         {
-            flushRateLimiter.acquire(1);
+            // flushRateLimiter.acquire(1);
             startTransSync(txBegin.getId());
         } catch (SinkException e)
         {

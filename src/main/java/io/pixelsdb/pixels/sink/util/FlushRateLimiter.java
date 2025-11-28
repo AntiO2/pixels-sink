@@ -98,6 +98,11 @@ public class FlushRateLimiter {
         return instance;
     }
 
+    public static FlushRateLimiter getNewInstance()
+    {
+        return new FlushRateLimiter();
+    }
+
     public void acquire(int num)
     {
         if (enableRateLimiter && semaphore != null) {
