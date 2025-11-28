@@ -1,6 +1,6 @@
 package io.pixelsdb.pixels.sink.writer;
 
-//import io.pixelsdb.pixels.sink.SinkProto;
+import io.pixelsdb.pixels.sink.SinkProto;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
 import io.pixelsdb.pixels.sink.util.FlushRateLimiter; // 引入 RateLimiter
 import org.slf4j.Logger;
