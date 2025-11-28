@@ -19,6 +19,7 @@ package io.pixelsdb.pixels.sink.writer;
 
 import io.pixelsdb.pixels.sink.SinkProto;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
+import io.pixelsdb.pixels.sink.exception.SinkException;
 import io.pixelsdb.pixels.sink.util.MetricsFacade;
 
 import java.io.IOException;
@@ -38,6 +39,16 @@ public class NoneWriter implements PixelsSinkWriter
     public boolean writeRow(RowChangeEvent rowChangeEvent)
     {
         metricsFacade.recordRowEvent();
+        metricsFacade.recordRowChange(rowChangeEvent.getTable(), rowChangeEvent.getOp());
+        try
+        {
+            rowChangeEvent.initIndexKey();
+            metricsFacade.recordPrimaryKeyUpdateDistribution(rowChangeEvent.getTable(), rowChangeEvent.getAfterKey().getKey());
+        } catch (SinkException e)
+        {
+            throw new RuntimeException(e);
+        }
+
         return true;
     }
 
@@ -47,6 +58,10 @@ public class NoneWriter implements PixelsSinkWriter
         if (transactionMetadata.getStatus() == SinkProto.TransactionStatus.END)
         {
             metricsFacade.recordTransaction();
+            for(SinkProto.DataCollection dataCollection: transactionMetadata.getDataCollectionsList())
+            {
+                metricsFacade.recordTransactionRowCount((int) dataCollection.getEventCount());
+            }
         }
         return true;
     }

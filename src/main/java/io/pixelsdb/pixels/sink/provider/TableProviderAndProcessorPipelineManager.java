@@ -20,6 +20,12 @@ package io.pixelsdb.pixels.sink.provider;
 
 
 import io.pixelsdb.pixels.common.metadata.SchemaTableName;
+import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
+import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
+import io.pixelsdb.pixels.sink.exception.SinkException;
+import io.pixelsdb.pixels.sink.freshness.FreshnessClient;
+import io.pixelsdb.pixels.sink.metadata.TableMetadata;
+import io.pixelsdb.pixels.sink.metadata.TableMetadataRegistry;
 import io.pixelsdb.pixels.sink.processor.TableProcessor;
 import org.apache.kafka.connect.source.SourceRecord;
 
@@ -57,6 +63,17 @@ public class TableProviderAndProcessorPipelineManager<SOURCE_RECORD_T>
             );
             tableProcessor.run();
             newPipeline.run();
+            if(PixelsSinkConfigFactory.getInstance().getSinkMonitorFreshnessLevel().equals("embed"))
+            {
+                try
+                {
+                    String tableName = TableMetadataRegistry.Instance().getSchemaTableName(tableId).getTableName();
+                    FreshnessClient.getInstance().addMonitoredTable(tableName);
+                } catch (SinkException e)
+                {
+                    throw new RuntimeException(e);
+                }
+            }
             return newPipeline;
         });
         pipeline.putRawEvent(record);

@@ -93,7 +93,7 @@ public class PixelsSinkApp
 
         if (config.getSinkMonitorFreshnessLevel().equals("embed"))
         {
-            freshnessClient = new FreshnessClient();
+            freshnessClient = FreshnessClient.getInstance();
             freshnessClient.start();
         }
         sinkSource.start();

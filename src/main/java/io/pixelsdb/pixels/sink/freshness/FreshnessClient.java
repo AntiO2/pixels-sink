@@ -51,8 +51,9 @@ public class FreshnessClient {
     private Connection connection;
     private final ScheduledExecutorService scheduler;
     private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
+    private static volatile FreshnessClient instance;
 
-    public FreshnessClient() {
+    private FreshnessClient() {
         // Initializes the set with thread safety wrapper
         this.monitoredTables = Collections.synchronizedSet(new HashSet<>());
 
@@ -63,6 +64,19 @@ public class FreshnessClient {
             t.setDaemon(true);
             return t;
         });
+    }
+
+    public static FreshnessClient getInstance() {
+        if (instance == null) {
+            // First check: Reduces synchronization overhead once the instance is created
+            synchronized (FreshnessClient.class) {
+                if (instance == null) {
+                    // Second check: Only one thread proceeds to create the instance
+                    instance = new FreshnessClient();
+                }
+            }
+        }
+        return instance;
     }
 
     // -------------------------------------------------------------------------------------------------
