@@ -61,6 +61,9 @@ public class PixelsSinkConfig
     @ConfigKey(value = "sink.remote.port", defaultValue = "9090")
     private short remotePort;
 
+    @ConfigKey(value = "sink.flink.server.port", defaultValue = "9091")
+    private int sinkFlinkServerPort;
+
     @ConfigKey(value = "sink.timeout.ms", defaultValue = "30000")
     private int timeoutMs;
 
