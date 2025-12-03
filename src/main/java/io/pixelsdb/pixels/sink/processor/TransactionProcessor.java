@@ -46,7 +46,12 @@ public class TransactionProcessor implements Runnable, StoppableProcessor
         while (running.get())
         {
             SinkProto.TransactionMetadata transaction = transactionEventProvider.getTransaction();
-            LOGGER.trace("Processing transaction event: {}", transaction.getId());
+            if(transaction == null)
+            {
+                LOGGER.warn("Received null transaction");
+                running.set(false);
+                break;
+            }
             sinkWriter.writeTrans(transaction);
         }
         LOGGER.info("Processor thread exited for transaction");

@@ -17,47 +17,51 @@
 
 package io.pixelsdb.pixels.sink.writer.retina;
 
-import io.pixelsdb.pixels.common.exception.TransException;
-import io.pixelsdb.pixels.common.transaction.TransService;
 import io.pixelsdb.pixels.sink.SinkProto;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
 import io.pixelsdb.pixels.sink.exception.SinkException;
+import io.pixelsdb.pixels.sink.util.FlushRateLimiter;
 import io.pixelsdb.pixels.sink.util.MetricsFacade;
 import io.pixelsdb.pixels.sink.writer.PixelsSinkWriter;
-import io.prometheus.client.Summary;
 import org.apache.commons.lang3.RandomUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Collectors;
 
 public class RetinaWriter implements PixelsSinkWriter
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(RetinaWriter.class);
     final ExecutorService dispatchExecutor = Executors.newCachedThreadPool();
-    private final ExecutorService transactionExecutor = Executors.newFixedThreadPool(2048);
     private final ScheduledExecutorService timeoutScheduler =
             Executors.newSingleThreadScheduledExecutor();
-
+    private final FlushRateLimiter flushRateLimiter;
     private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
     private final SinkContextManager sinkContextManager;
+    private final TransactionMode transactionMode;
 
     public RetinaWriter()
     {
+        PixelsSinkConfig config = PixelsSinkConfigFactory.getInstance();
         this.sinkContextManager = SinkContextManager.getInstance();
+        this.flushRateLimiter = FlushRateLimiter.getInstance();
+        this.transactionMode = config.getTransactionMode();
     }
 
     @Override
     public boolean writeTrans(SinkProto.TransactionMetadata txMeta)
     {
+        if(transactionMode.equals(TransactionMode.RECORD))
+        {
+            return true;
+        }
+
         try
         {
             if (txMeta.getStatus() == SinkProto.TransactionStatus.BEGIN)
@@ -98,13 +102,18 @@ public class RetinaWriter implements PixelsSinkWriter
 
             long collectionOrder = event.getTransaction().getDataCollectionOrder();
             long totalOrder = event.getTransaction().getTotalOrder();
-
-            AtomicBoolean canWrite = new AtomicBoolean(false);
-            SinkContext ctx = sinkContextManager.getActiveTxContext(event, canWrite);
-
-            if (canWrite.get())
+            if(transactionMode.equals(TransactionMode.RECORD))
             {
-                sinkContextManager.writeRowChangeEvent(ctx, event);
+                sinkContextManager.writeRowChangeEvent(null, event);
+            } else
+            {
+                AtomicBoolean canWrite = new AtomicBoolean(false);
+                SinkContext ctx = sinkContextManager.getActiveTxContext(event, canWrite);
+
+                if (canWrite.get())
+                {
+                    sinkContextManager.writeRowChangeEvent(ctx, event);
+                }
             }
         } catch (SinkException e)
         {
@@ -120,6 +129,7 @@ public class RetinaWriter implements PixelsSinkWriter
         // startTrans(txBegin.getId()).get();
         try
         {
+            // flushRateLimiter.acquire(1);
             startTransSync(txBegin.getId());
         } catch (SinkException e)
         {
@@ -135,11 +145,7 @@ public class RetinaWriter implements PixelsSinkWriter
 
     private void handleTxEnd(SinkProto.TransactionMetadata txEnd)
     {
-        transactionExecutor.submit(() ->
-                {
-                    sinkContextManager.processTxCommit(txEnd);
-                }
-        );
+        sinkContextManager.processTxCommit(txEnd);
     }
 
     private void handleNonTxEvent(RowChangeEvent event) throws SinkException
@@ -147,7 +153,7 @@ public class RetinaWriter implements PixelsSinkWriter
         // virtual tx
         String randomId = Long.toString(System.currentTimeMillis()) + RandomUtils.nextLong();
         writeTrans(buildBeginTransactionMetadata(randomId));
-        sinkContextManager.writeRowChangeEvent(randomId, event);
+        sinkContextManager.writeRandomRowChangeEvent(randomId, event);
         writeTrans(buildEndTransactionMetadata(event.getFullTableName(), randomId));
     }
 

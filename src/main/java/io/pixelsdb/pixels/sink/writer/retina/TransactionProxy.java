@@ -30,6 +30,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * This class if for pixels trans service
@@ -51,6 +52,8 @@ public class TransactionProxy
     private final int WORKER_COUNT;
     private final int MAX_WAIT_MS;
 
+    private AtomicInteger beginCount = new AtomicInteger(0);
+    private AtomicInteger commitCount = new AtomicInteger(0);
 
     private TransactionProxy()
     {
@@ -82,17 +85,25 @@ public class TransactionProxy
 
     public static TransactionProxy Instance()
     {
-        if(instance == null)
+        if (instance == null)
         {
             synchronized (TransactionProxy.class)
             {
-                if(instance == null)
+                if (instance == null)
                 {
                     instance = new TransactionProxy();
                 }
             }
         }
         return instance;
+    }
+
+    public static void staticClose()
+    {
+        if (instance != null)
+        {
+            instance.close();
+        }
     }
 
     private void requestTransactions()
@@ -109,6 +120,17 @@ public class TransactionProxy
 
     public TransContext getNewTransContext()
     {
+        beginCount.incrementAndGet();
+        if(true)
+        {
+            try
+            {
+                return transService.beginTrans(false);
+            } catch (TransException e)
+            {
+                throw null;
+            }
+        }
         TransContext ctx = transContextQueue.poll();
         if (ctx != null)
         {
@@ -137,20 +159,36 @@ public class TransactionProxy
 
     public void commitTransSync(SinkContext transContext)
     {
+        commitTrans(transContext.getPixelsTransCtx());
+        metricsFacade.recordTransaction();
+        long txEndTime = System.currentTimeMillis();
+
+        if (freshnessLevel.equals("txn"))
+        {
+            metricsFacade.recordFreshness(txEndTime - transContext.getStartTime());
+        }
+    }
+
+    public void commitTrans(TransContext ctx)
+    {
+        commitCount.incrementAndGet();
         try
         {
-            transService.commitTrans(transContext.getPixelsTransCtx().getTransId(), false);
-            metricsFacade.recordTransaction();
-            long txEndTime = System.currentTimeMillis();
-
-            if(freshnessLevel.equals("txn"))
-            {
-                metricsFacade.recordFreshness(txEndTime- transContext.getStartTime());
-            }
-        }
-        catch (TransException e)
+            transService.commitTrans(ctx.getTransId(), false);
+        } catch (TransException e)
         {
             LOGGER.error("Batch commit failed: {}", e.getMessage(), e);
+        }
+    }
+
+    public void rollbackTrans(TransContext ctx)
+    {
+        try
+        {
+            transService.rollbackTrans(ctx.getTransId(), false);
+        } catch (TransException e)
+        {
+            LOGGER.error("Rollback transaction failed: {}", e.getMessage(), e);
         }
     }
 
@@ -198,11 +236,12 @@ public class TransactionProxy
                 metricsFacade.recordTransaction(batchTransIds.size());
                 long txEndTime = System.currentTimeMillis();
 
-                if(freshnessLevel.equals("txn"))
+                if (freshnessLevel.equals("txn"))
                 {
                     txStartTimes.forEach(
-                            txStartTime -> {
-                                metricsFacade.recordFreshness(txEndTime- txStartTime);
+                            txStartTime ->
+                            {
+                                metricsFacade.recordFreshness(txEndTime - txStartTime);
                             }
                     );
                 }
@@ -247,14 +286,6 @@ public class TransactionProxy
                     throw new RuntimeException(e);
                 }
             }
-        }
-    }
-
-    public static void staticClose()
-    {
-        if(instance != null)
-        {
-            instance.close();
         }
     }
 }

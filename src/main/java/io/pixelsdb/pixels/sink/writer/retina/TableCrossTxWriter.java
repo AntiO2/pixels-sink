@@ -22,6 +22,8 @@ package io.pixelsdb.pixels.sink.writer.retina;
 import io.pixelsdb.pixels.retina.RetinaProto;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
 import io.pixelsdb.pixels.sink.exception.SinkException;
+import io.pixelsdb.pixels.sink.freshness.FreshnessClient;
+import io.pixelsdb.pixels.sink.util.DataTransform;
 import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,8 +45,9 @@ public class TableCrossTxWriter extends TableWriter
     @Getter
     private final Logger LOGGER = LoggerFactory.getLogger(TableCrossTxWriter.class);
     private final int flushBatchSize;
-    private final ReentrantLock writeLock = new ReentrantLock();
+    protected final ReentrantLock writeLock = new ReentrantLock();
     private final int bucketId;
+
     public TableCrossTxWriter(String t, int bucketId)
     {
         super(t, bucketId);
@@ -80,7 +83,7 @@ public class TableCrossTxWriter extends TableWriter
             List<RowChangeEvent> smallBatch = null;
             List<String> txIds = new ArrayList<>();
             List<String> fullTableName = new ArrayList<>();
-            List<RetinaProto.TableUpdateData> tableUpdateData = new LinkedList<>();
+            List<RetinaProto.TableUpdateData.Builder> tableUpdateDataBuilderList = new LinkedList<>();
             List<Integer> tableUpdateCount = new ArrayList<>();
             for (RowChangeEvent event : batch)
             {
@@ -89,7 +92,12 @@ public class TableCrossTxWriter extends TableWriter
                 {
                     if (smallBatch != null && !smallBatch.isEmpty())
                     {
-                        tableUpdateData.add(buildTableUpdateDataFromBatch(txId, smallBatch).build());
+                        RetinaProto.TableUpdateData.Builder builder = buildTableUpdateDataFromBatch(txId, smallBatch);
+                        if (builder == null)
+                        {
+                            continue;
+                        }
+                        tableUpdateDataBuilderList.add(builder);
                         tableUpdateCount.add(smallBatch.size());
                     }
                     txIds.add(currTxId);
@@ -102,31 +110,50 @@ public class TableCrossTxWriter extends TableWriter
 
             if (smallBatch != null)
             {
-                // tableUpdateData.add(buildTableUpdateDataFromBatch(txId, smallBatch).setBucketId(bucketId).setTxId(currentTxId).build());
-                tableUpdateData.add(buildTableUpdateDataFromBatch(txId, smallBatch).build());
-                tableUpdateCount.add(smallBatch.size());
+                RetinaProto.TableUpdateData.Builder builder = buildTableUpdateDataFromBatch(txId, smallBatch);
+                if (builder != null)
+                {
+                    tableUpdateDataBuilderList.add(buildTableUpdateDataFromBatch(txId, smallBatch));
+                    tableUpdateCount.add(smallBatch.size());
+                }
             }
 
             flushRateLimiter.acquire(batch.size());
             long txStartTime = System.currentTimeMillis();
-            for(String writeTxId: txIds)
+
+//            if(freshnessLevel.equals("embed"))
+            if (true)
             {
-                sinkContextManager.getSinkContext(writeTxId).setCurrStartTime();
+                long freshness_ts = txStartTime * 1000;
+                FreshnessClient.getInstance().addMonitoredTable(tableName);
+                DataTransform.updateTimeStamp(tableUpdateDataBuilderList, freshness_ts);
+            }
+
+
+//            for(String writeTxId: txIds)
+//            {
+//                sinkContextManager.getSinkContext(writeTxId).setCurrStartTime();
+//            }
+
+            List<RetinaProto.TableUpdateData> tableUpdateData = new ArrayList<>(tableUpdateDataBuilderList.size());
+            for (RetinaProto.TableUpdateData.Builder tableUpdateDataItem : tableUpdateDataBuilderList)
+            {
+                tableUpdateData.add(tableUpdateDataItem.build());
             }
             CompletableFuture<RetinaProto.UpdateRecordResponse> updateRecordResponseCompletableFuture = delegate.writeBatchAsync(batch.get(0).getSchemaName(), tableUpdateData);
 
             updateRecordResponseCompletableFuture.thenAccept(
                     resp ->
                     {
-                        if(resp.getHeader().getErrorCode() != 0)
+                        if (resp.getHeader().getErrorCode() != 0)
                         {
                             failCtxs(txIds);
                         } else
                         {
                             long txEndTime = System.currentTimeMillis();
-                            if(freshnessLevel.equals("row"))
+                            if (freshnessLevel.equals("row"))
                             {
-                                metricsFacade.recordFreshness(txEndTime- txStartTime);
+                                metricsFacade.recordFreshness(txEndTime - txStartTime);
                             }
                             updateCtxCounters(txIds, fullTableName, tableUpdateCount);
                         }
@@ -143,7 +170,10 @@ public class TableCrossTxWriter extends TableWriter
         for (String writeTxId : txIds)
         {
             SinkContext sinkContext = SinkContextManager.getInstance().getSinkContext(writeTxId);
-            sinkContext.setFailed(true);
+            if (sinkContext != null)
+            {
+                sinkContext.setFailed(true);
+            }
         }
     }
 
@@ -155,14 +185,30 @@ public class TableCrossTxWriter extends TableWriter
             metricsFacade.recordRowEvent(tableUpdateCount.get(i));
             String writeTxId = txIds.get(i);
             SinkContext sinkContext = SinkContextManager.getInstance().getSinkContext(writeTxId);
-            sinkContext.updateCounter(fullTableName.get(i), tableUpdateCount.get(i));
+
+            try
+            {
+                sinkContext.tableCounterLock.lock();
+                sinkContext.updateCounter(fullTableName.get(i), tableUpdateCount.get(i));
+                if(sinkContext.isCompleted())
+                {
+                    SinkContextManager.getInstance().endTransaction(sinkContext);
+                }
+            } finally
+            {
+                sinkContext.tableCounterLock.unlock();
+            }
         }
         writeLock.unlock();
     }
 
-    private RetinaProto.TableUpdateData.Builder buildTableUpdateDataFromBatch(String txId, List<RowChangeEvent> smallBatch)
+    protected RetinaProto.TableUpdateData.Builder buildTableUpdateDataFromBatch(String txId, List<RowChangeEvent> smallBatch)
     {
         SinkContext sinkContext = SinkContextManager.getInstance().getSinkContext(txId);
+        if (sinkContext == null)
+        {
+            return null;
+        }
         try
         {
             sinkContext.getLock().lock();

@@ -52,14 +52,13 @@ public class SinkContext
     @Getter
     final String sourceTxId;
     @Getter
-    Map<String, Long> tableCounters = new ConcurrentHashMap<>();
-    @Getter
     final AtomicInteger pendingEvents = new AtomicInteger(0);
     @Getter
     final CompletableFuture<Void> completionFuture = new CompletableFuture<>();
-
     @Getter
     final TableMetadataRegistry tableMetadataRegistry = TableMetadataRegistry.Instance();
+    @Getter
+    Map<String, Long> tableCounters = new ConcurrentHashMap<>();
     @Getter
     Queue<RowChangeEvent> orphanEvent = new ConcurrentLinkedQueue<>();
     @Getter
@@ -70,8 +69,12 @@ public class SinkContext
     private boolean failed = false;
 
     @Getter
+    @Setter
     private volatile Long startTime = null;
 
+    @Getter
+    @Setter
+    SinkProto.TransactionMetadata endTx;
     public SinkContext(String sourceTxId)
     {
         this.sourceTxId = sourceTxId;
@@ -99,20 +102,48 @@ public class SinkContext
         tableCounterLock.unlock();
     }
 
-    boolean isCompleted(SinkProto.TransactionMetadata tx)
+    public boolean isCompleted()
     {
-        for (SinkProto.DataCollection dataCollection : tx.getDataCollectionsList())
+        try
         {
-            // Long targetEventCount = tableCursors.get(dataCollection.getDataCollection());
-            Long targetEventCount = tableCounters.get(dataCollection.getDataCollection());
-            long target = targetEventCount == null ? 0 : targetEventCount;
-            LOGGER.debug("TX {}, Table {}, event count {}, tableCursors {}", tx.getId(), dataCollection.getDataCollection(), dataCollection.getEventCount(), target);
-            if (dataCollection.getEventCount() > target)
+            tableCounterLock.lock();
+            if(endTx == null)
             {
                 return false;
             }
+            for (SinkProto.DataCollection dataCollection : endTx.getDataCollectionsList())
+            {
+                Long targetEventCount = tableCounters.get(dataCollection.getDataCollection());
+                long target = targetEventCount == null ? 0 : targetEventCount;
+                LOGGER.debug("TX {}, Table {}, event count {}, tableCursors {}", endTx.getId(), dataCollection.getDataCollection(), dataCollection.getEventCount(), target);
+                if (dataCollection.getEventCount() > target)
+                {
+                    return false;
+                }
+            }
+            return true;
+        } finally
+        {
+            tableCounterLock.unlock();
         }
-        return true;
+
+    }
+
+    public int getProcessedRowsNum()
+    {
+        long num = 0;
+        try
+        {
+            tableCounterLock.lock();
+            for(Long counter: tableCounters.values())
+            {
+                num += counter;
+            }
+        } finally
+        {
+            tableCounterLock.unlock();
+        }
+        return (int)num;
     }
 
     public long getTimestamp()
@@ -131,14 +162,14 @@ public class SinkContext
 
     public void setCurrStartTime()
     {
-        if(startTime != null)
+        if (startTime != null)
         {
             return;
         }
 
         synchronized (this)
         {
-            if(startTime == null)
+            if (startTime == null)
             {
                 startTime = System.currentTimeMillis();
             }

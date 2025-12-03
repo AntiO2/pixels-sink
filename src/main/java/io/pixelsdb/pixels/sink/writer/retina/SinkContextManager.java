@@ -32,35 +32,24 @@ import org.slf4j.LoggerFactory;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Collectors;
 
 public class SinkContextManager
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(SinkContextManager.class);
     private static final Logger BUCKET_TRACE_LOGGER = LoggerFactory.getLogger("bucket_trace");
-
-
-
+    private static volatile SinkContextManager instance;
     private final BlockingBoundedMap<String, SinkContext> activeTxContexts = new BlockingBoundedMap<>(100000);
     // private final ConcurrentMap<String, SinkContext> activeTxContexts = new ConcurrentHashMap<>(10000);
     private final TransactionProxy transactionProxy = TransactionProxy.Instance();
-    private final TransService transService = TransService.Instance();
     private final TableWriterProxy tableWriterProxy;
     private final CommitMethod commitMethod;
-
-    private enum CommitMethod
-    {
-        Sync,
-        Async
-    }
 
     private SinkContextManager()
     {
         PixelsSinkConfig config = PixelsSinkConfigFactory.getInstance();
         this.tableWriterProxy = TableWriterProxy.getInstance();
-        if(config.getCommitMethod().equals("sync"))
+        if (config.getCommitMethod().equals("sync"))
         {
             this.commitMethod = CommitMethod.Sync;
         } else
@@ -69,12 +58,14 @@ public class SinkContextManager
         }
     }
 
-    private static volatile SinkContextManager instance;
-
-    public static SinkContextManager getInstance() {
-        if (instance == null) {
-            synchronized (SinkContextManager.class) {
-                if (instance == null) {
+    public static SinkContextManager getInstance()
+    {
+        if (instance == null)
+        {
+            synchronized (SinkContextManager.class)
+            {
+                if (instance == null)
+                {
                     instance = new SinkContextManager();
                 }
             }
@@ -133,7 +124,7 @@ public class SinkContextManager
                         oldCtx.getLock().lock();
                         try
                         {
-                            if(oldCtx.getPixelsTransCtx() != null)
+                            if (oldCtx.getPixelsTransCtx() != null)
                             {
                                 LOGGER.warn("Previous tx {} has been released, maybe due to loop process", sourceTxId);
                                 oldCtx.tableCounters = new ConcurrentHashMap<>();
@@ -161,89 +152,60 @@ public class SinkContextManager
         SinkContext ctx = getSinkContext(txId);
         if (ctx == null)
         {
-            LOGGER.warn("Sink Context is null");
-            return;
+            throw new RuntimeException("Sink Context is null");
         }
 
-        // ctx.setStartTime(System.currentTimeMillis());
-
+        ctx.setStartTime(System.currentTimeMillis());
         try
         {
-            try
+            ctx.tableCounterLock.lock();
+            ctx.setEndTx(txEnd);
+            long startTs = System.currentTimeMillis();
+            if(ctx.isCompleted())
             {
-                ctx.tableCounterLock.lock();
-                while (!ctx.isCompleted(txEnd))
-                {
-                    LOGGER.debug("TX End Get Lock {}", txId);
-                    LOGGER.debug("Waiting for events in TX {}: {}", txId,
-                            txEnd.getDataCollectionsList().stream()
-                                    .map(dc -> dc.getDataCollection() + "=" +
-                                            ctx.tableCounters.getOrDefault(dc.getDataCollection(), 0L) +
-                                            "/" + dc.getEventCount())
-                                    .collect(Collectors.joining(", ")));
-                    ctx.tableCounterCond.await();
-                }
-            } finally
-            {
-                ctx.tableCounterLock.unlock();
+                endTransaction(ctx);
             }
-
-
-            removeSinkContext(txId);
-            boolean failed = ctx.isFailed();
-            if (!failed)
-            {
-                LOGGER.trace("Committed transaction: {}", txId);
-                switch(commitMethod)
-                {
-                    case Sync ->
-                    {
-                        transactionProxy.commitTransSync(ctx);
-                    }
-                    case Async ->
-                    {
-                        transactionProxy.commitTransAsync(ctx);
-                    }
-                }
-
-            } else
-            {
-                LOGGER.info("Abort transaction: {}", txId);
-                CompletableFuture.runAsync(() ->
-                {
-                    try
-                    {
-                        transService.rollbackTrans(ctx.getPixelsTransCtx().getTransId(), false);
-                    } catch (TransException e)
-                    {
-                        throw new RuntimeException(e);
-                    }
-                }).whenComplete((v, ex) ->
-                {
-                    if (ex != null)
-                    {
-                        LOGGER.error("Rollback failed", ex);
-                    }
-                });
-            }
-        } catch (InterruptedException e)
+        } finally
         {
-            try
-            {
-                LOGGER.info("Catch Exception, Abort transaction: {}", txId);
-                transService.rollbackTrans(ctx.getPixelsTransCtx().getTransId(), false);
-            } catch (TransException ex)
-            {
-                LOGGER.error("Failed to abort transaction {}", txId);
-                ex.printStackTrace();
-                LOGGER.error(ex.getMessage());
-                throw new RuntimeException(ex);
-            }
-            LOGGER.error(e.getMessage());
-            LOGGER.error("Failed to commit transaction {}", txId, e);
+            ctx.tableCounterLock.unlock();
         }
     }
 
+    void endTransaction(SinkContext ctx)
+    {
+        String txId = ctx.getSourceTxId();
+        removeSinkContext(txId);
+        boolean failed = ctx.isFailed();
+        if (!failed)
+        {
+            LOGGER.trace("Committed transaction: {}", txId);
+            switch (commitMethod)
+            {
+                case Sync ->
+                {
+                    transactionProxy.commitTransSync(ctx);
+                }
+                case Async ->
+                {
+                    transactionProxy.commitTransAsync(ctx);
+                }
+            }
+
+        } else
+        {
+            LOGGER.info("Abort transaction: {}", txId);
+            CompletableFuture.runAsync(() ->
+            {
+                transactionProxy.rollbackTrans(ctx.getPixelsTransCtx());
+            }).whenComplete((v, ex) ->
+            {
+                if (ex != null)
+                {
+                    LOGGER.error("Rollback failed", ex);
+                }
+            });
+        }
+    }
 
     private void handleOrphanEvents(SinkContext ctx) throws SinkException
     {
@@ -261,20 +223,25 @@ public class SinkContextManager
 
     protected void writeRowChangeEvent(SinkContext ctx, RowChangeEvent event) throws SinkException
     {
-        event.setTimeStamp(ctx.getTimestamp());
+        if(ctx != null)
+        {
+            event.setTimeStamp(ctx.getTimestamp());
+        }
         event.initIndexKey();
         switch (event.getOp())
         {
             case UPDATE ->
             {
-                if(!event.isPkChanged())
+                if (!event.isPkChanged())
                 {
                     writeBeforeEvent(ctx, event);
                 } else
                 {
                     TypeDescription typeDescription = event.getSchema();
-                    ctx.updateCounter(event.getFullTableName(), -1L);
-
+                    if(ctx != null)
+                    {
+                        ctx.updateCounter(event.getFullTableName(), -1L);
+                    }
                     SinkProto.RowRecord.Builder deleteBuilder = event.getRowRecord().toBuilder()
                             .clearAfter().setOp(SinkProto.OperationType.DELETE);
                     RowChangeEvent deleteEvent = new RowChangeEvent(deleteBuilder.build(), typeDescription);
@@ -332,7 +299,7 @@ public class SinkContextManager
         activeTxContexts.remove(txId);
     }
 
-    protected void writeRowChangeEvent(String randomId, RowChangeEvent event) throws SinkException
+    protected void writeRandomRowChangeEvent(String randomId, RowChangeEvent event) throws SinkException
     {
         writeRowChangeEvent(getSinkContext(randomId), event);
     }
@@ -340,5 +307,11 @@ public class SinkContextManager
     public int getActiveTxnsNum()
     {
         return activeTxContexts.size();
+    }
+
+    private enum CommitMethod
+    {
+        Sync,
+        Async
     }
 }

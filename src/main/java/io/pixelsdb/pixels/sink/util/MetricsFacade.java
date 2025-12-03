@@ -17,12 +17,14 @@
 
 package io.pixelsdb.pixels.sink.util;
 
+import com.google.protobuf.ByteString;
 import io.pixelsdb.pixels.sink.SinkProto;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
 import io.pixelsdb.pixels.sink.writer.retina.SinkContextManager;
 import io.prometheus.client.Counter;
+import io.prometheus.client.Histogram;
 import io.prometheus.client.Summary;
 import lombok.Setter;
 import org.apache.commons.math3.stat.descriptive.SynchronizedDescriptiveStatistics;
@@ -31,6 +33,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -55,6 +58,9 @@ public class MetricsFacade
     private final Summary retinaServiceLatency;
     private final Summary writerLatency;
     private final Summary totalLatency;
+    private final Histogram transactionRowCountHistogram;
+    private final Histogram primaryKeyUpdateDistribution;
+
     private final boolean monitorReportEnabled;
     private final int monitorReportInterval;
     private final int freshnessReportInterval;
@@ -180,7 +186,17 @@ public class MetricsFacade
                     .quantile(0.95, 0.005)
                     .quantile(0.99, 0.001)
                     .register();
-
+            this.transactionRowCountHistogram = Histogram.build()
+                    .name("transaction_row_count_histogram")
+                    .help("Distribution of row counts within a single transaction")
+                    .buckets(1, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 200)
+                    .register();
+            this.primaryKeyUpdateDistribution = Histogram.build()
+                    .name("primary_key_update_distribution")
+                    .help("Distribution of primary key updates by logical bucket/hash for hot spot analysis")
+                    .labelNames("table") // Table name tag
+                    .buckets(1, 2, 3, 4, 5, 6, 7, 8, 9, 10) // 10 buckets for distribution
+                    .register();
             this.freshness = new SynchronizedDescriptiveStatistics();
             this.rowChangeSpeed = new SynchronizedDescriptiveStatistics();
         } else
@@ -201,6 +217,8 @@ public class MetricsFacade
             this.totalLatency = null;
             this.freshness = null;
             this.rowChangeSpeed = null;
+            this.transactionRowCountHistogram = null;
+            this.primaryKeyUpdateDistribution = null;
         }
 
         freshnessReportInterval = config.getFreshnessReportInterval();
@@ -393,6 +411,50 @@ public class MetricsFacade
         if(freshnessAvg != null)
         {
             freshnessAvg.record(freshnessMill);
+        }
+    }
+
+    public void recordPrimaryKeyUpdateDistribution(String table, ByteString pkValue) {
+        if (!enabled || primaryKeyUpdateDistribution == null) {
+            return;
+        }
+        if (pkValue == null || pkValue.isEmpty()) {
+            LOGGER.debug("Skipping PK distribution recording: pkValue is null or empty for table {}.", table);
+            return;
+        }
+
+        long numericPK;
+        int length = pkValue.size();
+
+        try {
+            ByteBuffer buffer = pkValue.asReadOnlyByteBuffer();
+
+            if (length == Integer.BYTES) {
+                numericPK = Integer.toUnsignedLong(buffer.getInt());
+            } else if (length == Long.BYTES) {
+                numericPK = buffer.getLong();
+            } else {
+                LOGGER.warn("Unsupported PK ByteString length {} for table {}. Expected 4 or 8.", length, table);
+                return;
+            }
+        } catch (Exception e) {
+            LOGGER.error("Failed to convert ByteString to numeric type for table {}: {}", table, e.getMessage());
+            return;
+        }
+        int hash = Long.hashCode(numericPK);
+        double bucketIndex = (Math.abs(hash % 10)) + 1;
+
+        // 3. 记录到 Histogram
+        primaryKeyUpdateDistribution.labels(table).observe(bucketIndex);
+
+        LOGGER.debug("Table {}: PK {} mapped to bucket index {}", table, numericPK, bucketIndex);
+    }
+    public void recordTransactionRowCount(int rowCount)
+    {
+        if (enabled && transactionRowCountHistogram != null)
+        {
+            // Use observe() to add the value to the Histogram's configured buckets.
+            transactionRowCountHistogram.observe(rowCount);
         }
     }
 

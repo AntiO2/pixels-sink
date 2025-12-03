@@ -20,6 +20,13 @@ package io.pixelsdb.pixels.sink.provider;
 
 
 import io.pixelsdb.pixels.common.metadata.SchemaTableName;
+import io.pixelsdb.pixels.core.utils.Pair;
+import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
+import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
+import io.pixelsdb.pixels.sink.exception.SinkException;
+import io.pixelsdb.pixels.sink.freshness.FreshnessClient;
+import io.pixelsdb.pixels.sink.metadata.TableMetadata;
+import io.pixelsdb.pixels.sink.metadata.TableMetadataRegistry;
 import io.pixelsdb.pixels.sink.processor.TableProcessor;
 import org.apache.kafka.connect.source.SourceRecord;
 
@@ -65,6 +72,10 @@ public class TableProviderAndProcessorPipelineManager<SOURCE_RECORD_T>
     private TableEventProvider<SOURCE_RECORD_T> createProvider(SOURCE_RECORD_T record)
     {
         Class<?> recordType = record.getClass();
+        if (recordType == Pair.class)
+        {
+            return new TableEventStorageLoopProvider<>();
+        }
         if (recordType == SourceRecord.class)
         {
             return new TableEventEngineProvider<>();

@@ -170,8 +170,17 @@ public class PixelsSinkConfig
     @ConfigKey(value = "sink.storage.loop", defaultValue = "false")
     private boolean sinkStorageLoop;
 
-    @ConfigKey(value = "sink.monitor.freshness.level", defaultValue = "row") // row or txn
+    @ConfigKey(value = "sink.monitor.freshness.level", defaultValue = "row") // row or txn or embed
     private String sinkMonitorFreshnessLevel;
+
+    @ConfigKey(value = "trino.url")
+    private String trinoUrl;
+
+    @ConfigKey(value = "trino.user")
+    private String trinoUser;
+
+    @ConfigKey(value = "trino.password")
+    private String trinoPassword;
 
     public PixelsSinkConfig(String configFilePath) throws IOException
     {

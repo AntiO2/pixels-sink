@@ -20,6 +20,7 @@ package io.pixelsdb.pixels.sink.writer.retina;
 public enum TransactionMode
 {
     SINGLE,
+    RECORD,
     BATCH;
 
     public static TransactionMode fromValue(String value)

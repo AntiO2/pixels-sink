@@ -18,7 +18,6 @@
 package io.pixelsdb.pixels.sink.writer.retina;
 
 import io.pixelsdb.pixels.common.exception.RetinaException;
-import io.pixelsdb.pixels.common.node.BucketCache;
 import io.pixelsdb.pixels.common.retina.RetinaService;
 import io.pixelsdb.pixels.common.utils.RetinaUtils;
 import io.pixelsdb.pixels.retina.RetinaProto;
@@ -49,7 +48,7 @@ public class RetinaServiceProxy
 
     public RetinaServiceProxy(int bucketId)
     {
-        if(bucketId == -1)
+        if (bucketId == -1)
         {
             this.retinaService = RetinaService.Instance();
         } else
@@ -58,7 +57,7 @@ public class RetinaServiceProxy
         }
 
 
-        if (config.getTransactionMode() == TransactionMode.BATCH && config.getRetinaWriteMode() == RetinaWriteMode.STREAM)
+        if (config.getRetinaWriteMode() == RetinaWriteMode.STREAM)
         {
             retinaStream = retinaService.startUpdateStream();
         } else
@@ -122,7 +121,7 @@ public class RetinaServiceProxy
     public void close() throws IOException
     {
         isClosed.compareAndSet(false, true);
-        if (config.getTransactionMode() == TransactionMode.BATCH && config.getRetinaWriteMode() == RetinaWriteMode.STREAM)
+        if (config.getRetinaWriteMode() == RetinaWriteMode.STREAM)
         {
             retinaStream.close();
         }

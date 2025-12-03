@@ -51,6 +51,9 @@ public abstract class TableWriter
     protected final ReentrantLock bufferLock = new ReentrantLock();
     protected final String tableName;
     protected final long flushInterval;
+    protected final FlushRateLimiter flushRateLimiter;
+    protected final SinkContextManager sinkContextManager;
+    protected final String freshnessLevel;
     // Shared state (protected by lock)
     protected List<RowChangeEvent> buffer = new LinkedList<>();
     protected volatile String currentTxId = null;
@@ -59,10 +62,7 @@ public abstract class TableWriter
     protected String fullTableName;
     protected PixelsSinkConfig config;
     protected MetricsFacade metricsFacade = MetricsFacade.getInstance();
-    protected final FlushRateLimiter flushRateLimiter;
-    protected final SinkContextManager sinkContextManager;
-    protected final String freshnessLevel;
-
+    protected TransactionMode transactionMode;
     protected TableWriter(String tableName, int bucketId)
     {
         this.config = PixelsSinkConfigFactory.getInstance();
@@ -72,6 +72,7 @@ public abstract class TableWriter
         this.sinkContextManager = SinkContextManager.getInstance();
         this.freshnessLevel = config.getSinkMonitorFreshnessLevel();
         this.delegate = new RetinaServiceProxy(bucketId);
+        this.transactionMode = config.getTransactionMode();
     }
 
     /**
@@ -118,7 +119,10 @@ public abstract class TableWriter
             bufferLock.lock();
             try
             {
-                txId = ctx.getSourceTxId();
+                if(!transactionMode.equals(TransactionMode.RECORD))
+                {
+                    txId = ctx.getSourceTxId();
+                }
                 // If this is a new transaction, flush the old one
                 if (needFlush())
                 {
@@ -148,7 +152,7 @@ public abstract class TableWriter
                         bufferLock.lock();
                         try
                         {
-                            if (txId.equals(currentTxId))
+                            if (transactionMode.equals(TransactionMode.RECORD) || txId.equals(currentTxId))
                             {
                                 flush();
                             }
