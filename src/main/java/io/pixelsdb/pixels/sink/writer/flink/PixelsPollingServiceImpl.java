@@ -1,11 +1,28 @@
-package io.pixelsdb.pixels.sink.rpc;
+/*
+ * Copyright 2025 PixelsDB.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+package io.pixelsdb.pixels.sink.writer.flink;
 
 import io.grpc.stub.StreamObserver;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.SinkProto;
 import io.pixelsdb.pixels.sink.PixelsPollingServiceGrpc; 
-import io.pixelsdb.pixels.sink.writer.FlinkPollingWriter;
+import io.pixelsdb.pixels.sink.writer.flink.FlinkPollingWriter;
+import io.pixelsdb.pixels.sink.util.DataTransform;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,16 +61,19 @@ public class PixelsPollingServiceImpl extends PixelsPollingServiceGrpc.PixelsPol
         String fullTableName = request.getSchemaName() + "." + request.getTableName();
         LOGGER.debug("Received poll request for table '{}'", fullTableName);
         try {
-            // *** 核心修复: writer.pollRecords 返回的 List<RowRecord> 类型必须与 PollResponse 中定义的类型一致 ***
             List<SinkProto.RowRecord> records = writer.pollRecords(
                     fullTableName,
                     pollBatchSize,
                     pollTimeoutMs,
                     TimeUnit.MILLISECONDS
             );
+            List<SinkProto.RowRecord> updatedRecords = DataTransform.updateRecordTimestamp(
+                records,
+                System.currentTimeMillis()
+            );
             SinkProto.PollResponse.Builder responseBuilder = SinkProto.PollResponse.newBuilder();
-            if (records != null && !records.isEmpty()) {
-                responseBuilder.addAllRecords(records);
+            if (updatedRecords != null && !updatedRecords.isEmpty()) {
+                responseBuilder.addAllRecords(updatedRecords);
             }
             responseObserver.onNext(responseBuilder.build());
             responseObserver.onCompleted();

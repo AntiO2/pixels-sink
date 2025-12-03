@@ -23,6 +23,7 @@ public enum PixelsSinkMode
     CSV,
     RETINA,
     PROTO,
+    FLINK,
     NONE;
 
     public static PixelsSinkMode fromValue(String value)

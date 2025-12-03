@@ -20,6 +20,7 @@ package io.pixelsdb.pixels.sink.writer;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.writer.retina.RetinaWriter;
+import io.pixelsdb.pixels.sink.writer.flink.FlinkPollingWriter;
 
 import java.io.IOException;
 
@@ -50,6 +51,9 @@ public class PixelsSinkWriterFactory
                                 break;
                             case PROTO:
                                 writer = new ProtoWriter();
+                                break;
+                            case FLINK:
+                                writer = new FlinkPollingWriter();
                                 break;
                             case NONE:
                                 writer = new NoneWriter();
