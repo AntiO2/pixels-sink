@@ -22,12 +22,14 @@ package io.pixelsdb.pixels.sink.freshness;
 
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
+import io.pixelsdb.pixels.sink.util.DateUtil;
 import io.pixelsdb.pixels.sink.util.MetricsFacade;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.*;
 import java.util.*;
+import java.util.Date;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -230,10 +232,10 @@ public class FreshnessClient {
 
             // Timestamp when the query is sent (t_send)
             long tSendMillis = System.currentTimeMillis();
-
+            String tSendMillisStr =  DateUtil.convertDateToString(new Date(tSendMillis));
             // Query to find the latest timestamp in the table
             // Assumes 'freshness_ts' is a long-type epoch timestamp (milliseconds)
-            String query = String.format("SELECT max(freshness_ts) FROM %s", tableName);
+            String query = String.format("SELECT max(freshness_ts) FROM %s WHERE freshness_ts < TIMESTAMP '%s'", tableName, tSendMillisStr);
 
             try (Statement statement = connection.createStatement();
                  ResultSet rs = statement.executeQuery(query)) {

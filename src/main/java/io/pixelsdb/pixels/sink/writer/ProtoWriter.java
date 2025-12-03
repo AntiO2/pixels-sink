@@ -39,6 +39,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * @package: io.pixelsdb.pixels.sink.writer
@@ -51,44 +52,22 @@ public class ProtoWriter implements PixelsSinkWriter
     private final Logger LOGGER = LoggerFactory.getLogger(ProtoWriter.class);
     private final RotatingWriterManager writerManager;
     private final TableMetadataRegistry instance;
-
-
-    private static class TransactionContext
-    {
-        @Getter
-        private volatile boolean endReceived = false;
-
-        // Key: Full Table Name
-        private Map<String, TableCounters> tableCounters = null;
-
-        // Key: Full Table Name, Value: Row Count
-        private final Map<String, AtomicInteger> preEndCounts = new ConcurrentHashMap<>();
-
-        public void setEndReceived(Map<String, TableCounters> counters)
-        {
-            this.tableCounters = counters;
-            this.endReceived = true;
-        }
-
-        public List<RowChangeEvent> rowChangeEventList = new ArrayList<>();
-        public SinkProto.TransactionMetadata txBegin;
-        public SinkProto.TransactionMetadata txEnd;
-
-        /**
-         * @param table Full table name
-         */
-        public void incrementPreEndCount(String table) {
-            preEndCounts.computeIfAbsent(table, k -> new AtomicInteger(0)).incrementAndGet();
-        }
-    }
-
-
+    private final ReentrantLock lock = new ReentrantLock();
     /**
      * Data structure to track transaction progress:
      * Map<TransId, TransactionContext>
      */
     private final Map<String, TransactionContext> transTracker = new ConcurrentHashMap<>();
 
+
+    public ProtoWriter() throws IOException
+    {
+        PixelsSinkConfig sinkConfig = PixelsSinkConfigFactory.getInstance();
+
+        String dataPath = sinkConfig.getSinkProtoData();
+        this.writerManager = new RotatingWriterManager(dataPath);
+        this.instance = TableMetadataRegistry.Instance();
+    }
 
     /**
      * Checks if all tables within a transaction have reached their expected row count.
@@ -137,71 +116,70 @@ public class ProtoWriter implements PixelsSinkWriter
         }
     }
 
-    public ProtoWriter() throws IOException
-    {
-        PixelsSinkConfig sinkConfig = PixelsSinkConfigFactory.getInstance();
-
-        String dataPath = sinkConfig.getSinkProtoData();
-        this.writerManager = new RotatingWriterManager(dataPath);
-        this.instance = TableMetadataRegistry.Instance();
-    }
-
     @Override
     public boolean writeTrans(SinkProto.TransactionMetadata transactionMetadata)
     {
-        String transId = transactionMetadata.getId();
-        if (transactionMetadata.getStatus() == SinkProto.TransactionStatus.BEGIN)
+        try
         {
-            // 1. BEGIN: Create context if not exists (in case ROWChange arrived first).
-            TransactionContext transactionContext = transTracker.computeIfAbsent(transId, k -> new TransactionContext());
-            LOGGER.debug("Transaction {} BEGIN received.", transId);
-            transactionContext.txBegin = transactionMetadata;
-        } else if (transactionMetadata.getStatus() == SinkProto.TransactionStatus.END)
-        {
-            // 2. END: Finalize tracker state, merge pre-counts, and trigger cleanup.
-
-            // Get existing context or create a new one (in case BEGIN was missed).
-            TransactionContext context = transTracker.computeIfAbsent(transId, k -> new TransactionContext());
-
-            // --- Initialization Step: Set Total Counts ---
-            Map<String, TableCounters> newTableCounters = new ConcurrentHashMap<>();
-            for(SinkProto.DataCollection dataCollection: transactionMetadata.getDataCollectionsList())
+            lock.lock();
+            String transId = transactionMetadata.getId();
+            if (transactionMetadata.getStatus() == SinkProto.TransactionStatus.BEGIN)
             {
-                String fullTable = dataCollection.getDataCollection();
-                // Create official counter with total count
-                newTableCounters.put(fullTable, new TableCounters((int)dataCollection.getEventCount()));
-            }
-
-            // Set the final state (must be volatile write)
-            context.setEndReceived(newTableCounters);
-
-            // --- Merge Step: Apply pre-received rows ---
-            for (Map.Entry<String, AtomicInteger> preEntry : context.preEndCounts.entrySet())
+                // 1. BEGIN: Create context if not exists (in case ROWChange arrived first).
+                TransactionContext transactionContext = transTracker.computeIfAbsent(transId, k -> new TransactionContext());
+                LOGGER.debug("Transaction {} BEGIN received.", transId);
+                transactionContext.txBegin = transactionMetadata;
+            } else if (transactionMetadata.getStatus() == SinkProto.TransactionStatus.END)
             {
-                String table = preEntry.getKey();
-                int accumulatedCount = preEntry.getValue().get();
-                TableCounters finalCounter = newTableCounters.get(table);
+                // 2. END: Finalize tracker state, merge pre-counts, and trigger cleanup.
 
-                if (finalCounter != null)
+                // Get existing context or create a new one (in case BEGIN was missed).
+                TransactionContext context = transTracker.computeIfAbsent(transId, k -> new TransactionContext());
+
+                // --- Initialization Step: Set Total Counts ---
+                Map<String, TableCounters> newTableCounters = new ConcurrentHashMap<>();
+                for (SinkProto.DataCollection dataCollection : transactionMetadata.getDataCollectionsList())
                 {
-                    // Apply the accumulated count to the official counter
-                    for(int i = 0; i < accumulatedCount; i++)
-                    {
-                        finalCounter.increment();
-                    }
-                } else
-                {
-                    LOGGER.warn("Pre-received rows for table {} (count: {}) but table was not in TX END metadata. Discarding accumulated count.", table, accumulatedCount);
+                    String fullTable = dataCollection.getDataCollection();
+                    // Create official counter with total count
+                    newTableCounters.put(fullTable, new TableCounters((int) dataCollection.getEventCount()));
                 }
-            }
-            context.txEnd = transactionMetadata;
 
-            // --- Cleanup/Validation Step ---
-            // Trigger cleanup. This will validate if all rows (pre and post END) have satisfied the total counts.
-            checkAndCleanupTransaction(transId);
+                // Set the final state (must be volatile write)
+                context.setEndReceived(newTableCounters);
+
+                // --- Merge Step: Apply pre-received rows ---
+                for (Map.Entry<String, AtomicInteger> preEntry : context.preEndCounts.entrySet())
+                {
+                    String table = preEntry.getKey();
+                    int accumulatedCount = preEntry.getValue().get();
+                    TableCounters finalCounter = newTableCounters.get(table);
+
+                    if (finalCounter != null)
+                    {
+                        // Apply the accumulated count to the official counter
+                        for (int i = 0; i < accumulatedCount; i++)
+                        {
+                            finalCounter.increment();
+                        }
+                    } else
+                    {
+                        LOGGER.warn("Pre-received rows for table {} (count: {}) but table was not in TX END metadata. Discarding accumulated count.", table, accumulatedCount);
+                    }
+                }
+                context.txEnd = transactionMetadata;
+
+                // --- Cleanup/Validation Step ---
+                // Trigger cleanup. This will validate if all rows (pre and post END) have satisfied the total counts.
+                checkAndCleanupTransaction(transId);
+            }
+            return true;
+        } finally
+        {
+            lock.unlock();
         }
-        return true;
     }
+
     private ByteBuffer getTransBuffer(TransactionContext transactionContext)
     {
         int total = 0;
@@ -214,10 +192,10 @@ public class ProtoWriter implements PixelsSinkWriter
         endByteBuffer.rewind();
         total += endByteBuffer.limit();
         List<ByteBuffer> rowEvents = new ArrayList<>();
-        for(RowChangeEvent rowChangeEvent: transactionContext.rowChangeEventList)
+        for (RowChangeEvent rowChangeEvent : transactionContext.rowChangeEventList)
         {
             ByteBuffer byteBuffer = write(rowChangeEvent.getRowRecord());
-            if(byteBuffer == null)
+            if (byteBuffer == null)
             {
                 return null;
             }
@@ -227,13 +205,14 @@ public class ProtoWriter implements PixelsSinkWriter
         }
         ByteBuffer buffer = ByteBuffer.allocate(total);
         buffer.put(beginByteBuffer.array());
-        for(ByteBuffer rowEvent: rowEvents)
+        for (ByteBuffer rowEvent : rowEvents)
         {
             buffer.put(rowEvent.array());
         }
         buffer.put(endByteBuffer.array());
         return buffer;
     }
+
     public ByteBuffer write(SinkProto.RowRecord rowRecord)
     {
         byte[] rowData = rowRecord.toByteArray();
@@ -281,6 +260,9 @@ public class ProtoWriter implements PixelsSinkWriter
     @Override
     public boolean writeRow(RowChangeEvent rowChangeEvent)
     {
+        try
+        {
+            lock.lock();
             String transId = rowChangeEvent.getTransaction().getId();
             String fullTable = rowChangeEvent.getFullTableName();
 
@@ -311,7 +293,11 @@ public class ProtoWriter implements PixelsSinkWriter
                 context.incrementPreEndCount(fullTable);
                 LOGGER.debug("Row received for TransId {} / Table {} before TX END. Accumulating count.", transId, fullTable);
             }
-        return true;
+            return true;
+        } finally
+        {
+            lock.unlock();
+        }
     }
 
     @Override
@@ -320,10 +306,36 @@ public class ProtoWriter implements PixelsSinkWriter
 
     }
 
-
     @Override
     public void close() throws IOException
     {
         this.writerManager.close();
+    }
+
+    private static class TransactionContext
+    {
+        // Key: Full Table Name, Value: Row Count
+        private final Map<String, AtomicInteger> preEndCounts = new ConcurrentHashMap<>();
+        public List<RowChangeEvent> rowChangeEventList = new ArrayList<>();
+        public SinkProto.TransactionMetadata txBegin;
+        public SinkProto.TransactionMetadata txEnd;
+        @Getter
+        private volatile boolean endReceived = false;
+        // Key: Full Table Name
+        private Map<String, TableCounters> tableCounters = null;
+
+        public void setEndReceived(Map<String, TableCounters> counters)
+        {
+            this.tableCounters = counters;
+            this.endReceived = true;
+        }
+
+        /**
+         * @param table Full table name
+         */
+        public void incrementPreEndCount(String table)
+        {
+            preEndCounts.computeIfAbsent(table, k -> new AtomicInteger(0)).incrementAndGet();
+        }
     }
 }

@@ -144,6 +144,19 @@ public class RowChangeEvent
         indexKeyInited = true;
     }
 
+    public void updateIndexKey() throws SinkException
+    {
+        if (hasBeforeData())
+        {
+            this.beforeKey = generateIndexKey(tableMetadata, beforeValueMap);
+        }
+
+        if (hasAfterData())
+        {
+            this.afterKey = generateIndexKey(tableMetadata, afterValueMap);
+        }
+    }
+
     public int getBeforeBucketFromIndex()
     {
         assert indexKeyInited;

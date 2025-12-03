@@ -19,11 +19,9 @@ package io.pixelsdb.pixels.sink.writer.retina;
 
 import io.pixelsdb.pixels.common.node.BucketCache;
 import io.pixelsdb.pixels.daemon.NodeProto;
-import io.pixelsdb.pixels.retina.RetinaProto;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 
-import java.io.Writer;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -33,8 +31,6 @@ public class TableWriterProxy
 
     private final TransactionMode transactionMode;
     private final int retinaCliNum;
-    record WriterKey(long tableId, NodeProto.NodeInfo nodeInfo, int cliNo) { }
-
     private final Map<WriterKey, TableWriter> WRITER_REGISTRY = new ConcurrentHashMap<>();
 
     private TableWriterProxy()
@@ -63,9 +59,13 @@ public class TableWriterProxy
                 {
                     return new TableSingleTxWriter(tableName, bucket);
                 }
-                case BATCH ->
+                case BATCH  ->
                 {
                     return new TableCrossTxWriter(tableName, bucket);
+                }
+                case RECORD ->
+                {
+                    return new TableSingleRecordWriter(tableName, bucket);
                 }
                 default ->
                 {
@@ -73,5 +73,9 @@ public class TableWriterProxy
                 }
             }
         });
+    }
+
+    record WriterKey(long tableId, NodeProto.NodeInfo nodeInfo, int cliNo)
+    {
     }
 }
