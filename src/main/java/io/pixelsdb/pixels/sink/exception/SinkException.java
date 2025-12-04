@@ -17,6 +17,7 @@
  * License along with Pixels.  If not, see
  * <https://www.gnu.org/licenses/>.
  */
+ 
 package io.pixelsdb.pixels.sink.exception;
 
 public class SinkException extends Exception
