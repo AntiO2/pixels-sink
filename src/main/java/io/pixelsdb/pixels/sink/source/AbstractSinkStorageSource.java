@@ -25,6 +25,7 @@ import io.pixelsdb.pixels.common.physical.PhysicalReaderUtil;
 import io.pixelsdb.pixels.common.physical.Storage;
 import io.pixelsdb.pixels.core.utils.Pair;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
+import io.pixelsdb.pixels.sink.config.PixelsSinkConstants;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.metadata.TableMetadataRegistry;
 import io.pixelsdb.pixels.sink.processor.TransactionProcessor;
@@ -63,7 +64,6 @@ public abstract class AbstractSinkStorageSource implements SinkSource
     private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
     private final TableProviderAndProcessorPipelineManager<Pair<ByteBuffer, Integer>> tablePipelineManager = new TableProviderAndProcessorPipelineManager<>();
     private final boolean storageLoopEnabled;
-    private final int MAX_QUEUE_SIZE = 10_000;
     private final FlushRateLimiter sourceRateLimiter;
     protected TransactionEventStorageLoopProvider<Pair<ByteBuffer, Integer>> transactionEventProvider;
     protected TransactionProcessor transactionProcessor;
@@ -151,7 +151,7 @@ public abstract class AbstractSinkStorageSource implements SinkSource
                         // Get or create queue
                         BlockingQueue<Pair<CompletableFuture<ByteBuffer>, Integer>> queue =
                                 queueMap.computeIfAbsent(key,
-                                        k -> new LinkedBlockingQueue<>(MAX_QUEUE_SIZE));
+                                        k -> new LinkedBlockingQueue<>(PixelsSinkConstants.MAX_QUEUE_SIZE));
 
                         // Put future in queue
                         queue.put(new Pair<>(valueFuture, loopId));

@@ -22,6 +22,7 @@ package io.pixelsdb.pixels.sink.event;
 
 import com.google.common.hash.Hashing;
 import com.google.protobuf.ByteString;
+import io.pixelsdb.pixels.common.metadata.SchemaTableName;
 import io.pixelsdb.pixels.common.metadata.domain.SinglePointIndex;
 import io.pixelsdb.pixels.common.node.BucketCache;
 import io.pixelsdb.pixels.common.utils.RetinaUtils;
@@ -75,15 +76,17 @@ public class RowChangeEvent
     private  boolean indexKeyInited = false;
 
     @Getter
-    private final long tableId;
+    private long tableId;
+
+    @Getter
+    private SchemaTableName schemaTableName;
 
     public RowChangeEvent(SinkProto.RowRecord rowRecord) throws SinkException
     {
         this.rowRecord = rowRecord;
         TableMetadataRegistry tableMetadataRegistry = TableMetadataRegistry.Instance();
         this.schema = tableMetadataRegistry.getTypeDescription(getSchemaName(), getTable());
-        this.tableId = tableMetadataRegistry.getTableId(getSchemaName(), getTable());
-        initColumnValueMap();
+        init();
         initIndexKey();
     }
 
@@ -92,10 +95,17 @@ public class RowChangeEvent
         this.rowRecord = rowRecord;
         this.schema = schema;
 
+        init();
+        // initIndexKey();
+    }
+
+    private void init() throws SinkException
+    {
         TableMetadataRegistry tableMetadataRegistry = TableMetadataRegistry.Instance();
         this.tableId = tableMetadataRegistry.getTableId(getSchemaName(), getTable());
+        this.schemaTableName = new SchemaTableName(getSchemaName(), getTable());
+
         initColumnValueMap();
-        // initIndexKey();
     }
 
     private void initColumnValueMap()
@@ -258,7 +268,6 @@ public class RowChangeEvent
         return rowRecord.getSource().getSchema() + "." + rowRecord.getSource().getTable();
         // return getSchemaName() + "." + getTable();
     }
-
     // TODO(AntiO2): How to Map Schema Names Between Source DB and Pixels
     public String getSchemaName()
     {

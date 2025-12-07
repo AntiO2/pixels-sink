@@ -20,11 +20,12 @@
  
 package io.pixelsdb.pixels.sink.writer.flink;
 
+import io.pixelsdb.pixels.common.metadata.SchemaTableName;
 import io.pixelsdb.pixels.sink.SinkProto;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
+import io.pixelsdb.pixels.sink.config.PixelsSinkConstants;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
-import io.pixelsdb.pixels.sink.util.FlushRateLimiter;
 import io.pixelsdb.pixels.sink.writer.PixelsSinkWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,10 +51,7 @@ public class FlinkPollingWriter implements PixelsSinkWriter {
     private static final Logger LOGGER = LoggerFactory.getLogger(FlinkPollingWriter.class);
 
     // Core data structure: A thread-safe map from table name to a thread-safe blocking queue.
-    private final Map<String, BlockingQueue<SinkProto.RowRecord>> tableQueues;
-
-    // Ingress rate limiter to control the data writing speed.
-    private final FlushRateLimiter rateLimiter;
+    private final Map<SchemaTableName, BlockingQueue<SinkProto.RowRecord>> tableQueues;
 
     // The gRPC server instance managed by this writer.
     private final PollingRpcServer pollingRpcServer;
@@ -64,8 +62,6 @@ public class FlinkPollingWriter implements PixelsSinkWriter {
      */
     public FlinkPollingWriter() {
         this.tableQueues = new ConcurrentHashMap<>();
-        // Get the global RateLimiter instance
-        this.rateLimiter = FlushRateLimiter.getInstance();
         LOGGER.info("FlinkPollingWriter initialized with FlushRateLimiter.");
 
         // --- START: New logic to initialize and start the gRPC server ---
@@ -106,17 +102,13 @@ public class FlinkPollingWriter implements PixelsSinkWriter {
         }
 
         try {
-            // 1. Acquire a token to respect the rate limit before processing data.
-            //    This is a blocking operation that will effectively control the upstream write speed.
-            rateLimiter.acquire(1);
-
             // 2. Convert Flink's RowChangeEvent to the gRPC RowRecord Protobuf object
             SinkProto.RowRecord rowRecord = event.getRowRecord();
 
             // 3. Find the corresponding queue for the table name, creating a new one atomically if it doesn't exist.
             BlockingQueue<SinkProto.RowRecord> queue = tableQueues.computeIfAbsent(
-                    event.getFullTableName(),
-                    k -> new LinkedBlockingQueue<>() // Default to an unbounded queue
+                    event.getSchemaTableName(),
+                    k -> new LinkedBlockingQueue<>(PixelsSinkConstants.MAX_QUEUE_SIZE) // Default to an unbounded queue
             );
 
             // 4. Put the converted record into the queue.
@@ -148,7 +140,7 @@ public class FlinkPollingWriter implements PixelsSinkWriter {
      * @return A list of RowRecords, which will be empty if no data is available before the timeout.
      * @throws InterruptedException if the thread is interrupted while waiting
      */
-    public List<SinkProto.RowRecord> pollRecords(String tableName, int batchSize, long timeout, TimeUnit unit)
+    public List<SinkProto.RowRecord> pollRecords(SchemaTableName tableName, int batchSize, long timeout, TimeUnit unit)
             throws InterruptedException {
         List<SinkProto.RowRecord> records = new ArrayList<>(batchSize);
         BlockingQueue<SinkProto.RowRecord> queue = tableQueues.get(tableName);
