@@ -92,7 +92,6 @@ public abstract class AbstractSinkStorageSource implements SinkSource
 
     protected void handleTransactionSourceRecord(ByteBuffer record, Integer loopId)
     {
-        sourceRateLimiter.acquire(1);
         transactionEventProvider.putTransRawEvent(new Pair<>(record, loopId));
     }
 
@@ -154,8 +153,11 @@ public abstract class AbstractSinkStorageSource implements SinkSource
                                         k -> new LinkedBlockingQueue<>(PixelsSinkConstants.MAX_QUEUE_SIZE));
 
                         // Put future in queue
+                        if(protoType.equals(ProtoType.ROW))
+                        {
+                            sourceRateLimiter.acquire(1);
+                        }
                         queue.put(new Pair<>(valueFuture, loopId));
-
                         // Start consumer thread if not exists
                         consumerThreads.computeIfAbsent(key, k ->
                         {

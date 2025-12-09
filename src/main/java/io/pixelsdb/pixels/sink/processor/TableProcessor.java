@@ -72,12 +72,6 @@ public class TableProcessor implements StoppableProcessor, Runnable
             {
                 continue;
             }
-            if(!tableAdded &&
-                    PixelsSinkConfigFactory.getInstance().getSinkMonitorFreshnessLevel().equals("embed"))
-            {
-                tableAdded = true;
-                FreshnessClient.getInstance().addMonitoredTable(event.getTable());
-            }
             pixelsSinkWriter.writeRow(event);
         }
         LOGGER.info("Processor thread exited");

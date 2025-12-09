@@ -21,6 +21,7 @@
 package io.pixelsdb.pixels.sink.writer.retina;
 
 import io.pixelsdb.pixels.common.transaction.TransContext;
+import io.pixelsdb.pixels.core.utils.Pair;
 import io.pixelsdb.pixels.sink.SinkProto;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
 import io.pixelsdb.pixels.sink.metadata.TableMetadataRegistry;
@@ -29,6 +30,7 @@ import lombok.Setter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
@@ -63,9 +65,9 @@ public class SinkContext
     @Getter
     Map<String, Long> tableCounters = new ConcurrentHashMap<>();
     @Getter
+    @Setter
     Queue<RowChangeEvent> orphanEvent = new ConcurrentLinkedQueue<>();
     @Getter
-    @Setter
     private TransContext pixelsTransCtx;
     @Setter
     @Getter
@@ -74,6 +76,9 @@ public class SinkContext
     @Getter
     @Setter
     private volatile Long startTime = null;
+
+
+    private final Queue<Pair<String, LocalDateTime>> recordTimes = new ConcurrentLinkedQueue<>();
 
     @Getter
     @Setter
@@ -94,6 +99,20 @@ public class SinkContext
     void updateCounter(String table)
     {
         updateCounter(table, 1L);
+    }
+
+    public void setPixelsTransCtx(TransContext pixelsTransCtx)
+    {
+        if(this.pixelsTransCtx != null)
+        {
+            throw new IllegalStateException("Pixels Trans Context Already Set");
+        }
+        this.pixelsTransCtx = pixelsTransCtx;
+    }
+
+    public void recordTimestamp(String table, LocalDateTime timestamp)
+    {
+        recordTimes.offer(new Pair<>(table, timestamp));
     }
 
     public void updateCounter(String table, long count)

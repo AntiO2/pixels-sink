@@ -49,12 +49,11 @@ public class FreshnessClient {
     // Key modification: Use a thread-safe Set to maintain the list of tables to monitor dynamically.
     private final Set<String> monitoredTables;
     private static final int QUERY_INTERVAL_SECONDS = 1;
-
     private Connection connection;
     private final ScheduledExecutorService scheduler;
     private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
     private static volatile FreshnessClient instance;
-
+    private final int warmUpSeconds;
     private FreshnessClient() {
         // Initializes the set with thread safety wrapper
         this.monitoredTables = Collections.synchronizedSet(new HashSet<>());
@@ -63,7 +62,7 @@ public class FreshnessClient {
         this.trinoUser = config.getTrinoUser();
         this.trinoJdbcUrl = config.getTrinoUrl();
         this.trinoPassword = config.getTrinoPassword();
-
+        this.warmUpSeconds = config.getSinkMonitorFreshnessEmbedWarmupSeconds();
         // Initializes a single-threaded scheduler for executing freshness queries
         this.scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
             Thread t = Executors.defaultThreadFactory().newThread(r);
@@ -176,7 +175,7 @@ public class FreshnessClient {
             LOGGER.info("Starting Freshness Client, querying every {} seconds.", QUERY_INTERVAL_SECONDS);
 
             scheduler.scheduleAtFixedRate(this::queryAndCalculateFreshness,
-                    0, // Initial delay
+                    warmUpSeconds,
                     QUERY_INTERVAL_SECONDS,
                     TimeUnit.SECONDS);
         } catch (SQLException e) {

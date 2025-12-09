@@ -20,6 +20,7 @@
  
 package io.pixelsdb.pixels.sink.util;
 
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Semaphore;
@@ -127,5 +128,10 @@ public class BlockingBoundedMap<K, V>
                 return map.compute(key, remappingFunction);
             }
         }
+    }
+
+    public Set<K> keySet()
+    {
+        return map.keySet();
     }
 }

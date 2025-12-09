@@ -21,7 +21,7 @@
 package io.pixelsdb.pixels.sink.writer.retina;
 
 import io.pixelsdb.pixels.common.exception.TransException;
-import io.pixelsdb.pixels.common.transaction.TransService;
+import io.pixelsdb.pixels.common.transaction.TransContext;
 import io.pixelsdb.pixels.core.TypeDescription;
 import io.pixelsdb.pixels.sink.SinkProto;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
@@ -32,6 +32,8 @@ import io.pixelsdb.pixels.sink.util.BlockingBoundedMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Comparator;
+import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -114,6 +116,8 @@ public class SinkContextManager
 
     protected void startTransSync(String sourceTxId)
     {
+        LOGGER.trace("Start trans {}", sourceTxId);
+        TransContext pixelsTransContext = transactionProxy.getNewTransContext(sourceTxId);
         activeTxContexts.compute(
                 sourceTxId,
                 (k, oldCtx) ->
@@ -121,7 +125,7 @@ public class SinkContextManager
                     if (oldCtx == null)
                     {
                         LOGGER.trace("Start trans {} without buffered events", sourceTxId);
-                        return new SinkContext(sourceTxId, transactionProxy.getNewTransContext());
+                        return new SinkContext(sourceTxId, pixelsTransContext);
                     } else
                     {
                         oldCtx.getLock().lock();
@@ -132,7 +136,8 @@ public class SinkContextManager
                                 LOGGER.warn("Previous tx {} has been released, maybe due to loop process", sourceTxId);
                                 oldCtx.tableCounters = new ConcurrentHashMap<>();
                             }
-                            oldCtx.setPixelsTransCtx(transactionProxy.getNewTransContext());
+                            LOGGER.trace("Start trans with buffered events {}", sourceTxId);
+                            oldCtx.setPixelsTransCtx(pixelsTransContext);
                             handleOrphanEvents(oldCtx);
                             oldCtx.getCond().signalAll();
                         } catch (SinkException e)
@@ -181,7 +186,7 @@ public class SinkContextManager
         boolean failed = ctx.isFailed();
         if (!failed)
         {
-            LOGGER.trace("Committed transaction: {}", txId);
+            LOGGER.trace("Committed transaction: {}, Pixels Trans is {}", txId, ctx.getPixelsTransCtx().getTransId());
             switch (commitMethod)
             {
                 case Sync ->
@@ -213,7 +218,7 @@ public class SinkContextManager
     private void handleOrphanEvents(SinkContext ctx) throws SinkException
     {
         Queue<RowChangeEvent> buffered = ctx.getOrphanEvent();
-
+        ctx.setOrphanEvent(null);
         if (buffered != null)
         {
             LOGGER.trace("Handle Orphan Events in {}", ctx.sourceTxId);
@@ -310,6 +315,33 @@ public class SinkContextManager
     public int getActiveTxnsNum()
     {
         return activeTxContexts.size();
+    }
+
+    public String findMinActiveTx()
+    {
+        Comparator<String> customComparator = (key1, key2) -> {
+            try {
+                String[] parts1 = key1.split("_");
+                int int1 = Integer.parseInt(parts1[0]);
+                int loopId1 = Integer.parseInt(parts1[1]);
+
+                String[] parts2 = key2.split("_");
+                int int2 = Integer.parseInt(parts2[0]);
+                int loopId2 = Integer.parseInt(parts2[1]);
+
+                int loopIdComparison = Integer.compare(loopId1, loopId2);
+                if (loopIdComparison != 0) {
+                    return loopIdComparison;
+                }
+                return Integer.compare(int1, int2);
+            } catch (Exception e) {
+                System.err.println("Key format error for comparison: " + e.getMessage());
+                return 0;
+            }
+        };
+
+        Optional<String> min = activeTxContexts.keySet().stream().min(customComparator);
+        return min.orElse("None");
     }
 
     private enum CommitMethod

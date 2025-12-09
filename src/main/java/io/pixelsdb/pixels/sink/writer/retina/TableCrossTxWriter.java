@@ -30,6 +30,7 @@ import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -120,21 +121,14 @@ public class TableCrossTxWriter extends TableWriter
                 }
             }
 
-            flushRateLimiter.acquire(batch.size());
+            // flushRateLimiter.acquire(batch.size());
             long txStartTime = System.currentTimeMillis();
 
 //            if(freshnessLevel.equals("embed"))
-            if (true)
-            {
-                long freshness_ts = txStartTime * 1000;
-                FreshnessClient.getInstance().addMonitoredTable(tableName);
-                DataTransform.updateTimeStamp(tableUpdateDataBuilderList, freshness_ts);
-            }
-
-
-//            for(String writeTxId: txIds)
 //            {
-//                sinkContextManager.getSinkContext(writeTxId).setCurrStartTime();
+//                long freshness_ts = txStartTime * 1000;
+//                FreshnessClient.getInstance().addMonitoredTable(tableName);
+//                DataTransform.updateTimeStamp(tableUpdateDataBuilderList, freshness_ts);
 //            }
 
             List<RetinaProto.TableUpdateData> tableUpdateData = new ArrayList<>(tableUpdateDataBuilderList.size());
@@ -191,6 +185,7 @@ public class TableCrossTxWriter extends TableWriter
             try
             {
                 sinkContext.tableCounterLock.lock();
+                sinkContext.recordTimestamp(fullTableName.get(i), LocalDateTime.now());
                 sinkContext.updateCounter(fullTableName.get(i), tableUpdateCount.get(i));
                 if(sinkContext.isCompleted())
                 {

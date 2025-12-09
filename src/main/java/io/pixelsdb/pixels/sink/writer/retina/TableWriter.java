@@ -37,6 +37,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -50,6 +51,7 @@ public abstract class TableWriter
 
     protected final RetinaServiceProxy delegate; // physical writer
     protected final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+    protected final ScheduledExecutorService logScheduler = Executors.newScheduledThreadPool(1);
     protected final ReentrantLock bufferLock = new ReentrantLock();
     protected final String tableName;
     protected final long flushInterval;
@@ -65,6 +67,8 @@ public abstract class TableWriter
     protected PixelsSinkConfig config;
     protected MetricsFacade metricsFacade = MetricsFacade.getInstance();
     protected TransactionMode transactionMode;
+    private final AtomicInteger counter = new AtomicInteger();
+
     protected TableWriter(String tableName, int bucketId)
     {
         this.config = PixelsSinkConfigFactory.getInstance();
@@ -75,6 +79,42 @@ public abstract class TableWriter
         this.freshnessLevel = config.getSinkMonitorFreshnessLevel();
         this.delegate = new RetinaServiceProxy(bucketId);
         this.transactionMode = config.getTransactionMode();
+
+        if(this.config.isMonitorReportEnabled())
+        {
+            long interval = this.config.getMonitorReportInterval();
+            Runnable monitorTask = writerInfoTask(tableName);
+            logScheduler.scheduleAtFixedRate(
+                    monitorTask,
+                    0,
+                    interval,
+                    TimeUnit.MILLISECONDS
+            );
+        }
+    }
+
+    private Runnable writerInfoTask(String tableName)
+    {
+        final AtomicInteger reportId = new AtomicInteger();
+        final AtomicInteger lastRunCounter = new AtomicInteger();
+        Runnable monitorTask = () -> {
+            String firstTx = "none";
+            RowChangeEvent firstEvent = null;
+            int len = 0;
+            bufferLock.lock();
+            len = buffer.size();
+            if (!buffer.isEmpty()) {
+                firstEvent = buffer.get(0);
+            }
+            bufferLock.unlock();
+            if(firstEvent != null)
+            {
+                firstTx = firstEvent.getTransaction().getId();
+                int count = counter.get();
+                getLOGGER().debug("{} Writer {}: Tx Now is {}. Buffer Len is {}. Total Count {}", reportId.incrementAndGet(), tableName, firstTx, len, count);
+            }
+        };
+        return monitorTask;
     }
 
     /**
@@ -140,6 +180,7 @@ public abstract class TableWriter
                 {
                     fullTableName = event.getFullTableName();
                 }
+                counter.incrementAndGet();
                 buffer.add(event);
 
                 // Reset scheduled flush: cancel old one and reschedule
@@ -186,6 +227,7 @@ public abstract class TableWriter
     public void close()
     {
         scheduler.shutdown();
+        logScheduler.shutdown();
         try
         {
             scheduler.awaitTermination(5, TimeUnit.SECONDS);

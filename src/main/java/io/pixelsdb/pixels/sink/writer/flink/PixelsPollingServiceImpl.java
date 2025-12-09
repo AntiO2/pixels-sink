@@ -79,17 +79,10 @@ public class PixelsPollingServiceImpl extends PixelsPollingServiceGrpc.PixelsPol
             );
 
             SinkProto.PollResponse.Builder responseBuilder = SinkProto.PollResponse.newBuilder();
-            if(records != null)
+            if(records != null && !records.isEmpty())
             {
-                List<SinkProto.RowRecord> updatedRecords =  updatedRecords = DataTransform.updateRecordTimestamp(
-                        records,
-                        System.currentTimeMillis()
-                );
-
-                if (updatedRecords != null && !updatedRecords.isEmpty()) {
-                    responseBuilder.addAllRecords(updatedRecords);
-                    this.flushRateLimiter.acquire(updatedRecords.size());
-                }
+                responseBuilder.addAllRecords(records);
+                this.flushRateLimiter.acquire(records.size());
             }
 
             responseObserver.onNext(responseBuilder.build());

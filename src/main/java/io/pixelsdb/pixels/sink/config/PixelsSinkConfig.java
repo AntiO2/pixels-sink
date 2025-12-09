@@ -179,7 +179,8 @@ public class PixelsSinkConfig
 
     @ConfigKey(value = "sink.monitor.freshness.level", defaultValue = "row") // row or txn or embed
     private String sinkMonitorFreshnessLevel;
-
+    @ConfigKey(value = "sink.monitor.freshness.embed.warmup", defaultValue = "10")
+    private Integer sinkMonitorFreshnessEmbedWarmupSeconds;
     @ConfigKey(value = "trino.url")
     private String trinoUrl;
 

@@ -552,14 +552,15 @@ public class MetricsFacade
         LOGGER.info(
                 "Performance report: +{} rows (+{}/s), +{} transactions (+{}/s), +{} debezium (+{}/s)" +
                         ", +{} serdRows (+{}/s), +{} serdTxs (+{}/s)" +
-                        " in {} ms\t activeTxNum: {}",
+                        " in {} ms\t activeTxNum: {} min Tx: {}",
                 deltaRows, String.format("%.2f", rowOips),
                 deltaTxns, String.format("%.2f", txnOips),
                 deltaDebezium, String.format("%.2f", dbOips),
                 deltaSerdRows, String.format("%.2f", serdRowsOips),
                 deltaSerdTxs, String.format("%.2f", serdTxsOips),
                 monitorReportInterval,
-                sinkContextManager.getActiveTxnsNum()
+                sinkContextManager.getActiveTxnsNum(),
+                sinkContextManager.findMinActiveTx()
         );
 
         LOGGER.info(

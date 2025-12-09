@@ -26,6 +26,9 @@ import io.pixelsdb.pixels.sink.event.RowChangeEvent;
 import io.pixelsdb.pixels.sink.exception.SinkException;
 import io.pixelsdb.pixels.sink.freshness.FreshnessClient;
 import io.pixelsdb.pixels.sink.util.DataTransform;
+import lombok.Getter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.LinkedList;
@@ -35,6 +38,8 @@ import java.util.concurrent.TimeUnit;
 
 public class TableSingleRecordWriter extends TableCrossTxWriter
 {
+    @Getter
+    private final Logger LOGGER = LoggerFactory.getLogger(TableSingleRecordWriter.class);
     private final TransactionProxy transactionProxy;
 
     public TableSingleRecordWriter(String t, int bucketId)
@@ -82,16 +87,8 @@ public class TableSingleRecordWriter extends TableCrossTxWriter
                 tableUpdateDataBuilderList.add(builder);
             }
 
-            flushRateLimiter.acquire(batch.size());
+            // flushRateLimiter.acquire(batch.size());
             long txStartTime = System.currentTimeMillis();
-
-//            if(freshnessLevel.equals("embed"))
-            if (true)
-            {
-                long freshness_ts = txStartTime * 1000;
-                FreshnessClient.getInstance().addMonitoredTable(tableName);
-                DataTransform.updateTimeStamp(tableUpdateDataBuilderList, freshness_ts);
-            }
 
             List<RetinaProto.TableUpdateData> tableUpdateData = new ArrayList<>(tableUpdateDataBuilderList.size());
             for (RetinaProto.TableUpdateData.Builder tableUpdateDataItem : tableUpdateDataBuilderList)

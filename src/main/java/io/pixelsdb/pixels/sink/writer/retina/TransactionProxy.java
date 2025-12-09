@@ -121,19 +121,28 @@ public class TransactionProxy
         }
     }
 
+    @Deprecated
     public TransContext getNewTransContext()
+    {
+        return getNewTransContext("None");
+    }
+
+    public TransContext getNewTransContext(String txId)
     {
         beginCount.incrementAndGet();
         if(true)
         {
             try
             {
-                return transService.beginTrans(false);
+                TransContext transContext = transService.beginTrans(false);
+                LOGGER.trace("{} begin {}", txId, transContext.getTransId());
+                return transContext;
             } catch (TransException e)
             {
                 throw null;
             }
         }
+
         TransContext ctx = transContextQueue.poll();
         if (ctx != null)
         {

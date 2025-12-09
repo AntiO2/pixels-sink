@@ -22,6 +22,7 @@ package io.pixelsdb.pixels.sink.provider;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.pixelsdb.pixels.sink.SinkProto;
+import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
 import io.pixelsdb.pixels.sink.event.deserializer.RowChangeEventStructDeserializer;
 import io.pixelsdb.pixels.sink.exception.SinkException;
@@ -29,13 +30,28 @@ import io.pixelsdb.pixels.sink.exception.SinkException;
 import java.nio.ByteBuffer;
 import java.util.logging.Logger;
 import io.pixelsdb.pixels.core.utils.Pair;
+import io.pixelsdb.pixels.sink.freshness.FreshnessClient;
+import io.pixelsdb.pixels.sink.util.DataTransform;
+
+import javax.xml.crypto.Data;
+
 public class TableEventStorageLoopProvider<T> extends TableEventProvider<T>
 {
     private final Logger LOGGER = Logger.getLogger(TableEventStorageProvider.class.getName());
+    private final boolean freshness_embed;
+
 
     protected TableEventStorageLoopProvider()
     {
         super();
+        String sinkMonitorFreshnessLevel = PixelsSinkConfigFactory.getInstance().getSinkMonitorFreshnessLevel();
+        if(sinkMonitorFreshnessLevel.equals("embed"))
+        {
+            freshness_embed = true;
+        } else
+        {
+            freshness_embed = false;
+        }
     }
 
     @Override
@@ -49,9 +65,14 @@ public class TableEventStorageLoopProvider<T> extends TableEventProvider<T>
             SinkProto.RowRecord rowRecord = SinkProto.RowRecord.parseFrom(sourceRecord);
 
             SinkProto.RowRecord.Builder rowRecordBuilder = rowRecord.toBuilder();
+            if(freshness_embed)
+            {
+                DataTransform.updateRecordTimestamp(rowRecordBuilder, System.currentTimeMillis() * 1000);
+                FreshnessClient.getInstance().addMonitoredTable(rowRecord.getSource().getTable());
+            }
             SinkProto.TransactionInfo.Builder transactionBuilder = rowRecordBuilder.getTransactionBuilder();
             String id = transactionBuilder.getId();
-            transactionBuilder.setId(id + "_" + Integer.toString(loopId));
+            transactionBuilder.setId(id + "_" + loopId);
             rowRecordBuilder.setTransaction(transactionBuilder);
             return RowChangeEventStructDeserializer.convertToRowChangeEvent(rowRecordBuilder.build());
         } catch (InvalidProtocolBufferException | SinkException e)
