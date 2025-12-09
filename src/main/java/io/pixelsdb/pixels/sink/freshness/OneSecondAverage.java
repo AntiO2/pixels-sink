@@ -18,7 +18,7 @@
  * <https://www.gnu.org/licenses/>.
  */
  
-package io.pixelsdb.pixels.sink.util;
+package io.pixelsdb.pixels.sink.freshness;
 
 import java.util.ArrayDeque;
 import java.util.Deque;

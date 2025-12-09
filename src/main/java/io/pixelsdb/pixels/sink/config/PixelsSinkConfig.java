@@ -181,6 +181,10 @@ public class PixelsSinkConfig
     private String sinkMonitorFreshnessLevel;
     @ConfigKey(value = "sink.monitor.freshness.embed.warmup", defaultValue = "10")
     private Integer sinkMonitorFreshnessEmbedWarmupSeconds;
+
+    @ConfigKey(value = "sink.monitor.freshness.verbose", defaultValue = "false")
+    private boolean sinkMonitorFreshnessVerbose;
+
     @ConfigKey(value = "trino.url")
     private String trinoUrl;
 
@@ -189,6 +193,9 @@ public class PixelsSinkConfig
 
     @ConfigKey(value = "trino.password")
     private String trinoPassword;
+
+    @ConfigKey(value = "trino.parallel", defaultValue = "1")
+    private int trinoParallel;
 
     public PixelsSinkConfig(String configFilePath) throws IOException
     {

@@ -17,7 +17,7 @@
  * License along with Pixels.  If not, see
  * <https://www.gnu.org/licenses/>.
  */
- 
+
 package io.pixelsdb.pixels.sink.freshness;
 
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
@@ -30,31 +30,32 @@ import org.slf4j.LoggerFactory;
 import java.sql.*;
 import java.util.*;
 import java.util.Date;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 /**
  * FreshnessClient is responsible for monitoring data freshness by periodically
  * querying the maximum timestamp from a set of dynamically configured tables via Trino JDBC.
  */
-public class FreshnessClient {
+public class FreshnessClient
+{
     private static final Logger LOGGER = LoggerFactory.getLogger(FreshnessClient.class);
-
+    private static final int QUERY_INTERVAL_SECONDS = 1;
+    private static volatile FreshnessClient instance;
     // Configuration parameters (should ideally be loaded from a config file)
     private final String trinoJdbcUrl;
     private final String trinoUser;
     private final String trinoPassword;
-
+    private final int maxConcurrentQueries;
+    private final Semaphore queryPermits;
+    private final ThreadPoolExecutor connectionExecutor;
     // Key modification: Use a thread-safe Set to maintain the list of tables to monitor dynamically.
     private final Set<String> monitoredTables;
-    private static final int QUERY_INTERVAL_SECONDS = 1;
-    private Connection connection;
     private final ScheduledExecutorService scheduler;
     private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
-    private static volatile FreshnessClient instance;
     private final int warmUpSeconds;
-    private FreshnessClient() {
+
+    private FreshnessClient()
+    {
         // Initializes the set with thread safety wrapper
         this.monitoredTables = Collections.synchronizedSet(new HashSet<>());
 
@@ -63,20 +64,43 @@ public class FreshnessClient {
         this.trinoJdbcUrl = config.getTrinoUrl();
         this.trinoPassword = config.getTrinoPassword();
         this.warmUpSeconds = config.getSinkMonitorFreshnessEmbedWarmupSeconds();
+        this.maxConcurrentQueries = config.getTrinoParallel();
+        this.queryPermits = new Semaphore(maxConcurrentQueries);
         // Initializes a single-threaded scheduler for executing freshness queries
-        this.scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+        this.scheduler = Executors.newSingleThreadScheduledExecutor(r ->
+        {
             Thread t = Executors.defaultThreadFactory().newThread(r);
             t.setName("Freshness-Client-Scheduler");
             t.setDaemon(true);
             return t;
         });
+
+        this.connectionExecutor = new ThreadPoolExecutor(
+                maxConcurrentQueries,
+                maxConcurrentQueries,
+                60L,
+                TimeUnit.SECONDS,
+                new LinkedBlockingQueue<>(),
+                r ->
+                {
+                    Thread t = Executors.defaultThreadFactory().newThread(r);
+                    t.setName("Freshness-Query-Worker");
+                    t.setDaemon(true);
+                    return t;
+                }
+        );
+        this.connectionExecutor.allowCoreThreadTimeOut(true);
     }
 
-    public static FreshnessClient getInstance() {
-        if (instance == null) {
+    public static FreshnessClient getInstance()
+    {
+        if (instance == null)
+        {
             // First check: Reduces synchronization overhead once the instance is created
-            synchronized (FreshnessClient.class) {
-                if (instance == null) {
+            synchronized (FreshnessClient.class)
+            {
+                if (instance == null)
+                {
                     // Second check: Only one thread proceeds to create the instance
                     instance = new FreshnessClient();
                 }
@@ -85,17 +109,8 @@ public class FreshnessClient {
         return instance;
     }
 
-    // -------------------------------------------------------------------------------------------------
-    // Connection Management
-    // -------------------------------------------------------------------------------------------------
-
-    /**
-     * Establishes a new JDBC connection to the Trino coordinator.
-     * @throws SQLException if the connection cannot be established.
-     */
-    private void establishConnection() throws SQLException
+    private Connection createNewConnection() throws SQLException
     {
-        LOGGER.info("Attempting to connect to Trino via JDBC: {}", trinoJdbcUrl);
         try
         {
             Class.forName("io.trino.jdbc.TrinoDriver");
@@ -103,33 +118,20 @@ public class FreshnessClient {
         {
             throw new SQLException(e);
         }
-        this.connection = DriverManager.getConnection(trinoJdbcUrl, trinoUser, null);
-        LOGGER.info("Trino connection established successfully.");
+        return DriverManager.getConnection(trinoJdbcUrl, trinoUser, null);
     }
 
-    /**
-     * Ensures the current connection is valid, re-establishing it if necessary (closed, null, or invalid).
-     * @throws SQLException if connection cannot be re-established.
-     */
-    private void ensureConnectionValid() throws SQLException {
-        if (connection == null || connection.isClosed() || !connection.isValid(5)) {
-            closeConnection();
-            establishConnection();
-        }
-    }
-
-    /**
-     * Safely closes the current JDBC connection.
-     */
-    private void closeConnection() {
-        if (connection != null) {
-            try {
-                connection.close();
-                LOGGER.info("Trino connection closed.");
-            } catch (SQLException e) {
+    private void closeConnection(Connection conn)
+    {
+        if (conn != null)
+        {
+            try
+            {
+                conn.close();
+            } catch (SQLException e)
+            {
                 LOGGER.warn("Error closing Trino connection.", e);
             }
-            connection = null;
         }
     }
 
@@ -140,10 +142,13 @@ public class FreshnessClient {
     /**
      * Adds a table name to the monitoring list.
      * This method can be called by external components (e.g., config trigger).
+     *
      * @param tableName The name of the table to add.
      */
-    public void addMonitoredTable(String tableName) {
-        if (tableName == null || tableName.trim().isEmpty()) {
+    public void addMonitoredTable(String tableName)
+    {
+        if (tableName == null || tableName.trim().isEmpty())
+        {
             LOGGER.warn("Attempted to add null or empty table name to freshness monitor.");
             return;
         }
@@ -152,12 +157,16 @@ public class FreshnessClient {
 
     /**
      * Removes a table name from the monitoring list.
+     *
      * @param tableName The name of the table to remove.
      */
-    public void removeMonitoredTable(String tableName) {
-        if (monitoredTables.remove(tableName)) {
+    public void removeMonitoredTable(String tableName)
+    {
+        if (monitoredTables.remove(tableName))
+        {
             LOGGER.info("Table '{}' removed from freshness monitor list.", tableName);
-        } else {
+        } else
+        {
             LOGGER.debug("Table '{}' was not found in the freshness monitor list.", tableName);
         }
     }
@@ -169,52 +178,76 @@ public class FreshnessClient {
     /**
      * Starts the scheduled freshness monitoring task.
      */
-    public void start() {
-        try {
-            ensureConnectionValid();
-            LOGGER.info("Starting Freshness Client, querying every {} seconds.", QUERY_INTERVAL_SECONDS);
-
-            scheduler.scheduleAtFixedRate(this::queryAndCalculateFreshness,
-                    warmUpSeconds,
-                    QUERY_INTERVAL_SECONDS,
-                    TimeUnit.SECONDS);
-        } catch (SQLException e) {
-            LOGGER.error("Failed to establish initial Trino connection. Freshness Client will not start.", e);
-        }
+    public void start()
+    {
+        LOGGER.info("Starting Freshness Client, querying every {} seconds.", QUERY_INTERVAL_SECONDS);
+        scheduler.scheduleAtFixedRate(this::submitQueryTask,
+                warmUpSeconds,
+                QUERY_INTERVAL_SECONDS,
+                TimeUnit.SECONDS);
     }
 
 
     /**
      * Stops the scheduled task and closes the JDBC connection.
      */
-    public void stop() {
+    public void stop()
+    {
         LOGGER.info("Stopping Freshness Client.");
         scheduler.shutdownNow();
-        closeConnection();
+        connectionExecutor.shutdownNow();
+    }
+
+    private void submitQueryTask()
+    {
+        if (monitoredTables.isEmpty())
+        {
+            LOGGER.debug("No tables configured for freshness monitoring. Skipping submission cycle.");
+            return;
+        }
+
+        if (!queryPermits.tryAcquire())
+        {
+            LOGGER.debug("Max concurrent queries ({}) reached. Skipping query submission this cycle.", maxConcurrentQueries);
+            return;
+        }
+
+        try
+        {
+            connectionExecutor.submit(this::queryAndCalculateFreshness);
+        } catch (RejectedExecutionException e)
+        {
+            queryPermits.release();
+            LOGGER.error("Query task rejected by executor. Max concurrent queries may be too low or service is stopping.", e);
+        } catch (Exception e)
+        {
+            queryPermits.release();
+            LOGGER.error("Unknown error during task submission.", e);
+        }
     }
 
     /**
      * The core scheduled task: queries max(freshness_ts) for all monitored tables
      * and calculates the freshness metric.
      */
-    void queryAndCalculateFreshness() {
-        try {
-            ensureConnectionValid();
-        } catch (SQLException e) {
-            LOGGER.error("Connection failed during scheduled run. Skipping this freshness cycle.", e);
-            return;
-        }
+    void queryAndCalculateFreshness()
+    {
+        Connection conn = null;
 
-        // Take a snapshot of the tables to monitor for this cycle.
-        // This prevents ConcurrentModificationException if a table is added/removed mid-iteration.
-        Set<String> tablesSnapshot = new HashSet<>(monitoredTables);
-        if (tablesSnapshot.isEmpty()) {
-            LOGGER.debug("No tables configured for freshness monitoring. Skipping cycle.");
-            return;
-        }
 
         String tableName;
-        try {
+        try
+        {
+
+            // Take a snapshot of the tables to monitor for this cycle.
+            // This prevents ConcurrentModificationException if a table is added/removed mid-iteration.
+            Set<String> tablesSnapshot = new HashSet<>(monitoredTables);
+            if (tablesSnapshot.isEmpty())
+            {
+                LOGGER.debug("No tables configured for freshness monitoring. Skipping cycle.");
+                return;
+            }
+            monitoredTables.clear();
             List<String> tableList = new ArrayList<>(tablesSnapshot);
 
             Random random = new Random();
@@ -223,46 +256,55 @@ public class FreshnessClient {
             tableName = tableList.get(randomIndex);
 
             LOGGER.debug("Randomly selected table for this cycle: {}", tableName);
-
-        } catch (Exception e) {
-            LOGGER.error("Error selecting a random table from the monitor list.", e);
-            return;
-        }
-
+            conn = createNewConnection();
             // Timestamp when the query is sent (t_send)
             long tSendMillis = System.currentTimeMillis();
-            String tSendMillisStr =  DateUtil.convertDateToString(new Date(tSendMillis));
+            String tSendMillisStr = DateUtil.convertDateToString(new Date(tSendMillis));
             // Query to find the latest timestamp in the table
             // Assumes 'freshness_ts' is a long-type epoch timestamp (milliseconds)
             String query = String.format("SELECT max(freshness_ts) FROM %s WHERE freshness_ts < TIMESTAMP '%s'", tableName, tSendMillisStr);
 
-            try (Statement statement = connection.createStatement();
-                 ResultSet rs = statement.executeQuery(query)) {
+            try (Statement statement = conn.createStatement();
+                 ResultSet rs = statement.executeQuery(query))
+            {
 
                 Timestamp maxFreshnessTs = null;
 
-                if (rs.next()) {
+                if (rs.next())
+                {
                     // Read the maximum timestamp value
                     maxFreshnessTs = rs.getTimestamp(1);
                 }
 
-                if (maxFreshnessTs != null) {
+                if (maxFreshnessTs != null)
+                {
                     // Freshness = t_send - data_write_time (maxFreshnessTs)
                     // Result is in milliseconds
                     long freshnessMillis = tSendMillis - maxFreshnessTs.getTime();
                     metricsFacade.recordFreshness(freshnessMillis);
 
-                } else {
+                } else
+                {
                     LOGGER.warn("Table {} returned null or zero max(freshness_ts). Skipping freshness calculation.", tableName);
                 }
 
-            } catch (SQLException e) {
+            } catch (SQLException e)
+            {
                 // Handle database errors (e.g., table not found, query syntax error)
                 LOGGER.error("Failed to execute query for table {}: {}", tableName, e.getMessage());
-            } catch (Exception e) {
+            } catch (Exception e)
+            {
                 // Catch potential runtime errors (e.g., in MetricsFacade)
                 LOGGER.error("Error calculating or recording freshness for table {}.", tableName, e);
             }
-            monitoredTables.clear();
+        } catch (Exception e)
+        {
+            LOGGER.error("Error selecting a random table from the monitor list.", e);
+        } finally
+        {
+            closeConnection(conn);
+            queryPermits.release();
+        }
+
     }
 }

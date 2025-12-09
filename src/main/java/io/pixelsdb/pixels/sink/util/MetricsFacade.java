@@ -25,6 +25,8 @@ import io.pixelsdb.pixels.sink.SinkProto;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
+import io.pixelsdb.pixels.sink.freshness.FreshnessHistory;
+import io.pixelsdb.pixels.sink.freshness.OneSecondAverage;
 import io.pixelsdb.pixels.sink.writer.retina.SinkContextManager;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Histogram;
@@ -39,6 +41,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class MetricsFacade
@@ -71,6 +74,8 @@ public class MetricsFacade
     private final SynchronizedDescriptiveStatistics freshness;
     private final SynchronizedDescriptiveStatistics rowChangeSpeed;
     private final OneSecondAverage freshnessAvg;
+    private final Boolean freshnessVerbose;
+    private final FreshnessHistory freshnessHistory;
 
     private final String monitorReportPath;
     private final String freshnessReportPath;
@@ -227,6 +232,15 @@ public class MetricsFacade
         freshnessReportInterval = config.getFreshnessReportInterval();
         freshnessReportPath = config.getMonitorFreshnessReportFile();
         freshnessAvg = new OneSecondAverage(freshnessReportInterval);
+        freshnessVerbose = config.isSinkMonitorFreshnessVerbose();
+        if(freshnessVerbose)
+        {
+            freshnessHistory = new FreshnessHistory();
+        } else
+        {
+            freshnessHistory = null;
+        }
+
 
         monitorReportEnabled = config.isMonitorReportEnabled();
         monitorReportInterval = config.getMonitorReportInterval();
@@ -415,6 +429,11 @@ public class MetricsFacade
         {
             freshnessAvg.record(freshnessMill);
         }
+
+        if(freshnessVerbose)
+        {
+            freshnessHistory.record(freshnessMill);
+        }
     }
 
     public void recordPrimaryKeyUpdateDistribution(String table, ByteString pkValue) {
@@ -496,14 +515,28 @@ public class MetricsFacade
                 Thread.sleep(freshnessReportInterval);
                 try (FileWriter fw = new FileWriter(freshnessReportPath, true))
                 {
-                    long now = System.currentTimeMillis();
-                    double avg = freshnessAvg.getWindowAverage();
-                    if(Double.isNaN(avg))
+                    if(freshnessVerbose)
                     {
-                        continue;
+                        List<FreshnessHistory.Record> detailedRecords = freshnessHistory.pollAll();
+                        if (!detailedRecords.isEmpty())
+                        {
+                            for (FreshnessHistory.Record record : detailedRecords)
+                            {
+                                fw.write(record.toString() + "\n");
+                            }
+                            fw.flush();
+                        }
+                    } else
+                    {
+                        long now = System.currentTimeMillis();
+                        double avg = freshnessAvg.getWindowAverage();
+                        if(Double.isNaN(avg))
+                        {
+                            continue;
+                        }
+                        fw.write(now + "," + avg + "\n");
+                        fw.flush();
                     }
-                    fw.write(now + "," + avg + "\n");
-                    fw.flush();
                 } catch (IOException e)
                 {
                     LOGGER.warn("Failed to write perf metrics: " + e.getMessage());
