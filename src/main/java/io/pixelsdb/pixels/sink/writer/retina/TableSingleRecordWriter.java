@@ -26,6 +26,7 @@ import io.pixelsdb.pixels.sink.event.RowChangeEvent;
 import io.pixelsdb.pixels.sink.exception.SinkException;
 import io.pixelsdb.pixels.sink.freshness.FreshnessClient;
 import io.pixelsdb.pixels.sink.util.DataTransform;
+import io.prometheus.client.Summary;
 import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -95,11 +96,18 @@ public class TableSingleRecordWriter extends TableCrossTxWriter
             {
                 tableUpdateData.add(tableUpdateDataItem.build());
             }
+
+            final Summary.Timer startWriteLatencyTimer = metricsFacade.startWriteLatencyTimer(tableName);
             CompletableFuture<RetinaProto.UpdateRecordResponse> updateRecordResponseCompletableFuture = delegate.writeBatchAsync(batch.get(0).getSchemaName(), tableUpdateData);
 
             updateRecordResponseCompletableFuture.thenAccept(
                     resp ->
                     {
+                        if(freshness_embed)
+                        {
+                            FreshnessClient.getInstance().addMonitoredTable(tableName);
+                        }
+
                         if (resp.getHeader().getErrorCode() != 0)
                         {
                             transactionProxy.rollbackTrans(pixelsTransContext);
@@ -112,6 +120,10 @@ public class TableSingleRecordWriter extends TableCrossTxWriter
                                 metricsFacade.recordFreshness(txEndTime - txStartTime);
                             }
                             transactionProxy.commitTrans(pixelsTransContext);
+                            if(startWriteLatencyTimer != null)
+                            {
+                                startWriteLatencyTimer.observeDuration();
+                            }
                         }
                     }
             );

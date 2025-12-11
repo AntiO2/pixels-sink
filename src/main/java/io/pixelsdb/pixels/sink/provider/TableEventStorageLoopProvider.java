@@ -22,6 +22,7 @@ package io.pixelsdb.pixels.sink.provider;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.pixelsdb.pixels.sink.SinkProto;
+import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
 import io.pixelsdb.pixels.sink.event.deserializer.RowChangeEventStructDeserializer;
@@ -39,12 +40,13 @@ public class TableEventStorageLoopProvider<T> extends TableEventProvider<T>
 {
     private final Logger LOGGER = Logger.getLogger(TableEventStorageProvider.class.getName());
     private final boolean freshness_embed;
-
+    private final boolean freshness_timestamp;
 
     protected TableEventStorageLoopProvider()
     {
         super();
-        String sinkMonitorFreshnessLevel = PixelsSinkConfigFactory.getInstance().getSinkMonitorFreshnessLevel();
+        PixelsSinkConfig config = PixelsSinkConfigFactory.getInstance();
+        String sinkMonitorFreshnessLevel = config.getSinkMonitorFreshnessLevel();
         if(sinkMonitorFreshnessLevel.equals("embed"))
         {
             freshness_embed = true;
@@ -52,6 +54,7 @@ public class TableEventStorageLoopProvider<T> extends TableEventProvider<T>
         {
             freshness_embed = false;
         }
+        freshness_timestamp = config.isSinkMonitorFreshnessTimestamp();
     }
 
     @Override
@@ -65,11 +68,11 @@ public class TableEventStorageLoopProvider<T> extends TableEventProvider<T>
             SinkProto.RowRecord rowRecord = SinkProto.RowRecord.parseFrom(sourceRecord);
 
             SinkProto.RowRecord.Builder rowRecordBuilder = rowRecord.toBuilder();
-            if(freshness_embed)
+            if(freshness_timestamp)
             {
                 DataTransform.updateRecordTimestamp(rowRecordBuilder, System.currentTimeMillis() * 1000);
-                FreshnessClient.getInstance().addMonitoredTable(rowRecord.getSource().getTable());
             }
+
             SinkProto.TransactionInfo.Builder transactionBuilder = rowRecordBuilder.getTransactionBuilder();
             String id = transactionBuilder.getId();
             transactionBuilder.setId(id + "_" + loopId);

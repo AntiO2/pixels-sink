@@ -28,7 +28,9 @@ import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
 import io.pixelsdb.pixels.sink.exception.SinkException;
+import io.pixelsdb.pixels.sink.freshness.FreshnessClient;
 import io.pixelsdb.pixels.sink.util.BlockingBoundedMap;
+import io.pixelsdb.pixels.sink.util.DataTransform;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,7 +51,7 @@ public class SinkContextManager
     private final TransactionProxy transactionProxy = TransactionProxy.Instance();
     private final TableWriterProxy tableWriterProxy;
     private final CommitMethod commitMethod;
-
+    private final String freshnessLevel;
     private SinkContextManager()
     {
         PixelsSinkConfig config = PixelsSinkConfigFactory.getInstance();
@@ -61,6 +63,7 @@ public class SinkContextManager
         {
             this.commitMethod = CommitMethod.Async;
         }
+        this.freshnessLevel = config.getSinkMonitorFreshnessLevel();
     }
 
     public static SinkContextManager getInstance()
@@ -163,7 +166,6 @@ public class SinkContextManager
             throw new RuntimeException("Sink Context is null");
         }
 
-        ctx.setStartTime(System.currentTimeMillis());
         try
         {
             ctx.tableCounterLock.lock();
@@ -198,7 +200,14 @@ public class SinkContextManager
                     transactionProxy.commitTransAsync(ctx);
                 }
             }
-
+            if(freshnessLevel.equals("embed"))
+            {
+                for(String table: ctx.getTableCounters().keySet())
+                {
+                    String tableName = DataTransform.extractTableName(table);
+                    FreshnessClient.getInstance().addMonitoredTable(tableName);
+                }
+            }
         } else
         {
             LOGGER.info("Abort transaction: {}", txId);

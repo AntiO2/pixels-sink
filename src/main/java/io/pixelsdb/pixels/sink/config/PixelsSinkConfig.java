@@ -185,6 +185,9 @@ public class PixelsSinkConfig
     @ConfigKey(value = "sink.monitor.freshness.verbose", defaultValue = "false")
     private boolean sinkMonitorFreshnessVerbose;
 
+    @ConfigKey(value = "sink.monitor.freshness.timestamp", defaultValue = "false")
+    private boolean sinkMonitorFreshnessTimestamp;
+
     @ConfigKey(value = "trino.url")
     private String trinoUrl;
 

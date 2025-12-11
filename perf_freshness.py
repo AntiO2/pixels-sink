@@ -5,19 +5,23 @@ import numpy as np
 ##########################################
 # 配置 CSV 文件 和 标签
 ##########################################
+# csv_files = {
+#     "10k": "tmp/freshness10k_5.csv",
+#     "20k": "tmp/freshness20k_5.csv",
+#     # "30k": "tmp/freshness30k_2.csv",
+#     "40k": "tmp/freshness40k_5.csv",
+#     "50k": "tmp/freshness50k_5.csv",
+#     "60k": "tmp/freshness60k_5.csv"
+# }
 csv_files = {
-    "10k": "tmp/freshness10k_5.csv",
-    "20k": "tmp/freshness20k_5.csv",
-    # "30k": "tmp/freshness30k_2.csv",
-    "40k": "tmp/freshness40k_5.csv",
-    "50k": "tmp/freshness50k_5.csv",
-    "60k": "tmp/freshness60k_5.csv"
+    "Query Transaction": "tmp/i7i_2k_dec_freshness.csv",
+    "Query Record": "tmp/i7i_2k_record_dec_freshness.csv",
+    "Internal Transaction Context": "tmp/i7i_2k_txn_dec_freshness.csv"
 }
-
-MAX_SECONDS = 1800          # 截取前多少秒的数据
-SKIP_SECONDS = 10            # 跳过前多少秒的数据（可调）
-BIN_SECONDS = 60            # 平均窗口（秒）
-
+MAX_SECONDS = 500         # 截取前多少秒的数据
+SKIP_SECONDS = 20            # 跳过前多少秒的数据（可调）
+BIN_SECONDS = 10            # 平均窗口（秒）
+MAX_FRESHNESS = 5000
 ##########################################
 # 加载并处理数据
 ##########################################
@@ -34,6 +38,8 @@ for label, path in csv_files.items():
 
     # 跳过前 SKIP_SECONDS 秒
     df = df[df["sec"] >= SKIP_SECONDS]
+
+    df = df[df["freshness"] <= MAX_FRESHNESS]
 
     # 重新计算时间（所有曲线从 0 秒开始对齐）
     t_new0 = df["ts"].iloc[0]
@@ -61,7 +67,7 @@ for label, df in data.items():
 
 plt.xlabel("Time (sec)")
 plt.ylabel(f"Freshness (ms, {BIN_SECONDS}s average)")
-plt.yscale("log")
+# plt.yscale("log")
 plt.title(
     f"Freshness Over Time ({BIN_SECONDS}-Second Avg, "
     f"Skip {SKIP_SECONDS}s, First {MAX_SECONDS}s)"

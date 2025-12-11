@@ -68,7 +68,7 @@ public abstract class TableWriter
     protected MetricsFacade metricsFacade = MetricsFacade.getInstance();
     protected TransactionMode transactionMode;
     private final AtomicInteger counter = new AtomicInteger();
-
+    protected final boolean freshness_embed;
     protected TableWriter(String tableName, int bucketId)
     {
         this.config = PixelsSinkConfigFactory.getInstance();
@@ -79,7 +79,14 @@ public abstract class TableWriter
         this.freshnessLevel = config.getSinkMonitorFreshnessLevel();
         this.delegate = new RetinaServiceProxy(bucketId);
         this.transactionMode = config.getTransactionMode();
-
+        String sinkMonitorFreshnessLevel = config.getSinkMonitorFreshnessLevel();
+        if(sinkMonitorFreshnessLevel.equals("embed"))
+        {
+            freshness_embed = true;
+        } else
+        {
+            freshness_embed = false;
+        }
         if(this.config.isMonitorReportEnabled())
         {
             long interval = this.config.getMonitorReportInterval();
@@ -111,7 +118,7 @@ public abstract class TableWriter
             {
                 firstTx = firstEvent.getTransaction().getId();
                 int count = counter.get();
-                getLOGGER().debug("{} Writer {}: Tx Now is {}. Buffer Len is {}. Total Count {}", reportId.incrementAndGet(), tableName, firstTx, len, count);
+                getLOGGER().info("{} Writer {}: Tx Now is {}. Buffer Len is {}. Total Count {}", reportId.incrementAndGet(), tableName, firstTx, len, count);
             }
         };
         return monitorTask;

@@ -87,12 +87,14 @@ public class SinkContext
     {
         this.sourceTxId = sourceTxId;
         this.pixelsTransCtx = null;
+        setCurrStartTime();
     }
 
     public SinkContext(String sourceTxId, TransContext pixelsTransCtx)
     {
         this.sourceTxId = sourceTxId;
         this.pixelsTransCtx = pixelsTransCtx;
+        setCurrStartTime();
     }
 
 

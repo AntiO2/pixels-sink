@@ -145,4 +145,10 @@
          SinkProto.RowRecord.Builder recordBuilder = record.toBuilder();
          return updateRecordTimestamp(recordBuilder, timestampColumn);
      }
+
+     public static String extractTableName(String topic)
+     {
+         String[] parts = topic.split("\\.");
+         return parts[parts.length - 1];
+     }
  }

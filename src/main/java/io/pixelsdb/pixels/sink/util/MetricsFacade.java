@@ -64,6 +64,7 @@ public class MetricsFacade
     private final Summary retinaServiceLatency;
     private final Summary writerLatency;
     private final Summary totalLatency;
+    private final Summary tableFreshness;
     private final Histogram transactionRowCountHistogram;
     private final Histogram primaryKeyUpdateDistribution;
 
@@ -96,8 +97,6 @@ public class MetricsFacade
     private MetricsFacade(boolean enabled)
     {
         this.enabled = enabled;
-        if (enabled)
-        {
             this.debeziumEventCounter = Counter.build()
                     .name("debezium_event_total")
                     .help("Debezium Event Total")
@@ -179,6 +178,7 @@ public class MetricsFacade
             this.writerLatency = Summary.build()
                     .name("write_latency_seconds")
                     .help("Write latency")
+                    .labelNames("table")
                     .quantile(0.5, 0.05)
                     .quantile(0.75, 0.01)
                     .quantile(0.95, 0.005)
@@ -194,6 +194,16 @@ public class MetricsFacade
                     .quantile(0.95, 0.005)
                     .quantile(0.99, 0.001)
                     .register();
+
+        this.tableFreshness = Summary.build()
+                .name("data_freshness_latency_ms")
+                .help("Data freshness latency in milliseconds per table")
+                .labelNames("table")
+                .quantile(0.5, 0.01)
+                .quantile(0.9, 0.01)
+                .quantile(0.99, 0.001)
+                .register();
+
             this.transactionRowCountHistogram = Histogram.build()
                     .name("transaction_row_count_histogram")
                     .help("Distribution of row counts within a single transaction")
@@ -207,27 +217,6 @@ public class MetricsFacade
                     .register();
             this.freshness = new SynchronizedDescriptiveStatistics();
             this.rowChangeSpeed = new SynchronizedDescriptiveStatistics();
-        } else
-        {
-            this.debeziumEventCounter = null;
-            this.rowEventCounter = null;
-            this.rowChangeCounter = null;
-            this.serdRowRecordCounter = null;
-            this.serdTxRecordCounter = null;
-            this.transactionCounter = null;
-            this.processingLatency = null;
-            this.tableChangeCounter = null;
-            this.rawDataThroughputCounter = null;
-            this.transServiceLatency = null;
-            this.indexServiceLatency = null;
-            this.retinaServiceLatency = null;
-            this.writerLatency = null;
-            this.totalLatency = null;
-            this.freshness = null;
-            this.rowChangeSpeed = null;
-            this.transactionRowCountHistogram = null;
-            this.primaryKeyUpdateDistribution = null;
-        }
 
         freshnessReportInterval = config.getFreshnessReportInterval();
         freshnessReportPath = config.getMonitorFreshnessReportFile();
@@ -376,9 +365,9 @@ public class MetricsFacade
         return enabled ? retinaServiceLatency.startTimer() : null;
     }
 
-    public Summary.Timer startWriteLatencyTimer()
+    public Summary.Timer startWriteLatencyTimer(String tableName)
     {
-        return enabled ? writerLatency.startTimer() : null;
+        return enabled ? writerLatency.labels(tableName).startTimer() : null;
     }
 
     public void addRawData(double data)
@@ -416,6 +405,17 @@ public class MetricsFacade
     public int getTransactionEvent()
     {
         return (int) transactionCounter.get();
+    }
+
+    public void recordTableFreshness(String table, double freshnessMill)
+    {
+        if(!enabled)
+        {
+            return;
+        }
+
+        tableFreshness.labels(table).observe(freshnessMill);
+        recordFreshness(freshnessMill);
     }
 
     public void recordFreshness(double freshnessMill)

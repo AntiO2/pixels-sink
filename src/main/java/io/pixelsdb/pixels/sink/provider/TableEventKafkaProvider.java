@@ -23,6 +23,7 @@ package io.pixelsdb.pixels.sink.provider;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
+import io.pixelsdb.pixels.sink.util.DataTransform;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -54,7 +55,7 @@ public class TableEventKafkaProvider<T> extends TableEventProvider<Void>
         this.kafkaProperties.put(ConsumerConfig.GROUP_ID_CONFIG, config.getGroupId() + "-" + topic);
         this.kafkaProperties.put(ConsumerConfig.ALLOW_AUTO_CREATE_TOPICS_CONFIG, "false");
         this.kafkaProperties.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 500);
-        this.tableName = extractTableName(topic);
+        this.tableName = DataTransform.extractTableName(topic);
     }
 
     @Override
@@ -103,12 +104,6 @@ public class TableEventKafkaProvider<T> extends TableEventProvider<Void>
                 log.info("Kafka consumer closed for {}", tableName);
             }
         }
-    }
-
-    private String extractTableName(String topic)
-    {
-        String[] parts = topic.split("\\.");
-        return parts[parts.length - 1];
     }
 
     @Override
