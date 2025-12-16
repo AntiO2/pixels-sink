@@ -35,9 +35,9 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -50,9 +50,13 @@ public abstract class TableWriter
 {
 
     protected final RetinaServiceProxy delegate; // physical writer
-    protected final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
-    protected final ScheduledExecutorService logScheduler = Executors.newScheduledThreadPool(1);
+
+    private final ScheduledExecutorService flushExecutor = Executors.newSingleThreadScheduledExecutor();
+    private final ScheduledExecutorService logScheduler = Executors.newScheduledThreadPool(1);
     protected final ReentrantLock bufferLock = new ReentrantLock();
+    protected final Condition flushCondition = bufferLock.newCondition();
+    protected final Thread flusherThread;
+    protected volatile boolean running = true;
     protected final String tableName;
     protected final long flushInterval;
     protected final FlushRateLimiter flushRateLimiter;
@@ -62,7 +66,6 @@ public abstract class TableWriter
     protected List<RowChangeEvent> buffer = new LinkedList<>();
     protected volatile String currentTxId = null;
     protected String txId = null;
-    protected ScheduledFuture<?> flushTask = null;
     protected String fullTableName;
     protected PixelsSinkConfig config;
     protected MetricsFacade metricsFacade = MetricsFacade.getInstance();
@@ -87,7 +90,7 @@ public abstract class TableWriter
         {
             freshness_embed = false;
         }
-        if(this.config.isMonitorReportEnabled())
+        if(this.config.isMonitorReportEnabled() && this.config.isRetinaLogQueueEnabled())
         {
             long interval = this.config.getMonitorReportInterval();
             Runnable monitorTask = writerInfoTask(tableName);
@@ -98,8 +101,52 @@ public abstract class TableWriter
                     TimeUnit.MILLISECONDS
             );
         }
+        this.flusherThread = new Thread(new FlusherRunnable(), "Pixels-Flusher-" + tableName);
+        this.flusherThread.start();
     }
 
+    private class FlusherRunnable implements Runnable {
+        @Override
+        public void run() {
+            while (running) {
+                bufferLock.lock();
+                try {
+                    if (!needFlush())
+                    {
+                        try
+                        {
+                            // Conditional wait: will wait until signaled by write() or timeout
+                            flushCondition.await(flushInterval, TimeUnit.MILLISECONDS);
+                        } catch (InterruptedException e) {
+                            // Exit loop if interrupted during shutdown
+                            running = false;
+                            Thread.currentThread().interrupt();
+                            return;
+                        }
+                    }
+
+                    List<RowChangeEvent> batchToFlush = buffer;
+                    buffer = new LinkedList<>();
+                    bufferLock.unlock();
+                    submitFlushTask(batchToFlush);
+                    bufferLock.lock();
+                } finally
+                {
+                    bufferLock.unlock();
+                }
+            }
+        }
+    }
+    private void submitFlushTask(List<RowChangeEvent> batch)
+    {
+        if(batch == null || batch.isEmpty())
+        {
+            return;
+        }
+        flushExecutor.submit(() -> {
+                flush(batch);
+        });
+    }
     private Runnable writerInfoTask(String tableName)
     {
         final AtomicInteger reportId = new AtomicInteger();
@@ -172,16 +219,6 @@ public abstract class TableWriter
                 {
                     txId = ctx.getSourceTxId();
                 }
-                // If this is a new transaction, flush the old one
-                if (needFlush())
-                {
-                    if (flushTask != null)
-                    {
-                        flushTask.cancel(false);
-                    }
-                    flush();
-
-                }
                 currentTxId = txId;
                 if (fullTableName == null)
                 {
@@ -190,31 +227,10 @@ public abstract class TableWriter
                 counter.incrementAndGet();
                 buffer.add(event);
 
-                // Reset scheduled flush: cancel old one and reschedule
-                if (flushTask != null && !flushTask.isDone())
+                if (needFlush())
                 {
-                    flushTask.cancel(false);
+                    flushCondition.signalAll();
                 }
-                flushTask = scheduler.schedule(() ->
-                {
-                    try
-                    {
-                        bufferLock.lock();
-                        try
-                        {
-                            if (transactionMode.equals(TransactionMode.RECORD) || txId.equals(currentTxId))
-                            {
-                                flush();
-                            }
-                        } finally
-                        {
-                            bufferLock.unlock();
-                        }
-                    } catch (Exception e)
-                    {
-                        getLOGGER().error("Scheduled flush failed for table {}", tableName, e);
-                    }
-                }, flushInterval, TimeUnit.MILLISECONDS);
             } finally
             {
                 bufferLock.unlock();
@@ -227,17 +243,26 @@ public abstract class TableWriter
         }
     }
 
-    public abstract void flush();
+    public abstract void flush(List<RowChangeEvent> batchToFlush);
 
     protected abstract boolean needFlush();
 
     public void close()
     {
-        scheduler.shutdown();
+        this.running = false;
+        if (this.flusherThread != null)
+        {
+            this.flusherThread.interrupt();
+        }
         logScheduler.shutdown();
         try
         {
-            scheduler.awaitTermination(5, TimeUnit.SECONDS);
+            logScheduler.awaitTermination(5, TimeUnit.SECONDS);
+            flushExecutor.awaitTermination(5, TimeUnit.SECONDS);
+            if (this.flusherThread != null)
+            {
+                this.flusherThread.join(5000);
+            }
             delegate.close();
         } catch (InterruptedException ignored)
         {

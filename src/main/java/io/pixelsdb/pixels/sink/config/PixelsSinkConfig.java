@@ -29,6 +29,7 @@ import lombok.Getter;
 import org.apache.kafka.common.serialization.StringDeserializer;
 
 import java.io.IOException;
+import java.util.List;
 
 @Getter
 public class PixelsSinkConfig
@@ -46,6 +47,9 @@ public class PixelsSinkConfig
 
     @ConfigKey(value = "sink.retina.client", defaultValue = "1")
     private int retinaClientNum;
+
+    @ConfigKey(value = "sink.retina.log.queue", defaultValue = "true")
+    private boolean retinaLogQueueEnabled;
 
     @ConfigKey(value = "sink.trans.mode", defaultValue = TransactionConfig.DEFAULT_TRANSACTION_MODE)
     private TransactionMode transactionMode;
@@ -181,6 +185,12 @@ public class PixelsSinkConfig
     private String sinkMonitorFreshnessLevel;
     @ConfigKey(value = "sink.monitor.freshness.embed.warmup", defaultValue = "10")
     private Integer sinkMonitorFreshnessEmbedWarmupSeconds;
+
+    @ConfigKey(value = "sink.monitor.freshness.embed.static", defaultValue = "false")
+    private boolean sinkMonitorFreshnessEmbedStatic;
+
+    @ConfigKey(value = "sink.monitor.freshness.embed.tablelist", defaultValue = "false")
+    private List<String> sinkMonitorFreshnessEmbedTableList;
 
     @ConfigKey(value = "sink.monitor.freshness.verbose", defaultValue = "false")
     private boolean sinkMonitorFreshnessVerbose;

@@ -26,6 +26,7 @@ import io.pixelsdb.pixels.sink.writer.retina.RetinaServiceProxy;
 import io.pixelsdb.pixels.sink.writer.retina.TransactionMode;
 
 import java.lang.reflect.Field;
+import java.util.List;
 import java.util.Properties;
 
 public class ConfigLoader
@@ -92,6 +93,19 @@ public class ConfigLoader
         } else if (type.equals(RetinaServiceProxy.RetinaWriteMode.class))
         {
             return RetinaServiceProxy.RetinaWriteMode.fromValue(value);
+        } else if (type.equals(List.class))
+        {
+            // Handle List type: split the string by comma (",")
+            // and return a List<String>. Trimming each element is recommended.
+            if (value == null || value.isEmpty()) {
+                return java.util.Collections.emptyList();
+            }
+
+            // Use Arrays.asList(String.split(",")) to handle the splitting,
+            // then stream to trim whitespace from each element.
+            return java.util.Arrays.stream(value.split(","))
+                    .map(String::trim)
+                    .collect(java.util.stream.Collectors.toList());
         }
         return value;
     }

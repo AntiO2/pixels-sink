@@ -24,8 +24,6 @@ package io.pixelsdb.pixels.sink.writer.retina;
 import io.pixelsdb.pixels.retina.RetinaProto;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
 import io.pixelsdb.pixels.sink.exception.SinkException;
-import io.pixelsdb.pixels.sink.freshness.FreshnessClient;
-import io.pixelsdb.pixels.sink.util.DataTransform;
 import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,24 +59,8 @@ public class TableCrossTxWriter extends TableWriter
     /**
      * Flush any buffered events for the current transaction.
      */
-    public void flush()
+    public void flush(List<RowChangeEvent> batch)
     {
-        List<RowChangeEvent> batch;
-        bufferLock.lock();
-        try
-        {
-            if (buffer.isEmpty())
-            {
-                return;
-            }
-            // Swap buffers quickly under lock
-            batch = buffer;
-            buffer = new LinkedList<>();
-        } finally
-        {
-            bufferLock.unlock();
-        }
-
         writeLock.lock();
         try
         {

@@ -44,7 +44,7 @@ public class TableSingleTxWriter extends TableWriter
     /**
      * Flush any buffered events for the current transaction.
      */
-    public void flush()
+    public void flush(List<RowChangeEvent> batchToFlush)
     {
         List<RowChangeEvent> batch;
         String txId;

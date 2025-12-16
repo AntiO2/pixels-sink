@@ -16,7 +16,8 @@ import numpy as np
 csv_files = {
     "Query Transaction": "tmp/i7i_2k_dec_freshness.csv",
     "Query Record": "tmp/i7i_2k_record_dec_freshness.csv",
-    "Internal Transaction Context": "tmp/i7i_2k_txn_dec_freshness.csv"
+    "Internal Transaction Context": "tmp/i7i_2k_txn_dec_freshness.csv",
+    "Query Selected Table, Trans Mode": "tmp/i7i_2k_batchtest_dec_freshness_2.csv"
 }
 MAX_SECONDS = 500         # 截取前多少秒的数据
 SKIP_SECONDS = 20            # 跳过前多少秒的数据（可调）

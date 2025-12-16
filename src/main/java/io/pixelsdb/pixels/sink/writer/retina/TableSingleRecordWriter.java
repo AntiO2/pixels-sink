@@ -25,7 +25,6 @@ import io.pixelsdb.pixels.retina.RetinaProto;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
 import io.pixelsdb.pixels.sink.exception.SinkException;
 import io.pixelsdb.pixels.sink.freshness.FreshnessClient;
-import io.pixelsdb.pixels.sink.util.DataTransform;
 import io.prometheus.client.Summary;
 import lombok.Getter;
 import org.slf4j.Logger;
@@ -35,7 +34,6 @@ import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 
 public class TableSingleRecordWriter extends TableCrossTxWriter
 {
@@ -52,26 +50,9 @@ public class TableSingleRecordWriter extends TableCrossTxWriter
     /**
      * Flush any buffered events for the current transaction.
      */
-    public void flush()
+    public void flush(List<RowChangeEvent> batch)
     {
-        List<RowChangeEvent> batch;
-        bufferLock.lock();
-        try
-        {
-            if (buffer.isEmpty())
-            {
-                return;
-            }
-            // Swap buffers quickly under lock
-            batch = buffer;
-            buffer = new LinkedList<>();
-        } finally
-        {
-            bufferLock.unlock();
-        }
-
-        TransContext pixelsTransContext = transactionProxy.getNewTransContext();
-
+        TransContext pixelsTransContext = transactionProxy.getNewTransContext(tableName);
         writeLock.lock();
         try
         {

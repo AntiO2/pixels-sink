@@ -53,13 +53,13 @@ public class FreshnessClient
     private final ScheduledExecutorService scheduler;
     private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
     private final int warmUpSeconds;
-
+    private final PixelsSinkConfig config;
     private FreshnessClient()
     {
         // Initializes the set with thread safety wrapper
         this.monitoredTables = Collections.synchronizedSet(new HashSet<>());
 
-        PixelsSinkConfig config = PixelsSinkConfigFactory.getInstance();
+        this.config = PixelsSinkConfigFactory.getInstance();
         this.trinoUser = config.getTrinoUser();
         this.trinoJdbcUrl = config.getTrinoUrl();
         this.trinoPassword = config.getTrinoPassword();
@@ -239,22 +239,12 @@ public class FreshnessClient
         try
         {
 
-            // Take a snapshot of the tables to monitor for this cycle.
-            // This prevents ConcurrentModificationException if a table is added/removed mid-iteration.
-            Set<String> tablesSnapshot = new HashSet<>(monitoredTables);
-            if (tablesSnapshot.isEmpty())
+            tableName = getRandomTable();
+            if(tableName == null)
             {
-                LOGGER.debug("No tables configured for freshness monitoring. Skipping cycle.");
                 return;
             }
-            monitoredTables.clear();
-            List<String> tableList = new ArrayList<>(tablesSnapshot);
-
-            Random random = new Random();
-            int randomIndex = random.nextInt(tableList.size());
-
-            tableName = tableList.get(randomIndex);
-
+            
             LOGGER.debug("Randomly selected table for this cycle: {}", tableName);
             conn = createNewConnection();
             // Timestamp when the query is sent (t_send)
@@ -305,5 +295,47 @@ public class FreshnessClient
             queryPermits.release();
         }
 
+    }
+
+
+    private String getRandomTable()
+    {
+        List<String> tableList;
+        if(config.isSinkMonitorFreshnessEmbedStatic())
+        {
+            tableList = getStaticList();
+        } else
+        {
+            tableList = getDynamicList();
+        }
+
+        if(tableList == null || tableList.isEmpty())
+        {
+            return null;
+        }
+
+        Random random = new Random();
+        int randomIndex = random.nextInt(tableList.size());
+
+        return tableList.get(randomIndex);
+    }
+
+    private List<String> getDynamicList()
+    {
+        // Take a snapshot of the tables to monitor for this cycle.
+        // This prevents ConcurrentModificationException if a table is added/removed mid-iteration.
+        Set<String> tablesSnapshot = new HashSet<>(monitoredTables);
+        if (tablesSnapshot.isEmpty())
+        {
+            LOGGER.debug("No tables configured for freshness monitoring. Skipping cycle.");
+            return null;
+        }
+        monitoredTables.clear();
+        List<String> tableList = new ArrayList<>(tablesSnapshot);
+        return tableList;
+    }
+    private List<String> getStaticList()
+    {
+        return config.getSinkMonitorFreshnessEmbedTableList();
     }
 }
