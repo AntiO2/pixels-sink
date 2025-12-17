@@ -49,4 +49,15 @@ public class TestFreshnessClient
         freshnessClient.start();
         while(true){}
     }
+
+    @Test
+    public void testSnapshotTs() throws SQLException
+    {
+        FreshnessClient freshnessClient = FreshnessClient.getInstance();
+        Connection connection = freshnessClient.createNewConnection(123456L);
+        String query = String.format("SELECT max(freshness_ts) FROM customer");
+        Statement statement = connection.createStatement();
+        ResultSet resultSet = statement.executeQuery(query);
+        resultSet.next();
+    }
 }

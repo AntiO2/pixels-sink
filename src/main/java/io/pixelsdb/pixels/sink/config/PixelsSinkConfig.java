@@ -189,6 +189,9 @@ public class PixelsSinkConfig
     @ConfigKey(value = "sink.monitor.freshness.embed.static", defaultValue = "false")
     private boolean sinkMonitorFreshnessEmbedStatic;
 
+    @ConfigKey(value = "sink.monitor.freshness.embed.snapshot", defaultValue = "false")
+    private boolean sinkMonitorFreshnessEmbedSnapshot;
+
     @ConfigKey(value = "sink.monitor.freshness.embed.tablelist", defaultValue = "false")
     private List<String> sinkMonitorFreshnessEmbedTableList;
 

@@ -20,6 +20,9 @@
 
 package io.pixelsdb.pixels.sink.freshness;
 
+import io.pixelsdb.pixels.common.exception.TransException;
+import io.pixelsdb.pixels.common.transaction.TransContext;
+import io.pixelsdb.pixels.common.transaction.TransService;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.util.DateUtil;
@@ -109,7 +112,8 @@ public class FreshnessClient
         return instance;
     }
 
-    private Connection createNewConnection() throws SQLException
+    @Deprecated
+    protected Connection createNewConnection() throws SQLException
     {
         try
         {
@@ -118,7 +122,30 @@ public class FreshnessClient
         {
             throw new SQLException(e);
         }
+
+        Properties properties = new Properties();
+
+
         return DriverManager.getConnection(trinoJdbcUrl, trinoUser, null);
+    }
+
+    protected Connection createNewConnection(long queryTimestamp) throws SQLException
+    {
+        try
+        {
+            Class.forName("io.trino.jdbc.TrinoDriver");
+        } catch (ClassNotFoundException e)
+        {
+            throw new SQLException(e);
+        }
+
+        Properties properties = new Properties();
+        properties.setProperty("user", trinoUser);
+        String catalogName = "pixels";
+        String sessionPropValue = String.format("%s.query_snapshot_timestamp:%d", catalogName, queryTimestamp);
+
+        properties.setProperty("sessionProperties", sessionPropValue);
+        return DriverManager.getConnection(trinoJdbcUrl, properties);
     }
 
     private void closeConnection(Connection conn)
@@ -233,7 +260,7 @@ public class FreshnessClient
     void queryAndCalculateFreshness()
     {
         Connection conn = null;
-
+        TransContext transContext = null;
 
         String tableName;
         try
@@ -244,11 +271,19 @@ public class FreshnessClient
             {
                 return;
             }
-            
+
             LOGGER.debug("Randomly selected table for this cycle: {}", tableName);
-            conn = createNewConnection();
             // Timestamp when the query is sent (t_send)
             long tSendMillis = System.currentTimeMillis();
+            if(config.isSinkMonitorFreshnessEmbedSnapshot())
+            {
+                transContext = TransService.Instance().beginTrans(true);
+                conn = createNewConnection(transContext.getTimestamp());
+            } else
+            {
+                conn = createNewConnection();
+            }
+
             String tSendMillisStr = DateUtil.convertDateToString(new Date(tSendMillis));
             // Query to find the latest timestamp in the table
             // Assumes 'freshness_ts' is a long-type epoch timestamp (milliseconds)
@@ -291,6 +326,16 @@ public class FreshnessClient
             LOGGER.error("Error selecting a random table from the monitor list.", e);
         } finally
         {
+            if(config.isSinkMonitorFreshnessEmbedSnapshot() && transContext != null)
+            {
+                try
+                {
+                    TransService.Instance().commitTrans(transContext.getTransId(), true);
+                } catch (TransException e)
+                {
+                    throw new RuntimeException(e);
+                }
+            }
             closeConnection(conn);
             queryPermits.release();
         }
