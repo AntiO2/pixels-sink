@@ -6,13 +6,16 @@ import numpy as np
 # 配置 CSV 文件 和 标签
 ##########################################
 csv_files = {
-    "10k": "resulti7i/10k_freshness.csv",
-    "20k": "resulti7i/20k_freshness.csv",
-    "30k": "resulti7i/30k_freshness.csv",
-    "40k": "resulti7i/40k_freshness.csv",
-    # "40k": "tmp/freshness40k_5.csv",
-    # "50k": "tmp/freshness50k_5.csv",
-    # "60k": "tmp/freshness60k_5.csv"
+    # "10k_2": "resulti7i/10k_freshness.csv",
+    "10k": "resulti7i/10k_freshness_2.csv",
+    # "20k": "resulti7i/20k_freshness.csv",
+    "20k": "resulti7i/20k_freshness_2.csv",
+    "30k": "resulti7i/30k_freshness_2.csv",
+    "40k": "resulti7i/40k_freshness_2.csv",
+    "50k": "resulti7i/50k_freshness.csv",
+    "60k": "resulti7i/60k_freshness_2.csv",
+    "80k": "resulti7i/80k_freshness_2.csv",
+    "100k": "resulti7i/100k_freshness_2.csv",
 }
 # csv_files = {
 #     "Query Transaction": "tmp/i7i_2k_dec_freshness.csv",
@@ -20,10 +23,10 @@ csv_files = {
 #     "Internal Transaction Context": "tmp/i7i_2k_txn_dec_freshness.csv",
 #     "Query Selected Table, Trans Mode": "tmp/i7i_2k_batchtest_dec_freshness_2.csv"
 # }
-MAX_SECONDS = 2000         # 截取前多少秒的数据
+MAX_SECONDS = 1800         # 截取前多少秒的数据
 SKIP_SECONDS = 10            # 跳过前多少秒的数据（可调）
 BIN_SECONDS = 10            # 平均窗口（秒）
-MAX_FRESHNESS = 5000         # 过滤初始warmup时的无用数据
+MAX_FRESHNESS = 500000         # 过滤初始warmup时的无用数据
 ##########################################
 # 加载并处理数据
 ##########################################
@@ -81,24 +84,32 @@ plt.close()
 
 
 ##########################################
-# 图 2：CDF（同样使用平均窗口后的数据）
+# 图 2：翻转轴后的 CDF（X轴 0-1，步长 0.1）
 ##########################################
 plt.figure(figsize=(10, 5))
 
 for label, df in data.items():
     vals = np.sort(df["freshness"].dropna())
-    y = np.linspace(0, 1, len(vals))
-    plt.plot(vals, y, label=label)
+    prob = np.linspace(0, 1, len(vals))
+    
+    # x轴为概率 [0, 1]，y轴为数值
+    plt.plot(prob, vals, label=label)
 
-plt.xscale("log")
-plt.xlabel(f"Freshness (ms, {BIN_SECONDS}s average)")
-plt.ylabel("CDF")
+# 设置 X 轴刻度：从 0 到 1.1（不包含1.1），步长 0.1
+plt.xticks(np.arange(0, 1.1, 0.1))
+plt.xlim(0, 1) # 强制显示范围在 0 到 1 之间
+
+plt.yscale("log")
+plt.xlabel("CDF (Probability)")
+plt.ylabel(f"Freshness (ms, {BIN_SECONDS}s average)")
 plt.title(
-    f"Freshness CDF Distribution ({BIN_SECONDS}-Second Sampled, Skip {SKIP_SECONDS}s)"
+    f"Inverted Freshness CDF ({BIN_SECONDS}-Second Sampled, Skip {SKIP_SECONDS}s)"
 )
+
+plt.grid(True, which="both", ls="-", alpha=0.3)
 plt.legend()
 plt.tight_layout()
-plt.savefig("freshness_cdf_variable_bin.png")
+plt.savefig("freshness_cdf_fixed_ticks.png")
 plt.close()
 
 print("图已生成: freshness_over_time_variable_bin.png, freshness_cdf_variable_bin.png")
