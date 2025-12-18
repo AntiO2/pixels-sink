@@ -23,6 +23,7 @@ import com.google.protobuf.ByteString;
 import io.pixelsdb.pixels.common.physical.*;
 import io.pixelsdb.pixels.sink.SinkProto;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
+import io.pixelsdb.pixels.sink.writer.proto.ProtoWriter;
 import io.pixelsdb.pixels.storage.localfs.PhysicalLocalReader;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.BeforeAll;

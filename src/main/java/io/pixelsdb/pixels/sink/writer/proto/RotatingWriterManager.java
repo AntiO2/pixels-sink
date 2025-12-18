@@ -18,7 +18,7 @@
  * <https://www.gnu.org/licenses/>.
  */
  
-package io.pixelsdb.pixels.sink.writer;
+package io.pixelsdb.pixels.sink.writer.proto;
 
 
 import io.pixelsdb.pixels.common.physical.PhysicalWriter;

@@ -18,7 +18,7 @@
  * <https://www.gnu.org/licenses/>.
  */
  
-package io.pixelsdb.pixels.sink.writer;
+package io.pixelsdb.pixels.sink.writer.proto;
 
 
 import io.pixelsdb.pixels.common.physical.PhysicalWriter;
@@ -29,6 +29,7 @@ import io.pixelsdb.pixels.sink.event.RowChangeEvent;
 import io.pixelsdb.pixels.sink.exception.SinkException;
 import io.pixelsdb.pixels.sink.metadata.TableMetadataRegistry;
 import io.pixelsdb.pixels.sink.util.TableCounters;
+import io.pixelsdb.pixels.sink.writer.PixelsSinkWriter;
 import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

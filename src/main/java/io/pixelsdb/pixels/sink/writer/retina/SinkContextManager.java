@@ -49,13 +49,12 @@ public class SinkContextManager
     private final BlockingBoundedMap<String, SinkContext> activeTxContexts = new BlockingBoundedMap<>(100000);
     // private final ConcurrentMap<String, SinkContext> activeTxContexts = new ConcurrentHashMap<>(10000);
     private final TransactionProxy transactionProxy = TransactionProxy.Instance();
-    private final TableWriterProxy tableWriterProxy;
     private final CommitMethod commitMethod;
     private final String freshnessLevel;
+    private final RetinaBucketDispatcher retinaBucketDispatcher;
     private SinkContextManager()
     {
         PixelsSinkConfig config = PixelsSinkConfigFactory.getInstance();
-        this.tableWriterProxy = TableWriterProxy.getInstance();
         if (config.getCommitMethod().equals("sync"))
         {
             this.commitMethod = CommitMethod.Sync;
@@ -64,6 +63,7 @@ public class SinkContextManager
             this.commitMethod = CommitMethod.Async;
         }
         this.freshnessLevel = config.getSinkMonitorFreshnessLevel();
+        this.retinaBucketDispatcher = new RetinaBucketDispatcher();
     }
 
     public static SinkContextManager getInstance()
@@ -244,66 +244,7 @@ public class SinkContextManager
         {
             event.setTimeStamp(ctx.getTimestamp());
         }
-        event.initIndexKey();
-        switch (event.getOp())
-        {
-            case UPDATE ->
-            {
-                if (!event.isPkChanged())
-                {
-                    writeBeforeEvent(ctx, event);
-                } else
-                {
-                    TypeDescription typeDescription = event.getSchema();
-                    if(ctx != null)
-                    {
-                        ctx.updateCounter(event.getFullTableName(), -1L);
-                    }
-                    SinkProto.RowRecord.Builder deleteBuilder = event.getRowRecord().toBuilder()
-                            .clearAfter().setOp(SinkProto.OperationType.DELETE);
-                    RowChangeEvent deleteEvent = new RowChangeEvent(deleteBuilder.build(), typeDescription);
-                    deleteEvent.initIndexKey();
-                    writeBeforeEvent(ctx, deleteEvent);
-
-                    SinkProto.RowRecord.Builder insertBuilder = event.getRowRecord().toBuilder()
-                            .clearBefore().setOp(SinkProto.OperationType.INSERT);
-                    RowChangeEvent insertEvent = new RowChangeEvent(insertBuilder.build(), typeDescription);
-                    insertEvent.initIndexKey();
-                    writeAfterEvent(ctx, deleteEvent);
-                }
-            }
-            case DELETE ->
-            {
-                writeBeforeEvent(ctx, event);
-            }
-            case INSERT, SNAPSHOT ->
-            {
-                writeAfterEvent(ctx, event);
-            }
-            case UNRECOGNIZED ->
-            {
-                return;
-            }
-        }
-    }
-
-    private boolean writeBeforeEvent(SinkContext ctx, RowChangeEvent event)
-    {
-        int beforeBucketFromIndex = event.getBeforeBucketFromIndex();
-        return writeBucketEvent(ctx, event, beforeBucketFromIndex);
-    }
-
-    private boolean writeAfterEvent(SinkContext ctx, RowChangeEvent event)
-    {
-        int afterBucketFromIndex = event.getAfterBucketFromIndex();
-        return writeBucketEvent(ctx, event, afterBucketFromIndex);
-    }
-
-    private boolean writeBucketEvent(SinkContext ctx, RowChangeEvent event, int bucketId)
-    {
-        String table = event.getTable();
-        long tableId = event.getTableId();
-        return tableWriterProxy.getTableWriter(table, tableId, bucketId).write(event, ctx);
+        retinaBucketDispatcher.writeRowChangeEvent(event, ctx);
     }
 
     protected SinkContext getSinkContext(String txId)

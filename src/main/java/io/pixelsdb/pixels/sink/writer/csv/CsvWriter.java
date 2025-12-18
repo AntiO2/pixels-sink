@@ -18,7 +18,7 @@
  * <https://www.gnu.org/licenses/>.
  */
  
-package io.pixelsdb.pixels.sink.writer;
+package io.pixelsdb.pixels.sink.writer.csv;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.pixelsdb.pixels.sink.SinkProto;
@@ -26,6 +26,8 @@ import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.PixelsSinkDefaultConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
+import io.pixelsdb.pixels.sink.writer.PixelsSinkMode;
+import io.pixelsdb.pixels.sink.writer.PixelsSinkWriter;
 import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

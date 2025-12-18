@@ -70,13 +70,30 @@ public class PixelsPollingServiceImpl extends PixelsPollingServiceGrpc.PixelsPol
     public void pollEvents(SinkProto.PollRequest request, StreamObserver<SinkProto.PollResponse> responseObserver) {
         SchemaTableName schemaTableName = new SchemaTableName(request.getSchemaName(), request.getTableName());
         LOGGER.debug("Received poll request for table '{}'", schemaTableName);
+        List<SinkProto.RowRecord> records = new ArrayList<>(pollBatchSize);
+
         try {
-            List<SinkProto.RowRecord> records = writer.pollRecords(
-                    schemaTableName,
-                    pollBatchSize,
-                    pollTimeoutMs,
-                    TimeUnit.MILLISECONDS
-            );
+            for (int bucketId : request.getBucketsList())
+            {
+                if (records.size() >= pollBatchSize)
+                {
+                    break;
+                }
+
+                List<SinkProto.RowRecord> polled =
+                        writer.pollRecords(
+                                schemaTableName,
+                                bucketId,
+                                pollBatchSize - records.size(),
+                                0,
+                                TimeUnit.MILLISECONDS
+                        );
+
+                if (polled != null && !polled.isEmpty())
+                {
+                    records.addAll(polled);
+                }
+            }
 
             SinkProto.PollResponse.Builder responseBuilder = SinkProto.PollResponse.newBuilder();
             if(records != null && !records.isEmpty())
