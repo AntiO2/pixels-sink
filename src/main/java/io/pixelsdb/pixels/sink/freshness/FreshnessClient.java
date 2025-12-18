@@ -370,15 +370,30 @@ public class FreshnessClient
         // Take a snapshot of the tables to monitor for this cycle.
         // This prevents ConcurrentModificationException if a table is added/removed mid-iteration.
         Set<String> tablesSnapshot = new HashSet<>(monitoredTables);
+
         if (tablesSnapshot.isEmpty())
         {
             LOGGER.debug("No tables configured for freshness monitoring. Skipping cycle.");
             return null;
         }
+
         monitoredTables.clear();
-        List<String> tableList = new ArrayList<>(tablesSnapshot);
-        return tableList;
+
+        List<String> staticList = getStaticList();
+
+        // If staticList is empty or null, return all tablesSnapshot
+        if (staticList == null || staticList.isEmpty())
+        {
+            return new ArrayList<>(tablesSnapshot);
+        }
+
+        // Return intersection of tablesSnapshot and staticList
+        Set<String> staticSet = new HashSet<>(staticList);
+        tablesSnapshot.retainAll(staticSet);
+
+        return new ArrayList<>(tablesSnapshot);
     }
+
     private List<String> getStaticList()
     {
         return config.getSinkMonitorFreshnessEmbedTableList();

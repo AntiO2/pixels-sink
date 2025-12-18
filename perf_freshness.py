@@ -5,24 +5,25 @@ import numpy as np
 ##########################################
 # 配置 CSV 文件 和 标签
 ##########################################
-# csv_files = {
-#     "10k": "tmp/freshness10k_5.csv",
-#     "20k": "tmp/freshness20k_5.csv",
-#     # "30k": "tmp/freshness30k_2.csv",
-#     "40k": "tmp/freshness40k_5.csv",
-#     "50k": "tmp/freshness50k_5.csv",
-#     "60k": "tmp/freshness60k_5.csv"
-# }
 csv_files = {
-    "Query Transaction": "tmp/i7i_2k_dec_freshness.csv",
-    "Query Record": "tmp/i7i_2k_record_dec_freshness.csv",
-    "Internal Transaction Context": "tmp/i7i_2k_txn_dec_freshness.csv",
-    "Query Selected Table, Trans Mode": "tmp/i7i_2k_batchtest_dec_freshness_2.csv"
+    "10k": "resulti7i/10k_freshness.csv",
+    "20k": "resulti7i/20k_freshness.csv",
+    "30k": "resulti7i/30k_freshness.csv",
+    "40k": "resulti7i/40k_freshness.csv",
+    # "40k": "tmp/freshness40k_5.csv",
+    # "50k": "tmp/freshness50k_5.csv",
+    # "60k": "tmp/freshness60k_5.csv"
 }
-MAX_SECONDS = 500         # 截取前多少秒的数据
-SKIP_SECONDS = 20            # 跳过前多少秒的数据（可调）
+# csv_files = {
+#     "Query Transaction": "tmp/i7i_2k_dec_freshness.csv",
+#     "Query Record": "tmp/i7i_2k_record_dec_freshness.csv",
+#     "Internal Transaction Context": "tmp/i7i_2k_txn_dec_freshness.csv",
+#     "Query Selected Table, Trans Mode": "tmp/i7i_2k_batchtest_dec_freshness_2.csv"
+# }
+MAX_SECONDS = 2000         # 截取前多少秒的数据
+SKIP_SECONDS = 10            # 跳过前多少秒的数据（可调）
 BIN_SECONDS = 10            # 平均窗口（秒）
-MAX_FRESHNESS = 5000
+MAX_FRESHNESS = 5000         # 过滤初始warmup时的无用数据
 ##########################################
 # 加载并处理数据
 ##########################################
