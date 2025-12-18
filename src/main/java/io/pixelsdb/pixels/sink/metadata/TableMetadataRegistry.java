@@ -71,7 +71,7 @@ public class TableMetadataRegistry
         SchemaTableName key = new SchemaTableName(schema, table);
         if (!registry.containsKey(key))
         {
-            logger.info("Registry doesn't contain {}", key);
+            logger.debug("Registry doesn't contain {}", key);
             TableMetadata metadata = loadTableMetadata(schema, table);
             registry.put(key, metadata);
         }

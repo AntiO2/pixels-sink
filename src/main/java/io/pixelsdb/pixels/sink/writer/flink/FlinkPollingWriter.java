@@ -123,6 +123,7 @@ public class FlinkPollingWriter extends AbstractBucketedWriter<Void> implements 
      * batchSize acts as an upper limit on the number of records pulled to prevent oversized RPC responses.
      *
      * @param tableName  The name of the table to pull data from
+     * @param bucketId
      * @param batchSize  The maximum number of records to pull
      * @param timeout    The maximum time to wait for data
      * @param unit       The time unit for the timeout
