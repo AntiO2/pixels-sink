@@ -141,10 +141,13 @@ public class FreshnessClient
 
         Properties properties = new Properties();
         properties.setProperty("user", trinoUser);
-        String catalogName = "pixels";
-        String sessionPropValue = String.format("%s.query_snapshot_timestamp:%d", catalogName, queryTimestamp);
 
-        properties.setProperty("sessionProperties", sessionPropValue);
+        String catalog = parseCatalogFromUrl(trinoJdbcUrl);
+        if (catalog != null && catalog.equalsIgnoreCase("pixels"))
+        {
+            String sessionPropValue = String.format("%s.query_snapshot_timestamp:%d", catalog, queryTimestamp);
+            properties.setProperty("sessionProperties", sessionPropValue);
+        }
         return DriverManager.getConnection(trinoJdbcUrl, properties);
     }
 
@@ -227,7 +230,7 @@ public class FreshnessClient
 
     private void submitQueryTask()
     {
-        if (monitoredTables.isEmpty())
+        if (!config.isSinkMonitorFreshnessEmbedStatic() && monitoredTables.isEmpty())
         {
             LOGGER.debug("No tables configured for freshness monitoring. Skipping submission cycle.");
             return;
@@ -397,5 +400,35 @@ public class FreshnessClient
     private List<String> getStaticList()
     {
         return config.getSinkMonitorFreshnessEmbedTableList();
+    }
+
+    private String parseCatalogFromUrl(String url)
+    {
+        if (url == null || !url.startsWith("jdbc:trino://"))
+        {
+            return null;
+        }
+        String withoutProtocol = url.substring("jdbc:trino://".length());
+        int slashIndex = withoutProtocol.indexOf('/');
+        if (slashIndex == -1)
+        {
+            return null;
+        }
+        String remaining = withoutProtocol.substring(slashIndex + 1);
+
+        int nextSlash = remaining.indexOf('/');
+        int questionMark = remaining.indexOf('?');
+
+        int endIndex = remaining.length();
+        if (nextSlash != -1)
+        {
+            endIndex = nextSlash;
+        }
+        if (questionMark != -1 && questionMark < endIndex)
+        {
+            endIndex = questionMark;
+        }
+
+        return remaining.substring(0, endIndex);
     }
 }
