@@ -29,6 +29,7 @@ import io.pixelsdb.pixels.sink.PixelsPollingServiceGrpc;
 import io.pixelsdb.pixels.sink.util.FlushRateLimiter;
 import io.pixelsdb.pixels.sink.writer.flink.FlinkPollingWriter;
 import io.pixelsdb.pixels.sink.util.DataTransform;
+import io.pixelsdb.pixels.sink.freshness.FreshnessClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -70,6 +71,7 @@ public class PixelsPollingServiceImpl extends PixelsPollingServiceGrpc.PixelsPol
     public void pollEvents(SinkProto.PollRequest request, StreamObserver<SinkProto.PollResponse> responseObserver) {
         SchemaTableName schemaTableName = new SchemaTableName(request.getSchemaName(), request.getTableName());
         LOGGER.debug("Received poll request for table '{}'", schemaTableName);
+        FreshnessClient.getInstance().addMonitoredTable(request.getTableName());
         List<SinkProto.RowRecord> records = new ArrayList<>(pollBatchSize);
 
         try {

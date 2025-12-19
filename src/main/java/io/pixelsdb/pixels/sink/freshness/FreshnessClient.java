@@ -227,7 +227,7 @@ public class FreshnessClient
 
     private void submitQueryTask()
     {
-        if (monitoredTables.isEmpty())
+        if (!config.isSinkMonitorFreshnessEmbedStatic() && monitoredTables.isEmpty())
         {
             LOGGER.debug("No tables configured for freshness monitoring. Skipping submission cycle.");
             return;
