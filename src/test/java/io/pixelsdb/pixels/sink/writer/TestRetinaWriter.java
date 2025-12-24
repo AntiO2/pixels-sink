@@ -106,7 +106,7 @@ public class TestRetinaWriter
             tableUpdateDataBuilder.addInsertData(insertDataBuilder.build());
         }
         tableUpdateData.add(tableUpdateDataBuilder.build());
-        retinaService.updateRecord(schemaName, tableUpdateData);
+        retinaService.updateRecord(schemaName, 0, tableUpdateData);
         tableUpdateDataBuilder.setTimestamp(timeStamp);
         transService.commitTrans(ctx.getTransId(), false);
     }
@@ -177,7 +177,7 @@ public class TestRetinaWriter
         }
         tableUpdateDataBuilder.setTimestamp(timeStamp);
         tableUpdateData.add(tableUpdateDataBuilder.build());
-        retinaService.updateRecord(schemaName, tableUpdateData);
+        retinaService.updateRecord(schemaName, 0, tableUpdateData);
         transService.commitTrans(ctx.getTransId(), false);
     }
 

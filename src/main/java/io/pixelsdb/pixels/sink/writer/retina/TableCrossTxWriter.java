@@ -47,13 +47,11 @@ public class TableCrossTxWriter extends TableWriter
     private final Logger LOGGER = LoggerFactory.getLogger(TableCrossTxWriter.class);
     private final int flushBatchSize;
     protected final ReentrantLock writeLock = new ReentrantLock();
-    private final int bucketId;
 
     public TableCrossTxWriter(String t, int bucketId)
     {
         super(t, bucketId);
         flushBatchSize = config.getFlushBatchSize();
-        this.bucketId = bucketId;
     }
 
     /**
@@ -118,7 +116,8 @@ public class TableCrossTxWriter extends TableWriter
             {
                 tableUpdateData.add(tableUpdateDataItem.build());
             }
-            CompletableFuture<RetinaProto.UpdateRecordResponse> updateRecordResponseCompletableFuture = delegate.writeBatchAsync(batch.get(0).getSchemaName(), tableUpdateData);
+            CompletableFuture<RetinaProto.UpdateRecordResponse> updateRecordResponseCompletableFuture =
+                    delegate.writeBatchAsync(batch.get(0).getSchemaName(), tableUpdateData);
 
             updateRecordResponseCompletableFuture.thenAccept(
                     resp ->

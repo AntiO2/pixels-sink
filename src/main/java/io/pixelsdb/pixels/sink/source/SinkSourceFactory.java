@@ -23,6 +23,9 @@ package io.pixelsdb.pixels.sink.source;
 
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
+import io.pixelsdb.pixels.sink.source.engine.SinkEngineSource;
+import io.pixelsdb.pixels.sink.source.kafka.SinkKafkaSource;
+import io.pixelsdb.pixels.sink.source.storage.FasterSinkStorageSource;
 
 public class SinkSourceFactory
 {

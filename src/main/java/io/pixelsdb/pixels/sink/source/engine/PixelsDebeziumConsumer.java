@@ -18,7 +18,7 @@
  * <https://www.gnu.org/licenses/>.
  */
  
-package io.pixelsdb.pixels.sink.source;
+package io.pixelsdb.pixels.sink.source.engine;
 
 
 import io.debezium.engine.DebeziumEngine;

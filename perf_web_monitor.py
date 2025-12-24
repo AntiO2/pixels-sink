@@ -5,7 +5,7 @@ from functools import lru_cache
 from time import time
 
 # Configuration
-DATA_DIR = "/home/ubuntu/pixels-sink/tmp"
+DATA_DIR = "/home/ubuntu/pixels-sink/resulti7i_100"
 # DATA_DIR = "/home/antio2/projects/pixels-sink/tmp"
 PORT = 8083
 CACHE_TTL = 5  # seconds

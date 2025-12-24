@@ -18,7 +18,7 @@
  * <https://www.gnu.org/licenses/>.
  */
  
-package io.pixelsdb.pixels.sink.source;
+package io.pixelsdb.pixels.sink.source.storage;
 
 
 import io.pixelsdb.pixels.common.metadata.SchemaTableName;
@@ -31,6 +31,7 @@ import io.pixelsdb.pixels.sink.processor.TransactionProcessor;
 import io.pixelsdb.pixels.sink.provider.ProtoType;
 import io.pixelsdb.pixels.sink.provider.TableProviderAndProcessorPipelineManager;
 import io.pixelsdb.pixels.sink.provider.TransactionEventEngineProvider;
+import io.pixelsdb.pixels.sink.source.SinkSource;
 import io.pixelsdb.pixels.sink.util.MetricsFacade;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,7 +49,7 @@ import java.util.concurrent.*;
  * @date: 2025/10/5 11:43
  */
 @Deprecated
-public class LegacySinkStorageSource extends AbstractSinkStorageSource implements SinkSource
+public class LegacySinkStorageSource extends AbstractReaderSinkStorageSource implements SinkSource
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(LegacySinkStorageSource.class);
     static SchemaTableName transactionSchemaTableName = new SchemaTableName("freak", "transaction");
@@ -169,15 +170,6 @@ public class LegacySinkStorageSource extends AbstractSinkStorageSource implement
                 Thread.currentThread().interrupt();
             }
         });
-    }
-
-    private ByteBuffer copyToHeap(ByteBuffer directBuffer)
-    {
-        ByteBuffer duplicate = directBuffer.duplicate();
-        ByteBuffer heapBuffer = ByteBuffer.allocate(duplicate.remaining());
-        heapBuffer.put(duplicate);
-        heapBuffer.flip();
-        return heapBuffer;
     }
 
     private void consumeQueue(SchemaTableName key, BlockingQueue<CompletableFuture<ByteBuffer>> queue, ProtoType protoType)

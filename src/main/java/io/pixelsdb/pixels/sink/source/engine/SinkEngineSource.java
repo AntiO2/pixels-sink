@@ -18,13 +18,14 @@
  * <https://www.gnu.org/licenses/>.
  */
  
-package io.pixelsdb.pixels.sink.source;
+package io.pixelsdb.pixels.sink.source.engine;
 
 import io.debezium.embedded.Connect;
 import io.debezium.engine.DebeziumEngine;
 import io.debezium.engine.RecordChangeEvent;
 import io.debezium.engine.format.ChangeEventFormat;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
+import io.pixelsdb.pixels.sink.source.SinkSource;
 import org.apache.kafka.connect.source.SourceRecord;
 
 import java.util.Properties;

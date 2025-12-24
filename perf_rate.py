@@ -7,14 +7,14 @@ from datetime import datetime, date
 # 配置 CSV 文件 和 标签
 ##########################################
 csv_files = {
-    "10k": "resulti7i/10k_rate_2.csv",
-    "20k": "resulti7i/20k_rate_2.csv",
-    "30k": "resulti7i/30k_rate_2.csv",
-    "40k": "resulti7i/40k_rate_2.csv",
-    "50k": "resulti7i/50k_rate.csv",
-    "60k": "resulti7i/60k_rate_2.csv",
-    "80k": "resulti7i/80k_rate_2.csv",
-    "100k": "resulti7i/100k_rate_2.csv",
+    # "10k": "resulti7i/10k_rate_2.csv",
+    # "20k": "resulti7i/20k_rate_2.csv",
+    # "30k": "resulti7i/30k_rate_2.csv",
+    # "40k": "resulti7i/40k_rate_2.csv",
+    # "50k": "resulti7i/50k_rate.csv",
+    # "60k": "resulti7i/60k_rate_2.csv",
+    # "80k": "resulti7i/80k_rate_2.csv",
+    "100k": "resulti7i_100/100k_rate.csv",
 }
 
 COL_NAMES = ["time", "rows", "txns", "debezium", "serdRows", "serdTxs"]
@@ -22,7 +22,7 @@ PLOT_COL = "rows"
 
 MAX_SECONDS = 1800          
 SKIP_SECONDS = 10            
-BIN_SECONDS = 20            
+BIN_SECONDS = 60            
 
 ##########################################
 # 加载并处理数据

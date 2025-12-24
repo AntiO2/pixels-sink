@@ -18,21 +18,18 @@
  * <https://www.gnu.org/licenses/>.
  */
  
-package io.pixelsdb.pixels.sink.source;
+package io.pixelsdb.pixels.sink.source.storage;
 
 import io.pixelsdb.pixels.common.physical.PhysicalReader;
-import io.pixelsdb.pixels.common.physical.PhysicalReaderUtil;
-import io.pixelsdb.pixels.common.physical.Storage;
 import io.pixelsdb.pixels.core.utils.Pair;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
-import io.pixelsdb.pixels.sink.config.PixelsSinkConstants;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.metadata.TableMetadataRegistry;
 import io.pixelsdb.pixels.sink.processor.TransactionProcessor;
 import io.pixelsdb.pixels.sink.provider.ProtoType;
 import io.pixelsdb.pixels.sink.provider.TableProviderAndProcessorPipelineManager;
 import io.pixelsdb.pixels.sink.provider.TransactionEventStorageLoopProvider;
-import io.pixelsdb.pixels.sink.provider.TransactionEventStorageProvider;
+import io.pixelsdb.pixels.sink.source.SinkSource;
 import io.pixelsdb.pixels.sink.util.EtcdFileRegistry;
 import io.pixelsdb.pixels.sink.util.FlushRateLimiter;
 import io.pixelsdb.pixels.sink.util.MetricsFacade;
@@ -41,7 +38,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -58,19 +54,19 @@ public abstract class AbstractSinkStorageSource implements SinkSource
     protected final EtcdFileRegistry etcdFileRegistry;
     protected final List<String> files;
     protected final CompletableFuture<ByteBuffer> POISON_PILL = new CompletableFuture<>();
-    private final Map<Integer, Thread> consumerThreads = new ConcurrentHashMap<>();
+    protected final Map<Integer, Thread> consumerThreads = new ConcurrentHashMap<>();
     private final TableMetadataRegistry tableMetadataRegistry = TableMetadataRegistry.Instance();
-    private final Map<Integer, BlockingQueue<Pair<CompletableFuture<ByteBuffer>, Integer>>> queueMap = new ConcurrentHashMap<>();
+    protected final Map<Integer, BlockingQueue<Pair<CompletableFuture<ByteBuffer>, Integer>>> queueMap = new ConcurrentHashMap<>();
     private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
     private final TableProviderAndProcessorPipelineManager<Pair<ByteBuffer, Integer>> tablePipelineManager = new TableProviderAndProcessorPipelineManager<>();
-    private final boolean storageLoopEnabled;
-    private final FlushRateLimiter sourceRateLimiter;
+    protected final boolean storageLoopEnabled;
+    protected final FlushRateLimiter sourceRateLimiter;
     protected TransactionEventStorageLoopProvider<Pair<ByteBuffer, Integer>> transactionEventProvider;
     protected TransactionProcessor transactionProcessor;
     protected Thread transactionProviderThread;
     protected Thread transactionProcessorThread;
-    private int loopId = 0;
-
+    protected int loopId = 0;
+    protected  List<PhysicalReader> readers = new ArrayList<>();
     protected AbstractSinkStorageSource()
     {
         PixelsSinkConfig pixelsSinkConfig = PixelsSinkConfigFactory.getInstance();
@@ -90,130 +86,51 @@ public abstract class AbstractSinkStorageSource implements SinkSource
 
     abstract ProtoType getProtoType(int i);
 
-    protected void handleTransactionSourceRecord(ByteBuffer record, Integer loopId)
+    protected void clean()
     {
-        transactionEventProvider.putTransRawEvent(new Pair<>(record, loopId));
-    }
-
-    @Override
-    public void start()
-    {
-        this.running.set(true);
-        this.transactionProcessorThread.start();
-        this.transactionProviderThread.start();
-        List<PhysicalReader> readers = new ArrayList<>();
-        for (String file : files)
-        {
-            Storage.Scheme scheme = Storage.Scheme.fromPath(file);
-            LOGGER.info("Start read from file {}", file);
-            PhysicalReader reader = null;
-            try
-            {
-                reader = PhysicalReaderUtil.newPhysicalReader(scheme, file);
-            } catch (IOException e)
-            {
-                throw new RuntimeException(e);
-            }
-            readers.add(reader);
-        }
-        do
-        {
-            for (PhysicalReader reader : readers)
-            {
-                LOGGER.info("Start Read {}", reader.getPath());
-                long offset = 0;
-                while (true)
-                {
-                    try
-                    {
-                        int key, valueLen;
-                        reader.seek(offset);
-                        try
-                        {
-                            key = reader.readInt(ByteOrder.BIG_ENDIAN);
-                            valueLen = reader.readInt(ByteOrder.BIG_ENDIAN);
-                        } catch (IOException e)
-                        {
-                            // EOF
-                            break;
-                        }
-
-                        ProtoType protoType = getProtoType(key);
-                        offset += Integer.BYTES * 2;
-                        CompletableFuture<ByteBuffer> valueFuture = reader.readAsync(offset, valueLen)
-                                .thenApply(this::copyToHeap)
-                                .thenApply(buf -> buf.order(ByteOrder.BIG_ENDIAN));
-                        // move offset for next record
-                        offset += valueLen;
-
-
-                        // Get or create queue
-                        BlockingQueue<Pair<CompletableFuture<ByteBuffer>, Integer>> queue =
-                                queueMap.computeIfAbsent(key,
-                                        k -> new LinkedBlockingQueue<>(PixelsSinkConstants.MAX_QUEUE_SIZE));
-
-                        // Put future in queue
-                        if(protoType.equals(ProtoType.ROW))
-                        {
-                            sourceRateLimiter.acquire(1);
-                        }
-                        queue.put(new Pair<>(valueFuture, loopId));
-                        // Start consumer thread if not exists
-                        consumerThreads.computeIfAbsent(key, k ->
-                        {
-                            Thread t = new Thread(() -> consumeQueue(k, queue, protoType));
-                            t.setName("consumer-" + key);
-                            t.start();
-                            return t;
-                        });
-                    } catch (IOException | InterruptedException e)
-                    {
-                        break;
-                    }
-                }
-            }
-            ++loopId;
-        } while (storageLoopEnabled && isRunning());
-
-        // signal all queues to stop
         queueMap.values().forEach(q ->
         {
             try
             {
                 q.put(new Pair<>(POISON_PILL, loopId));
-            } catch (InterruptedException e)
+            }
+            catch (InterruptedException e)
             {
                 Thread.currentThread().interrupt();
             }
         });
 
-        // wait all consumers to finish
         consumerThreads.values().forEach(t ->
         {
             try
             {
                 t.join();
-            } catch (InterruptedException e)
+            }
+            catch (InterruptedException e)
             {
                 Thread.currentThread().interrupt();
             }
         });
 
-        // close all readers
         for (PhysicalReader reader : readers)
         {
             try
             {
                 reader.close();
-            } catch (IOException e)
+            }
+            catch (IOException e)
             {
-                throw new RuntimeException(e);
+                LOGGER.warn("Failed to close reader", e);
             }
         }
-
     }
 
-    private void consumeQueue(int key, BlockingQueue<Pair<CompletableFuture<ByteBuffer>, Integer>> queue, ProtoType protoType)
+    protected void handleTransactionSourceRecord(ByteBuffer record, Integer loopId)
+    {
+        transactionEventProvider.putTransRawEvent(new Pair<>(record, loopId));
+    }
+
+    protected void consumeQueue(int key, BlockingQueue<Pair<CompletableFuture<ByteBuffer>, Integer>> queue, ProtoType protoType)
     {
         try
         {
@@ -243,7 +160,7 @@ public abstract class AbstractSinkStorageSource implements SinkSource
         }
     }
 
-    private ByteBuffer copyToHeap(ByteBuffer directBuffer)
+    protected ByteBuffer copyToHeap(ByteBuffer directBuffer)
     {
         ByteBuffer duplicate = directBuffer.duplicate();
         ByteBuffer heapBuffer = ByteBuffer.allocate(duplicate.remaining());

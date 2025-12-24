@@ -21,6 +21,7 @@
 package io.pixelsdb.pixels.sink.writer.retina;
 
 import io.pixelsdb.pixels.common.exception.RetinaException;
+import io.pixelsdb.pixels.common.node.BucketCache;
 import io.pixelsdb.pixels.common.retina.RetinaService;
 import io.pixelsdb.pixels.common.utils.RetinaUtils;
 import io.pixelsdb.pixels.retina.RetinaProto;
@@ -48,7 +49,7 @@ public class RetinaServiceProxy
     private final RetinaService retinaService;
     private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
     private RetinaService.StreamHandler retinaStream = null;
-
+    private final int vNodeId;
     public RetinaServiceProxy(int bucketId)
     {
         if (bucketId == -1)
@@ -67,6 +68,8 @@ public class RetinaServiceProxy
         {
             retinaStream = null;
         }
+
+        this.vNodeId = BucketCache.getInstance().getRetinaNodeInfoByBucketId(bucketId).getVirtualNodeId();
     }
 
     public boolean writeTrans(String schemaName, List<RetinaProto.TableUpdateData> tableUpdateData)
@@ -75,7 +78,7 @@ public class RetinaServiceProxy
         {
             try
             {
-                retinaService.updateRecord(schemaName, tableUpdateData);
+                retinaService.updateRecord(schemaName, vNodeId, tableUpdateData);
             } catch (RetinaException e)
             {
                 e.printStackTrace();
@@ -85,7 +88,7 @@ public class RetinaServiceProxy
         {
             try
             {
-                retinaStream.updateRecord(schemaName, tableUpdateData);
+                retinaStream.updateRecord(schemaName, vNodeId, tableUpdateData);
             } catch (RetinaException e)
             {
                 e.printStackTrace();
@@ -102,7 +105,7 @@ public class RetinaServiceProxy
         {
             try
             {
-                retinaService.updateRecord(schemaName, tableUpdateData);
+                retinaService.updateRecord(schemaName, vNodeId, tableUpdateData);
             } catch (RetinaException e)
             {
                 e.printStackTrace();
@@ -112,7 +115,7 @@ public class RetinaServiceProxy
         {
             try
             {
-                return retinaStream.updateRecord(schemaName, tableUpdateData);
+                return retinaStream.updateRecord(schemaName, vNodeId, tableUpdateData);
             } catch (RetinaException e)
             {
                 e.printStackTrace();

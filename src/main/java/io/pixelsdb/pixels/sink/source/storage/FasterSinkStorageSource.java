@@ -18,11 +18,12 @@
  * <https://www.gnu.org/licenses/>.
  */
  
-package io.pixelsdb.pixels.sink.source;
+package io.pixelsdb.pixels.sink.source.storage;
 
 
 import io.pixelsdb.pixels.common.metadata.SchemaTableName;
 import io.pixelsdb.pixels.sink.provider.ProtoType;
+import io.pixelsdb.pixels.sink.source.SinkSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,7 +35,7 @@ import java.nio.ByteBuffer;
  * @author: AntiO2
  * @date: 2025/10/5 11:43
  */
-public class FasterSinkStorageSource extends AbstractSinkStorageSource implements SinkSource
+public class FasterSinkStorageSource extends AbstractMemorySinkStorageSource implements SinkSource
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(FasterSinkStorageSource.class);
     static SchemaTableName transactionSchemaTableName = new SchemaTableName("freak", "transaction");
