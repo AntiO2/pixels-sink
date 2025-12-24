@@ -17,7 +17,7 @@
  * License along with Pixels.  If not, see
  * <https://www.gnu.org/licenses/>.
  */
- 
+
 package io.pixelsdb.pixels.sink.writer;
 
 import io.pixelsdb.pixels.sink.SinkProto;
@@ -25,8 +25,7 @@ import io.pixelsdb.pixels.sink.event.RowChangeEvent;
 
 import java.io.Closeable;
 
-public interface PixelsSinkWriter extends Closeable
-{
+public interface PixelsSinkWriter extends Closeable {
     void flush();
 
     boolean writeRow(RowChangeEvent rowChangeEvent);

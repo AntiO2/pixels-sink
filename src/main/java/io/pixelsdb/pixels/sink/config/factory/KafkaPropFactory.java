@@ -17,14 +17,13 @@
  * License along with Pixels.  If not, see
  * <https://www.gnu.org/licenses/>.
  */
- 
+
 package io.pixelsdb.pixels.sink.config.factory;
 
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 
 import java.util.Properties;
 
-public interface KafkaPropFactory
-{
+public interface KafkaPropFactory {
     Properties createKafkaProperties(PixelsSinkConfig config);
 }

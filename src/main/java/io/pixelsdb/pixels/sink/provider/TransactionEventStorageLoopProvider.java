@@ -17,7 +17,7 @@
  * License along with Pixels.  If not, see
  * <https://www.gnu.org/licenses/>.
  */
- 
+
 package io.pixelsdb.pixels.sink.provider;
 
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -26,21 +26,17 @@ import io.pixelsdb.pixels.sink.SinkProto;
 
 import java.nio.ByteBuffer;
 
-public class TransactionEventStorageLoopProvider<T> extends TransactionEventProvider<T>
-{
+public class TransactionEventStorageLoopProvider<T> extends TransactionEventProvider<T> {
     @Override
-    SinkProto.TransactionMetadata convertToTargetRecord(T record)
-    {
+    SinkProto.TransactionMetadata convertToTargetRecord(T record) {
         Pair<ByteBuffer, Integer> buffer = (Pair<ByteBuffer, Integer>) record;
-        try
-        {
+        try {
             SinkProto.TransactionMetadata tx = SinkProto.TransactionMetadata.parseFrom(buffer.getLeft());
             Integer loopId = buffer.getRight();
             SinkProto.TransactionMetadata.Builder builder = tx.toBuilder();
             builder.setId(builder.getId() + "_" + loopId);
             return builder.build();
-        } catch (InvalidProtocolBufferException e)
-        {
+        } catch (InvalidProtocolBufferException e) {
             throw new RuntimeException(e);
         }
     }

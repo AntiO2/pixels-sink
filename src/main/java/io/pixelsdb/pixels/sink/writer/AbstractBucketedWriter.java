@@ -24,27 +24,19 @@ import io.pixelsdb.pixels.sink.SinkProto;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
 import io.pixelsdb.pixels.sink.exception.SinkException;
 
-public abstract class AbstractBucketedWriter<C>
-{
-    public void writeRowChangeEvent(RowChangeEvent event, C context) throws SinkException
-    {
-        if (event == null)
-        {
+public abstract class AbstractBucketedWriter<C> {
+    public void writeRowChangeEvent(RowChangeEvent event, C context) throws SinkException {
+        if (event == null) {
             return;
         }
 
         event.initIndexKey();
 
-        switch (event.getOp())
-        {
-            case UPDATE ->
-            {
-                if (!event.isPkChanged())
-                {
+        switch (event.getOp()) {
+            case UPDATE -> {
+                if (!event.isPkChanged()) {
                     emitBefore(event, context);
-                }
-                else
-                {
+                } else {
                     emitPkChangedUpdate(event, context);
                 }
             }
@@ -53,8 +45,7 @@ public abstract class AbstractBucketedWriter<C>
 
             case INSERT, SNAPSHOT -> emitAfter(event, context);
 
-            case UNRECOGNIZED ->
-            {
+            case UNRECOGNIZED -> {
                 return;
             }
         }
@@ -62,20 +53,17 @@ public abstract class AbstractBucketedWriter<C>
 
     /* ================= hook points ================= */
 
-    protected void emitBefore(RowChangeEvent event, C context)
-    {
+    protected void emitBefore(RowChangeEvent event, C context) {
         int bucketId = event.getBeforeBucketFromIndex();
         emit(event, bucketId, context);
     }
 
-    protected void emitAfter(RowChangeEvent event, C context)
-    {
+    protected void emitAfter(RowChangeEvent event, C context) {
         int bucketId = event.getAfterBucketFromIndex();
         emit(event, bucketId, context);
     }
 
-    protected void emitPkChangedUpdate(RowChangeEvent event, C context) throws SinkException
-    {
+    protected void emitPkChangedUpdate(RowChangeEvent event, C context) throws SinkException {
         // DELETE (before)
         RowChangeEvent deleteEvent = buildDeleteEvent(event);
         emitBefore(deleteEvent, context);
@@ -89,8 +77,7 @@ public abstract class AbstractBucketedWriter<C>
 
     /* ================= helpers ================= */
 
-    private RowChangeEvent buildDeleteEvent(RowChangeEvent event) throws SinkException
-    {
+    private RowChangeEvent buildDeleteEvent(RowChangeEvent event) throws SinkException {
         SinkProto.RowRecord.Builder builder =
                 event.getRowRecord().toBuilder()
                         .clearAfter()
@@ -102,8 +89,7 @@ public abstract class AbstractBucketedWriter<C>
         return deleteEvent;
     }
 
-    private RowChangeEvent buildInsertEvent(RowChangeEvent event) throws SinkException
-    {
+    private RowChangeEvent buildInsertEvent(RowChangeEvent event) throws SinkException {
         SinkProto.RowRecord.Builder builder =
                 event.getRowRecord().toBuilder()
                         .clearBefore()

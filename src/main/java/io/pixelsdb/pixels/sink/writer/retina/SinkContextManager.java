@@ -17,12 +17,10 @@
  * License along with Pixels.  If not, see
  * <https://www.gnu.org/licenses/>.
  */
- 
+
 package io.pixelsdb.pixels.sink.writer.retina;
 
-import io.pixelsdb.pixels.common.exception.TransException;
 import io.pixelsdb.pixels.common.transaction.TransContext;
-import io.pixelsdb.pixels.core.TypeDescription;
 import io.pixelsdb.pixels.sink.SinkProto;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
@@ -41,8 +39,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class SinkContextManager
-{
+public class SinkContextManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(SinkContextManager.class);
     private static final Logger BUCKET_TRACE_LOGGER = LoggerFactory.getLogger("bucket_trace");
     private static volatile SinkContextManager instance;
@@ -52,28 +49,22 @@ public class SinkContextManager
     private final CommitMethod commitMethod;
     private final String freshnessLevel;
     private final RetinaBucketDispatcher retinaBucketDispatcher;
-    private SinkContextManager()
-    {
+
+    private SinkContextManager() {
         PixelsSinkConfig config = PixelsSinkConfigFactory.getInstance();
-        if (config.getCommitMethod().equals("sync"))
-        {
+        if (config.getCommitMethod().equals("sync")) {
             this.commitMethod = CommitMethod.Sync;
-        } else
-        {
+        } else {
             this.commitMethod = CommitMethod.Async;
         }
         this.freshnessLevel = config.getSinkMonitorFreshnessLevel();
         this.retinaBucketDispatcher = new RetinaBucketDispatcher();
     }
 
-    public static SinkContextManager getInstance()
-    {
-        if (instance == null)
-        {
-            synchronized (SinkContextManager.class)
-            {
-                if (instance == null)
-                {
+    public static SinkContextManager getInstance() {
+        if (instance == null) {
+            synchronized (SinkContextManager.class) {
+                if (instance == null) {
                     instance = new SinkContextManager();
                 }
             }
@@ -81,24 +72,19 @@ public class SinkContextManager
         return instance;
     }
 
-    protected SinkContext getActiveTxContext(RowChangeEvent event, AtomicBoolean canWrite)
-    {
+    protected SinkContext getActiveTxContext(RowChangeEvent event, AtomicBoolean canWrite) {
         String txId = event.getTransaction().getId();
         return activeTxContexts.compute(txId, (sourceTxId, sinkContext) ->
         {
-            if (sinkContext == null)
-            {
+            if (sinkContext == null) {
                 LOGGER.trace("Allocate new tx {}\torder:{}", sourceTxId, event.getTransaction().getTotalOrder());
                 SinkContext newSinkContext = new SinkContext(sourceTxId);
                 newSinkContext.bufferOrphanedEvent(event);
                 return newSinkContext;
-            } else
-            {
-                try
-                {
+            } else {
+                try {
                     sinkContext.getLock().lock();
-                    if (sinkContext.getPixelsTransCtx() == null)
-                    {
+                    if (sinkContext.getPixelsTransCtx() == null) {
                         LOGGER.trace("Buffer in tx {}\torder:{}", sourceTxId, event.getTransaction().getTotalOrder());
                         canWrite.set(false);
                         sinkContext.bufferOrphanedEvent(event);
@@ -107,8 +93,7 @@ public class SinkContextManager
                     LOGGER.trace("Ready to write in tx {}\torder:{}", sourceTxId, event.getTransaction().getTotalOrder());
                     canWrite.set(true);
                     return sinkContext;
-                } finally
-                {
+                } finally {
                     sinkContext.getCond().signalAll();
                     sinkContext.getLock().unlock();
                 }
@@ -117,25 +102,20 @@ public class SinkContextManager
         });
     }
 
-    protected void startTransSync(String sourceTxId)
-    {
+    protected void startTransSync(String sourceTxId) {
         LOGGER.trace("Start trans {}", sourceTxId);
         TransContext pixelsTransContext = transactionProxy.getNewTransContext(sourceTxId);
         activeTxContexts.compute(
                 sourceTxId,
                 (k, oldCtx) ->
                 {
-                    if (oldCtx == null)
-                    {
+                    if (oldCtx == null) {
                         LOGGER.trace("Start trans {} without buffered events", sourceTxId);
                         return new SinkContext(sourceTxId, pixelsTransContext);
-                    } else
-                    {
+                    } else {
                         oldCtx.getLock().lock();
-                        try
-                        {
-                            if (oldCtx.getPixelsTransCtx() != null)
-                            {
+                        try {
+                            if (oldCtx.getPixelsTransCtx() != null) {
                                 LOGGER.warn("Previous tx {} has been released, maybe due to loop process", sourceTxId);
                                 oldCtx.tableCounters = new ConcurrentHashMap<>();
                             }
@@ -143,11 +123,9 @@ public class SinkContextManager
                             oldCtx.setPixelsTransCtx(pixelsTransContext);
                             handleOrphanEvents(oldCtx);
                             oldCtx.getCond().signalAll();
-                        } catch (SinkException e)
-                        {
+                        } catch (SinkException e) {
                             throw new RuntimeException(e);
-                        } finally
-                        {
+                        } finally {
                             oldCtx.getLock().unlock();
                         }
                         return oldCtx;
@@ -157,119 +135,96 @@ public class SinkContextManager
         LOGGER.trace("Begin Tx Sync: {}", sourceTxId);
     }
 
-    void processTxCommit(SinkProto.TransactionMetadata txEnd)
-    {
+    void processTxCommit(SinkProto.TransactionMetadata txEnd) {
         String txId = txEnd.getId();
         SinkContext ctx = getSinkContext(txId);
-        if (ctx == null)
-        {
+        if (ctx == null) {
             throw new RuntimeException("Sink Context is null");
         }
 
-        try
-        {
+        try {
             ctx.tableCounterLock.lock();
             ctx.setEndTx(txEnd);
             long startTs = System.currentTimeMillis();
-            if(ctx.isCompleted())
-            {
+            if (ctx.isCompleted()) {
                 endTransaction(ctx);
             }
-        } finally
-        {
+        } finally {
             ctx.tableCounterLock.unlock();
         }
     }
 
-    void endTransaction(SinkContext ctx)
-    {
+    void endTransaction(SinkContext ctx) {
         String txId = ctx.getSourceTxId();
         removeSinkContext(txId);
         boolean failed = ctx.isFailed();
-        if (!failed)
-        {
+        if (!failed) {
             LOGGER.trace("Committed transaction: {}, Pixels Trans is {}", txId, ctx.getPixelsTransCtx().getTransId());
-            switch (commitMethod)
-            {
-                case Sync ->
-                {
+            switch (commitMethod) {
+                case Sync -> {
                     transactionProxy.commitTransSync(ctx);
                 }
-                case Async ->
-                {
+                case Async -> {
                     transactionProxy.commitTransAsync(ctx);
                 }
             }
-            if(freshnessLevel.equals("embed"))
-            {
-                for(String table: ctx.getTableCounters().keySet())
-                {
+            if (freshnessLevel.equals("embed")) {
+                for (String table : ctx.getTableCounters().keySet()) {
                     String tableName = DataTransform.extractTableName(table);
                     FreshnessClient.getInstance().addMonitoredTable(tableName);
                 }
             }
-        } else
-        {
+        } else {
             LOGGER.info("Abort transaction: {}", txId);
             CompletableFuture.runAsync(() ->
             {
                 transactionProxy.rollbackTrans(ctx.getPixelsTransCtx());
             }).whenComplete((v, ex) ->
             {
-                if (ex != null)
-                {
+                if (ex != null) {
                     LOGGER.error("Rollback failed", ex);
                 }
             });
         }
     }
 
-    private void handleOrphanEvents(SinkContext ctx) throws SinkException
-    {
+    private void handleOrphanEvents(SinkContext ctx) throws SinkException {
         Queue<RowChangeEvent> buffered = ctx.getOrphanEvent();
         ctx.setOrphanEvent(null);
-        if (buffered != null)
-        {
+        if (buffered != null) {
             LOGGER.trace("Handle Orphan Events in {}", ctx.sourceTxId);
-            for (RowChangeEvent event : buffered)
-            {
+            for (RowChangeEvent event : buffered) {
                 writeRowChangeEvent(ctx, event);
             }
         }
     }
 
-    protected void writeRowChangeEvent(SinkContext ctx, RowChangeEvent event) throws SinkException
-    {
-        if(ctx != null)
-        {
+    protected void writeRowChangeEvent(SinkContext ctx, RowChangeEvent event) throws SinkException {
+        if (ctx != null) {
             event.setTimeStamp(ctx.getTimestamp());
         }
         retinaBucketDispatcher.writeRowChangeEvent(event, ctx);
     }
 
-    protected SinkContext getSinkContext(String txId)
-    {
+    protected SinkContext getSinkContext(String txId) {
         return activeTxContexts.get(txId);
     }
 
-    protected void removeSinkContext(String txId)
-    {
+    protected void removeSinkContext(String txId) {
         activeTxContexts.remove(txId);
     }
 
-    protected void writeRandomRowChangeEvent(String randomId, RowChangeEvent event) throws SinkException
-    {
+    protected void writeRandomRowChangeEvent(String randomId, RowChangeEvent event) throws SinkException {
         writeRowChangeEvent(getSinkContext(randomId), event);
     }
 
-    public int getActiveTxnsNum()
-    {
+    public int getActiveTxnsNum() {
         return activeTxContexts.size();
     }
 
-    public String findMinActiveTx()
-    {
-        Comparator<String> customComparator = (key1, key2) -> {
+    public String findMinActiveTx() {
+        Comparator<String> customComparator = (key1, key2) ->
+        {
             try {
                 String[] parts1 = key1.split("_");
                 int int1 = Integer.parseInt(parts1[0]);
@@ -294,8 +249,7 @@ public class SinkContextManager
         return min.orElse("None");
     }
 
-    private enum CommitMethod
-    {
+    private enum CommitMethod {
         Sync,
         Async
     }

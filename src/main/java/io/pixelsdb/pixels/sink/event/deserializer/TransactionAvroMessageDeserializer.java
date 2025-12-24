@@ -17,7 +17,7 @@
  * License along with Pixels.  If not, see
  * <https://www.gnu.org/licenses/>.
  */
- 
+
 package io.pixelsdb.pixels.sink.event.deserializer;
 
 import io.apicurio.registry.serde.SerdeConfig;
@@ -35,15 +35,13 @@ import org.slf4j.LoggerFactory;
 import java.util.HashMap;
 import java.util.Map;
 
-public class TransactionAvroMessageDeserializer implements Deserializer<SinkProto.TransactionMetadata>
-{
+public class TransactionAvroMessageDeserializer implements Deserializer<SinkProto.TransactionMetadata> {
     private static final Logger logger = LoggerFactory.getLogger(TransactionAvroMessageDeserializer.class);
     private final AvroKafkaDeserializer<GenericRecord> avroDeserializer = new AvroKafkaDeserializer<>();
     private final PixelsSinkConfig config = PixelsSinkConfigFactory.getInstance();
 
     @Override
-    public void configure(Map<String, ?> configs, boolean isKey)
-    {
+    public void configure(Map<String, ?> configs, boolean isKey) {
         Map<String, Object> enrichedConfig = new HashMap<>(configs);
         enrichedConfig.put(SerdeConfig.REGISTRY_URL, config.getRegistryUrl());
         enrichedConfig.put(SerdeConfig.CHECK_PERIOD_MS, SerdeConfig.CHECK_PERIOD_MS_DEFAULT);
@@ -51,27 +49,22 @@ public class TransactionAvroMessageDeserializer implements Deserializer<SinkProt
     }
 
     @Override
-    public SinkProto.TransactionMetadata deserialize(String topic, byte[] bytes)
-    {
-        if (bytes == null || bytes.length == 0)
-        {
+    public SinkProto.TransactionMetadata deserialize(String topic, byte[] bytes) {
+        if (bytes == null || bytes.length == 0) {
             return null;
         }
-        try
-        {
+        try {
             MetricsFacade.getInstance().addRawData(bytes.length);
             GenericRecord avroRecord = avroDeserializer.deserialize(topic, bytes);
             return TransactionStructMessageDeserializer.convertToTransactionMetadata(avroRecord);
-        } catch (Exception e)
-        {
+        } catch (Exception e) {
             logger.error("Avro deserialization failed for topic {}: {}", topic, e.getMessage());
             throw new SerializationException("Failed to deserialize Avro message", e);
         }
     }
 
     @Override
-    public void close()
-    {
+    public void close() {
         Deserializer.super.close();
     }
 }

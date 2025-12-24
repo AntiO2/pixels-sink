@@ -17,7 +17,7 @@
  * License along with Pixels.  If not, see
  * <https://www.gnu.org/licenses/>.
  */
- 
+
 package io.pixelsdb.pixels.sink.processor;
 
 import io.pixelsdb.pixels.sink.config.PixelsSinkConstants;
@@ -28,50 +28,40 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-public class MonitorThreadManager
-{
+public class MonitorThreadManager {
     private final List<Runnable> monitors = new CopyOnWriteArrayList<>();
     private final ExecutorService executor = Executors.newFixedThreadPool(PixelsSinkConstants.MONITOR_NUM);
 
-    public void startMonitor(Runnable monitor)
-    {
+    public void startMonitor(Runnable monitor) {
         monitors.add(monitor);
         executor.submit(monitor);
     }
 
-    public void shutdown()
-    {
+    public void shutdown() {
         stopMonitors();
         shutdownExecutor();
         awaitTermination();
     }
 
-    private void stopMonitors()
-    {
+    private void stopMonitors() {
         monitors.forEach(monitor ->
         {
-            if (monitor instanceof StoppableProcessor)
-            {
+            if (monitor instanceof StoppableProcessor) {
                 ((StoppableProcessor) monitor).stopProcessor();
             }
         });
     }
 
-    private void shutdownExecutor()
-    {
+    private void shutdownExecutor() {
         executor.shutdown();
     }
 
-    private void awaitTermination()
-    {
-        try
-        {
-            if (!executor.awaitTermination(10, TimeUnit.SECONDS))
-            {
+    private void awaitTermination() {
+        try {
+            if (!executor.awaitTermination(10, TimeUnit.SECONDS)) {
                 executor.shutdownNow();
             }
-        } catch (InterruptedException e)
-        {
+        } catch (InterruptedException e) {
             executor.shutdownNow();
         }
     }

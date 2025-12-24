@@ -17,7 +17,7 @@
  * License along with Pixels.  If not, see
  * <https://www.gnu.org/licenses/>.
  */
- 
+
 package io.pixelsdb.pixels.sink.config;
 
 
@@ -27,12 +27,10 @@ import net.sourceforge.argparse4j.inf.ArgumentParserException;
 import net.sourceforge.argparse4j.inf.Namespace;
 
 
-public class CommandLineConfig
-{
+public class CommandLineConfig {
     private String configPath;
 
-    public CommandLineConfig(String[] args)
-    {
+    public CommandLineConfig(String[] args) {
         ArgumentParser parser = ArgumentParsers
                 .newFor("Pixels-Sink")
                 .build()
@@ -44,20 +42,17 @@ public class CommandLineConfig
                 .required(false)
                 .help("config path");
 
-        try
-        {
+        try {
             Namespace res = parser.parseArgs(args);
             this.configPath = res.getString("config");
 
-        } catch (ArgumentParserException e)
-        {
+        } catch (ArgumentParserException e) {
             parser.handleError(e);
             System.exit(1);
         }
     }
 
-    public String getConfigPath()
-    {
+    public String getConfigPath() {
         return configPath;
     }
 

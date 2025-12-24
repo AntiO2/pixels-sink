@@ -17,7 +17,7 @@
  * License along with Pixels.  If not, see
  * <https://www.gnu.org/licenses/>.
  */
- 
+
 package io.pixelsdb.pixels.sink.provider;
 
 import io.pixelsdb.pixels.sink.config.PixelsSinkConstants;
@@ -30,8 +30,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
 
-public abstract class EventProvider<SOURCE_RECORD_T, TARGET_RECORD_T> implements Runnable, Closeable
-{
+public abstract class EventProvider<SOURCE_RECORD_T, TARGET_RECORD_T> implements Runnable, Closeable {
     private static final Logger LOGGER = LoggerFactory.getLogger(EventProvider.class);
 
     private static final int BATCH_SIZE = 64;
@@ -46,26 +45,21 @@ public abstract class EventProvider<SOURCE_RECORD_T, TARGET_RECORD_T> implements
 
 
     @Override
-    public void run()
-    {
+    public void run() {
         providerThread = new Thread(this::processLoop);
         providerThread.start();
     }
 
     @Override
-    public void close()
-    {
+    public void close() {
         this.providerThread.interrupt();
         decodeExecutor.shutdown();
     }
 
-    protected void processLoop()
-    {
+    protected void processLoop() {
         List<SOURCE_RECORD_T> sourceBatch = new ArrayList<>(BATCH_SIZE);
-        while (true)
-        {
-            try
-            {
+        while (true) {
+            try {
                 sourceBatch.clear();
                 // take first element (blocking)
                 SOURCE_RECORD_T first = getRawEvent();
@@ -73,18 +67,15 @@ public abstract class EventProvider<SOURCE_RECORD_T, TARGET_RECORD_T> implements
                 long startTime = System.nanoTime();
 
                 // keep polling until sourceBatch full or timeout
-                while (sourceBatch.size() < BATCH_SIZE)
-                {
+                while (sourceBatch.size() < BATCH_SIZE) {
                     long elapsedMs = (System.nanoTime() - startTime) / 1_000_000;
                     long remainingMs = MAX_WAIT_MS - elapsedMs;
-                    if (remainingMs <= 0)
-                    {
+                    if (remainingMs <= 0) {
                         break;
                     }
 
                     SOURCE_RECORD_T next = pollRawEvent(remainingMs);
-                    if (next == null)
-                    {
+                    if (next == null) {
                         break;
                     }
                     sourceBatch.add(next);
@@ -92,30 +83,24 @@ public abstract class EventProvider<SOURCE_RECORD_T, TARGET_RECORD_T> implements
 
                 // parallel decode
                 List<Future<TARGET_RECORD_T>> futures = new ArrayList<>(sourceBatch.size());
-                for (SOURCE_RECORD_T data : sourceBatch)
-                {
+                for (SOURCE_RECORD_T data : sourceBatch) {
                     futures.add(decodeExecutor.submit(() ->
                             convertToTargetRecord(data)));
                 }
 
                 // ordered put into queue
-                for (Future<TARGET_RECORD_T> future : futures)
-                {
-                    try
-                    {
+                for (Future<TARGET_RECORD_T> future : futures) {
+                    try {
                         TARGET_RECORD_T event = future.get();
-                        if (event != null)
-                        {
+                        if (event != null) {
                             recordSerdEvent();
                             putTargetEvent(event);
                         }
-                    } catch (ExecutionException e)
-                    {
+                    } catch (ExecutionException e) {
                         LOGGER.warn("Decode failed: {}", String.valueOf(e.getCause()));
                     }
                 }
-            } catch (InterruptedException e)
-            {
+            } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 break;
             }
@@ -124,59 +109,44 @@ public abstract class EventProvider<SOURCE_RECORD_T, TARGET_RECORD_T> implements
 
     abstract TARGET_RECORD_T convertToTargetRecord(SOURCE_RECORD_T record);
 
-    protected TARGET_RECORD_T getTargetEvent()
-    {
-        try
-        {
+    protected TARGET_RECORD_T getTargetEvent() {
+        try {
             return eventQueue.take();
-        } catch (InterruptedException e)
-        {
+        } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
         return null;
     }
 
-    protected void putTargetEvent(TARGET_RECORD_T event)
-    {
-        try
-        {
+    protected void putTargetEvent(TARGET_RECORD_T event) {
+        try {
             eventQueue.put(event);
-        } catch (InterruptedException e)
-        {
+        } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
     }
 
-    protected void putRawEvent(SOURCE_RECORD_T record)
-    {
-        try
-        {
+    protected void putRawEvent(SOURCE_RECORD_T record) {
+        try {
             rawEventQueue.put(record);
-        } catch (InterruptedException e)
-        {
+        } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
     }
 
-    protected SOURCE_RECORD_T getRawEvent()
-    {
-        try
-        {
+    protected SOURCE_RECORD_T getRawEvent() {
+        try {
             return rawEventQueue.take();
-        } catch (InterruptedException e)
-        {
+        } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             return null;
         }
     }
 
-    protected SOURCE_RECORD_T pollRawEvent(long remainingMs)
-    {
-        try
-        {
+    protected SOURCE_RECORD_T pollRawEvent(long remainingMs) {
+        try {
             return rawEventQueue.poll(remainingMs, TimeUnit.MILLISECONDS);
-        } catch (InterruptedException e)
-        {
+        } catch (InterruptedException e) {
             return null;
         }
     }

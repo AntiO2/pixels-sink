@@ -17,7 +17,7 @@
  * License along with Pixels.  If not, see
  * <https://www.gnu.org/licenses/>.
  */
- 
+
 package io.pixelsdb.pixels.sink.event.deserializer;
 
 
@@ -33,13 +33,11 @@ import org.slf4j.LoggerFactory;
  * @author: AntiO2
  * @date: 2025/9/26 12:42
  */
-public class TransactionStructMessageDeserializer
-{
+public class TransactionStructMessageDeserializer {
     private static final Logger LOGGER = LoggerFactory.getLogger(TransactionStructMessageDeserializer.class);
 
     @SuppressWarnings("unchecked")
-    public static <T> SinkProto.TransactionMetadata convertToTransactionMetadata(T record)
-    {
+    public static <T> SinkProto.TransactionMetadata convertToTransactionMetadata(T record) {
         SinkProto.TransactionMetadata.Builder builder = SinkProto.TransactionMetadata.newBuilder();
 
         builder.setStatus(DeserializerUtil.getStatusSafely(record, "status"))
@@ -49,20 +47,16 @@ public class TransactionStructMessageDeserializer
                 .setTimestamp(DeserializerUtil.getLongSafely(record, "ts_ms"));
 
         Object collections = DeserializerUtil.getFieldSafely(record, "data_collections");
-        if (collections instanceof Iterable<?>)
-        {
-            for (Object item : (Iterable<?>) collections)
-            {
-                if (item instanceof GenericRecord collectionRecord)
-                {
+        if (collections instanceof Iterable<?>) {
+            for (Object item : (Iterable<?>) collections) {
+                if (item instanceof GenericRecord collectionRecord) {
                     SinkProto.DataCollection.Builder collectionBuilder = SinkProto.DataCollection.newBuilder();
                     collectionBuilder.setDataCollection(
                             DeserializerUtil.getStringSafely(collectionRecord, "data_collection"));
                     collectionBuilder.setEventCount(
                             DeserializerUtil.getLongSafely(collectionRecord, "event_count"));
                     builder.addDataCollections(collectionBuilder);
-                } else if (item instanceof Struct collectionRecord)
-                {
+                } else if (item instanceof Struct collectionRecord) {
                     SinkProto.DataCollection.Builder collectionBuilder = SinkProto.DataCollection.newBuilder();
                     collectionBuilder.setDataCollection(
                             DeserializerUtil.getStringSafely(collectionRecord, "data_collection"));

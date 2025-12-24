@@ -17,7 +17,7 @@
  * License along with Pixels.  If not, see
  * <https://www.gnu.org/licenses/>.
  */
- 
+
 package io.pixelsdb.pixels.sink.provider;
 
 
@@ -32,19 +32,16 @@ import org.apache.kafka.connect.source.SourceRecord;
  * @author: AntiO2
  * @date: 2025/9/25 13:20
  */
-public class TransactionEventEngineProvider<T> extends TransactionEventProvider<T>
-{
+public class TransactionEventEngineProvider<T> extends TransactionEventProvider<T> {
 
     public static final TransactionEventEngineProvider<SourceRecord> INSTANCE = new TransactionEventEngineProvider<>();
 
-    public static TransactionEventEngineProvider<SourceRecord> getInstance()
-    {
+    public static TransactionEventEngineProvider<SourceRecord> getInstance() {
         return INSTANCE;
     }
 
     @Override
-    SinkProto.TransactionMetadata convertToTargetRecord(T record)
-    {
+    SinkProto.TransactionMetadata convertToTargetRecord(T record) {
         SourceRecord sourceRecord = (SourceRecord) record;
         Struct value = (Struct) sourceRecord.value();
         return TransactionStructMessageDeserializer.convertToTransactionMetadata(value);

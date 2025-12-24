@@ -17,7 +17,7 @@
  * License along with Pixels.  If not, see
  * <https://www.gnu.org/licenses/>.
  */
- 
+
 
 package io.pixelsdb.pixels.sink.source;
 
@@ -27,13 +27,10 @@ import io.pixelsdb.pixels.sink.source.engine.SinkEngineSource;
 import io.pixelsdb.pixels.sink.source.kafka.SinkKafkaSource;
 import io.pixelsdb.pixels.sink.source.storage.FasterSinkStorageSource;
 
-public class SinkSourceFactory
-{
-    public static SinkSource createSinkSource()
-    {
+public class SinkSourceFactory {
+    public static SinkSource createSinkSource() {
         PixelsSinkConfig config = PixelsSinkConfigFactory.getInstance();
-        return switch (config.getDataSource())
-        {
+        return switch (config.getDataSource()) {
             case "kafka" -> new SinkKafkaSource();
             case "engine" -> new SinkEngineSource();
             case "storage" -> new FasterSinkStorageSource();

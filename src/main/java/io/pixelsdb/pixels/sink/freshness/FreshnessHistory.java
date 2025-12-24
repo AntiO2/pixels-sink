@@ -29,22 +29,11 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 public class FreshnessHistory {
     private final ConcurrentLinkedQueue<Record> history = new ConcurrentLinkedQueue<>();
 
-    public record Record(long timestamp, double value)
-    {
-
-        @Override
-            public String toString()
-        {
-                return timestamp + "," + value;
-            }
-        }
-
     public void record(double freshnessMill) {
         history.offer(new Record(System.currentTimeMillis(), freshnessMill));
     }
 
-    public List<Record> pollAll()
-    {
+    public List<Record> pollAll() {
         if (history.isEmpty()) {
             return Collections.emptyList();
         }
@@ -54,5 +43,13 @@ public class FreshnessHistory {
             records.add(record);
         }
         return records;
+    }
+
+    public record Record(long timestamp, double value) {
+
+        @Override
+        public String toString() {
+            return timestamp + "," + value;
+        }
     }
 }

@@ -17,25 +17,21 @@
  * License along with Pixels.  If not, see
  * <https://www.gnu.org/licenses/>.
  */
- 
+
 package io.pixelsdb.pixels.sink.provider;
 
 import io.pixelsdb.pixels.sink.SinkProto;
 
-public abstract class TransactionEventProvider<SOURCE_RECORD_T> extends EventProvider<SOURCE_RECORD_T, SinkProto.TransactionMetadata>
-{
-    public void putTransRawEvent(SOURCE_RECORD_T record)
-    {
+public abstract class TransactionEventProvider<SOURCE_RECORD_T> extends EventProvider<SOURCE_RECORD_T, SinkProto.TransactionMetadata> {
+    public void putTransRawEvent(SOURCE_RECORD_T record) {
         putRawEvent(record);
     }
 
-    public SinkProto.TransactionMetadata getTransaction()
-    {
+    public SinkProto.TransactionMetadata getTransaction() {
         return getTargetEvent();
     }
 
-    final protected void recordSerdEvent()
-    {
+    final protected void recordSerdEvent() {
         metricsFacade.recordSerdTxChange();
     }
 }

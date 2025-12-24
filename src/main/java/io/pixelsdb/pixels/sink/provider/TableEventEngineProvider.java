@@ -17,7 +17,7 @@
  * License along with Pixels.  If not, see
  * <https://www.gnu.org/licenses/>.
  */
- 
+
 package io.pixelsdb.pixels.sink.provider;
 
 
@@ -35,19 +35,15 @@ import org.slf4j.LoggerFactory;
  * @author: AntiO2
  * @date: 2025/9/26 10:45
  */
-public class TableEventEngineProvider<T> extends TableEventProvider<T>
-{
+public class TableEventEngineProvider<T> extends TableEventProvider<T> {
     private final Logger LOGGER = LoggerFactory.getLogger(TableEventEngineProvider.class.getName());
 
     @Override
-    RowChangeEvent convertToTargetRecord(T record)
-    {
+    RowChangeEvent convertToTargetRecord(T record) {
         SourceRecord sourceRecord = (SourceRecord) record;
-        try
-        {
+        try {
             return RowChangeEventStructDeserializer.convertToRowChangeEvent(sourceRecord);
-        } catch (SinkException e)
-        {
+        } catch (SinkException e) {
             LOGGER.warn("Failed to convert RowChangeEvent to RowChangeEventStruct {}", e.getMessage());
             return null;
         }

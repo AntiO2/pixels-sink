@@ -17,7 +17,7 @@
  * License along with Pixels.  If not, see
  * <https://www.gnu.org/licenses/>.
  */
- 
+
 package io.pixelsdb.pixels.sink.writer.flink;
 
 import io.grpc.Server;
@@ -28,21 +28,12 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
-/**
- * 负责管理 gRPC Server 的生命周期（启动、关闭）。
- * 这个类的实现与具体的 .proto 服务定义解耦。
- */
 public class PollingRpcServer {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(PollingRpcServer.class);
     private final Server server;
     private final int port;
 
-    /**
-     * 构造函数。
-     * @param serviceImpl gRPC 服务的实现实例
-     * @param port        服务器监听的端口
-     */
     public PollingRpcServer(PixelsPollingServiceImpl serviceImpl, int port) {
         this.port = port;
         this.server = ServerBuilder.forPort(port)
@@ -50,18 +41,11 @@ public class PollingRpcServer {
                 .build();
     }
 
-    /**
-     * 启动 gRPC 服务器。
-     * @throws IOException 如果端口绑定失败
-     */
     public void start() throws IOException {
         server.start();
         LOGGER.info("gRPC Polling Server started, listening on port " + port);
     }
 
-    /**
-     * 平滑地关闭服务器。
-     */
     public void stop() {
         LOGGER.info("Attempting to shut down gRPC Polling Server...");
         if (server != null) {
@@ -82,10 +66,6 @@ public class PollingRpcServer {
         LOGGER.info("gRPC Polling Server shut down.");
     }
 
-    /**
-     * 阻塞当前线程，直到 gRPC 服务器关闭。
-     * 通常在主线程中调用，以防止应用退出。
-     */
     public void awaitTermination() throws InterruptedException {
         if (server != null) {
             server.awaitTermination();

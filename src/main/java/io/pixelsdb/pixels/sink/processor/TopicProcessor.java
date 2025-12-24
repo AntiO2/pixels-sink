@@ -17,7 +17,7 @@
  * License along with Pixels.  If not, see
  * <https://www.gnu.org/licenses/>.
  */
- 
+
 package io.pixelsdb.pixels.sink.processor;
 
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
@@ -35,8 +35,7 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
-public class TopicProcessor implements StoppableProcessor, Runnable
-{
+public class TopicProcessor implements StoppableProcessor, Runnable {
 
     private static final Logger log = LoggerFactory.getLogger(TopicProcessor.class);
     private final Properties kafkaProperties;
@@ -52,8 +51,7 @@ public class TopicProcessor implements StoppableProcessor, Runnable
     private AdminClient adminClient;
     private Timer timer;
 
-    public TopicProcessor(PixelsSinkConfig pixelsSinkConfig, Properties kafkaProperties)
-    {
+    public TopicProcessor(PixelsSinkConfig pixelsSinkConfig, Properties kafkaProperties) {
         this.pixelsSinkConfig = pixelsSinkConfig;
         this.kafkaProperties = kafkaProperties;
         this.baseTopic = pixelsSinkConfig.getTopicPrefix() + "." + pixelsSinkConfig.getCaptureDatabase();
@@ -61,30 +59,25 @@ public class TopicProcessor implements StoppableProcessor, Runnable
         this.bootstrapServers = pixelsSinkConfig.getBootstrapServers();
     }
 
-    private static Set<String> filterTopics(Set<String> topics, String prefix)
-    {
+    private static Set<String> filterTopics(Set<String> topics, String prefix) {
         return topics.stream()
                 .filter(t -> t.startsWith(prefix))
                 .collect(Collectors.toSet());
     }
 
     @Override
-    public void run()
-    {
-        try
-        {
+    public void run() {
+        try {
             initializeResources();
             startMonitoringCycle();
-        } finally
-        {
+        } finally {
             cleanupResources();
             log.info("Topic monitor stopped");
         }
     }
 
     @Override
-    public void stopProcessor()
-    {
+    public void stopProcessor() {
         log.info("Initiating topic monitor shutdown...");
         running.set(false);
         interruptMonitoring();
@@ -92,8 +85,7 @@ public class TopicProcessor implements StoppableProcessor, Runnable
         awaitTermination();
     }
 
-    private void shutdownConsumerTasks()
-    {
+    private void shutdownConsumerTasks() {
         log.info("Shutting down {} active consumer tasks", activeTasks.size());
         activeTasks.forEach((topic, task) ->
         {
@@ -103,23 +95,18 @@ public class TopicProcessor implements StoppableProcessor, Runnable
         activeTasks.clear();
     }
 
-    private void awaitTermination()
-    {
-        try
-        {
-            if (executorService != null && !executorService.awaitTermination(30, TimeUnit.SECONDS))
-            {
+    private void awaitTermination() {
+        try {
+            if (executorService != null && !executorService.awaitTermination(30, TimeUnit.SECONDS)) {
                 log.warn("Forcing shutdown of remaining tasks");
                 executorService.shutdownNow();
             }
-        } catch (InterruptedException e)
-        {
+        } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
     }
 
-    private void initializeResources()
-    {
+    private void initializeResources() {
         Properties props = new Properties();
         props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, this.bootstrapServers);
         this.adminClient = AdminClient.create(props);
@@ -127,20 +114,15 @@ public class TopicProcessor implements StoppableProcessor, Runnable
         log.info("Started topic monitor for base topic: {}", baseTopic);
     }
 
-    private void startMonitoringCycle()
-    {
+    private void startMonitoringCycle() {
         String topicPrefix = baseTopic + ".";
         timer.scheduleAtFixedRate(new TopicMonitorTask(), 0, 5000);
 
-        while (running.get())
-        {
-            try
-            {
+        while (running.get()) {
+            try {
                 TimeUnit.SECONDS.sleep(1);
-            } catch (InterruptedException e)
-            {
-                if (running.get())
-                {
+            } catch (InterruptedException e) {
+                if (running.get()) {
                     log.warn("Monitoring thread interrupted unexpectedly", e);
                 }
                 Thread.currentThread().interrupt();
@@ -148,133 +130,105 @@ public class TopicProcessor implements StoppableProcessor, Runnable
         }
     }
 
-    private void interruptMonitoring()
-    {
-        if (timer != null)
-        {
+    private void interruptMonitoring() {
+        if (timer != null) {
             timer.cancel();
             timer.purge();
         }
-        if (adminClient != null)
-        {
+        if (adminClient != null) {
             adminClient.close(Duration.ofSeconds(5));
         }
         shutdownExecutorService();
     }
 
-    private void shutdownExecutorService()
-    {
+    private void shutdownExecutorService() {
         executorService.shutdown();
-        try
-        {
-            if (!executorService.awaitTermination(10, TimeUnit.SECONDS))
-            {
+        try {
+            if (!executorService.awaitTermination(10, TimeUnit.SECONDS)) {
                 executorService.shutdownNow();
             }
-        } catch (InterruptedException e)
-        {
+        } catch (InterruptedException e) {
             executorService.shutdownNow();
             Thread.currentThread().interrupt();
         }
     }
 
-    private void cleanupResources()
-    {
-        try
-        {
-            if (adminClient != null)
-            {
+    private void cleanupResources() {
+        try {
+            if (adminClient != null) {
                 adminClient.close(Duration.ofSeconds(5));
             }
-        } catch (Exception e)
-        {
+        } catch (Exception e) {
             log.warn("Error closing admin client", e);
         }
     }
 
-    private Set<String> detectNewTopics(Set<String> currentTopics)
-    {
+    private Set<String> detectNewTopics(Set<String> currentTopics) {
         return currentTopics.stream()
                 .filter(t -> !subscribedTopics.contains(t))
                 .collect(Collectors.toSet());
     }
 
-    private String extractTableName(String topic)
-    {
+    private String extractTableName(String topic) {
         int lastDotIndex = topic.lastIndexOf('.');
         return lastDotIndex != -1 ? topic.substring(lastDotIndex + 1) : topic;
     }
 
-    private void launchConsumerTask(String topic)
-    {
-        try
-        {
+    private void launchConsumerTask(String topic) {
+        try {
             TableEventKafkaProvider task = new TableEventKafkaProvider(kafkaProperties, topic);
             executorService.submit(task);
-        } catch (Exception e)
-        {
+        } catch (Exception e) {
             log.error("Failed to start consumer for topic {}: {}", topic, e.getMessage());
         }
     }
 
-    private class TopicMonitorTask extends TimerTask
-    {
+    private class TopicMonitorTask extends TimerTask {
         @Override
-        public void run()
-        {
-            if (!running.get())
-            {
+        public void run() {
+            if (!running.get()) {
                 cancel();
                 return;
             }
 
-            try
-            {
+            try {
                 processTopicChanges();
-            } catch (Exception e)
-            {
+            } catch (Exception e) {
                 e.printStackTrace();
                 log.error("Error processing topic changes: {}", e.getMessage());
             }
         }
 
-        private void processTopicChanges()
-        {
-            try
-            {
+        private void processTopicChanges() {
+            try {
                 ListTopicsResult listTopicsResult = adminClient.listTopics();
                 Set<String> currentTopics = listTopicsResult.names().get(5, TimeUnit.SECONDS);
                 Set<String> filteredTopics = filterTopics(currentTopics, baseTopic + ".");
 
                 Set<String> newTopics = detectNewTopics(filteredTopics);
                 handleNewTopics(newTopics);
-            } catch (TimeoutException | ExecutionException | InterruptedException ignored)
-            {
+            } catch (TimeoutException | ExecutionException | InterruptedException ignored) {
 
             }
         }
 
-        private void handleNewTopics(Set<String> newTopics)
-        {
+        private void handleNewTopics(Set<String> newTopics) {
             newTopics.stream()
                     .filter(this::shouldProcessTable)
                     .forEach(topic ->
                     {
-                        try
-                        {
+                        try {
                             TableEventKafkaProvider task = new TableEventKafkaProvider(kafkaProperties, topic);
                             executorService.submit(task);
                             activeTasks.put(topic, task);
                             subscribedTopics.add(topic);
-                        } catch (IOException e)
-                        {
+                        } catch (IOException e) {
                             log.error("Failed to create consumer for {}: {}", topic, e.getMessage());
                         }
                     });
         }
 
-        private boolean shouldProcessTable(String topic)
-        {
+        private boolean shouldProcessTable(String topic) {
             String tableName = extractTableName(topic);
             return includeTables.length == 0 ||
                     Arrays.stream(includeTables).anyMatch(t -> t.equals(tableName));

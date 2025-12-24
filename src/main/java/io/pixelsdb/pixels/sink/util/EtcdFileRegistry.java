@@ -17,7 +17,7 @@
  * License along with Pixels.  If not, see
  * <https://www.gnu.org/licenses/>.
  */
- 
+
 package io.pixelsdb.pixels.sink.util;
 
 
@@ -41,8 +41,7 @@ import java.util.stream.Collectors;
  * @author: AntiO2
  * @date: 2025/10/5 08:24
  */
-public class EtcdFileRegistry
-{
+public class EtcdFileRegistry {
     private static final Logger LOGGER = LoggerFactory.getLogger(EtcdFileRegistry.class);
 
     private static final String REGISTRY_PREFIX = "/sink/proto/registry/";
@@ -53,62 +52,50 @@ public class EtcdFileRegistry
     private final AtomicInteger nextFileId = new AtomicInteger(0);
     private String currentFileKey;
 
-    public EtcdFileRegistry(String topic, String baseDir)
-    {
+    public EtcdFileRegistry(String topic, String baseDir) {
         this.topic = topic;
         this.baseDir = baseDir;
         initRegistry();
     }
 
-    public static String extractPath(String etcdValue)
-    {
-        try
-        {
+    public static String extractPath(String etcdValue) {
+        try {
             Map meta = OBJECT_MAPPER.readValue(etcdValue, Map.class);
             return (String) meta.get("path");
-        } catch (IOException e)
-        {
+        } catch (IOException e) {
             LOGGER.error("Failed to parse etcd value: {}", etcdValue, e);
             return null;
         }
     }
 
-    private void initRegistry()
-    {
+    private void initRegistry() {
         List<KeyValue> files = etcd.getKeyValuesByPrefix(filePrefix());
-        if (!files.isEmpty())
-        {
+        if (!files.isEmpty()) {
             int maxId = files.stream()
                     .mapToInt(kv -> extractFileId(kv.getKey().toString()))
                     .max()
                     .orElse(0);
             nextFileId.set(maxId + 1);
             LOGGER.info("Initialized registry for topic {} with nextFileId={}", topic, nextFileId.get());
-        } else
-        {
+        } else {
             LOGGER.info("No existing files found for topic {}, starting fresh", topic);
         }
     }
 
-    private String topicPrefix()
-    {
+    private String topicPrefix() {
         return REGISTRY_PREFIX + topic;
     }
 
-    private String filePrefix()
-    {
+    private String filePrefix() {
         return topicPrefix() + "/files/";
     }
 
-    private int extractFileId(String key)
-    {
-        try
-        {
+    private int extractFileId(String key) {
+        try {
             String fileName = key.substring(key.lastIndexOf('/') + 1);
             String id = fileName.replace(".proto", "");
             return Integer.parseInt(id);
-        } catch (Exception e)
-        {
+        } catch (Exception e) {
             return 0;
         }
     }
@@ -116,8 +103,7 @@ public class EtcdFileRegistry
     /**
      * Create a new file and register it in etcd.
      */
-    public synchronized String createNewFile()
-    {
+    public synchronized String createNewFile() {
         String fileName = String.format("%05d.proto", nextFileId.getAndIncrement());
         String fullPath = baseDir + "/" + topic + "/" + fileName;
 
@@ -128,11 +114,9 @@ public class EtcdFileRegistry
         currentFileKey = filePrefix() + fileName;
 
         String jsonValue = null;
-        try
-        {
+        try {
             jsonValue = OBJECT_MAPPER.writeValueAsString(fileMeta);
-        } catch (JsonProcessingException e)
-        {
+        } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
 
@@ -143,16 +127,14 @@ public class EtcdFileRegistry
         return fullPath;
     }
 
-    public synchronized String getCurrentFileKey()
-    {
+    public synchronized String getCurrentFileKey() {
         return currentFileKey;
     }
 
     /**
      * List all files (for readers).
      */
-    public List<String> listAllFiles()
-    {
+    public List<String> listAllFiles() {
         List<KeyValue> files = etcd.getKeyValuesByPrefix(filePrefix());
         return files.stream()
                 .map(kv ->
@@ -167,29 +149,25 @@ public class EtcdFileRegistry
     /**
      * Mark a file as completed (for writer rotation).
      */
-    public void markFileCompleted(String fileName)
-    {
+    public void markFileCompleted(String fileName) {
         KeyValue kv = etcd.getKeyValue(fileName);
         if (kv == null) return;
 
         Map meta = null;
-        try
-        {
+        try {
             meta = OBJECT_MAPPER.readValue(kv.getValue().toString(), Map.class);
             meta.put("completed_at", String.valueOf(System.currentTimeMillis()));
             meta.put("status", "completed");
             String jsonValue = OBJECT_MAPPER.writeValueAsString(meta);
             etcd.putKeyValue(fileName, jsonValue);
-        } catch (JsonProcessingException e)
-        {
+        } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
 
         LOGGER.info("Marked file [{}] as completed", fileName);
     }
 
-    public void cleanData()
-    {
+    public void cleanData() {
         etcd.deleteByPrefix(topicPrefix());
     }
 }

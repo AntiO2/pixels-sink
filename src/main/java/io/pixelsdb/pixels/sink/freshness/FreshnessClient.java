@@ -39,8 +39,7 @@ import java.util.concurrent.*;
  * FreshnessClient is responsible for monitoring data freshness by periodically
  * querying the maximum timestamp from a set of dynamically configured tables via Trino JDBC.
  */
-public class FreshnessClient
-{
+public class FreshnessClient {
     private static final Logger LOGGER = LoggerFactory.getLogger(FreshnessClient.class);
     private static final int QUERY_INTERVAL_SECONDS = 1;
     private static volatile FreshnessClient instance;
@@ -57,8 +56,8 @@ public class FreshnessClient
     private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
     private final int warmUpSeconds;
     private final PixelsSinkConfig config;
-    private FreshnessClient()
-    {
+
+    private FreshnessClient() {
         // Initializes the set with thread safety wrapper
         this.monitoredTables = Collections.synchronizedSet(new HashSet<>());
 
@@ -95,15 +94,11 @@ public class FreshnessClient
         this.connectionExecutor.allowCoreThreadTimeOut(true);
     }
 
-    public static FreshnessClient getInstance()
-    {
-        if (instance == null)
-        {
+    public static FreshnessClient getInstance() {
+        if (instance == null) {
             // First check: Reduces synchronization overhead once the instance is created
-            synchronized (FreshnessClient.class)
-            {
-                if (instance == null)
-                {
+            synchronized (FreshnessClient.class) {
+                if (instance == null) {
                     // Second check: Only one thread proceeds to create the instance
                     instance = new FreshnessClient();
                 }
@@ -113,13 +108,10 @@ public class FreshnessClient
     }
 
     @Deprecated
-    protected Connection createNewConnection() throws SQLException
-    {
-        try
-        {
+    protected Connection createNewConnection() throws SQLException {
+        try {
             Class.forName("io.trino.jdbc.TrinoDriver");
-        } catch (ClassNotFoundException e)
-        {
+        } catch (ClassNotFoundException e) {
             throw new SQLException(e);
         }
 
@@ -129,13 +121,10 @@ public class FreshnessClient
         return DriverManager.getConnection(trinoJdbcUrl, trinoUser, null);
     }
 
-    protected Connection createNewConnection(long queryTimestamp) throws SQLException
-    {
-        try
-        {
+    protected Connection createNewConnection(long queryTimestamp) throws SQLException {
+        try {
             Class.forName("io.trino.jdbc.TrinoDriver");
-        } catch (ClassNotFoundException e)
-        {
+        } catch (ClassNotFoundException e) {
             throw new SQLException(e);
         }
 
@@ -148,15 +137,11 @@ public class FreshnessClient
         return DriverManager.getConnection(trinoJdbcUrl, properties);
     }
 
-    private void closeConnection(Connection conn)
-    {
-        if (conn != null)
-        {
-            try
-            {
+    private void closeConnection(Connection conn) {
+        if (conn != null) {
+            try {
                 conn.close();
-            } catch (SQLException e)
-            {
+            } catch (SQLException e) {
                 LOGGER.warn("Error closing Trino connection.", e);
             }
         }
@@ -172,10 +157,8 @@ public class FreshnessClient
      *
      * @param tableName The name of the table to add.
      */
-    public void addMonitoredTable(String tableName)
-    {
-        if (tableName == null || tableName.trim().isEmpty())
-        {
+    public void addMonitoredTable(String tableName) {
+        if (tableName == null || tableName.trim().isEmpty()) {
             LOGGER.warn("Attempted to add null or empty table name to freshness monitor.");
             return;
         }
@@ -187,13 +170,10 @@ public class FreshnessClient
      *
      * @param tableName The name of the table to remove.
      */
-    public void removeMonitoredTable(String tableName)
-    {
-        if (monitoredTables.remove(tableName))
-        {
+    public void removeMonitoredTable(String tableName) {
+        if (monitoredTables.remove(tableName)) {
             LOGGER.info("Table '{}' removed from freshness monitor list.", tableName);
-        } else
-        {
+        } else {
             LOGGER.debug("Table '{}' was not found in the freshness monitor list.", tableName);
         }
     }
@@ -205,8 +185,7 @@ public class FreshnessClient
     /**
      * Starts the scheduled freshness monitoring task.
      */
-    public void start()
-    {
+    public void start() {
         LOGGER.info("Starting Freshness Client, querying every {} seconds.", QUERY_INTERVAL_SECONDS);
         scheduler.scheduleAtFixedRate(this::submitQueryTask,
                 warmUpSeconds,
@@ -218,36 +197,29 @@ public class FreshnessClient
     /**
      * Stops the scheduled task and closes the JDBC connection.
      */
-    public void stop()
-    {
+    public void stop() {
         LOGGER.info("Stopping Freshness Client.");
         scheduler.shutdownNow();
         connectionExecutor.shutdownNow();
     }
 
-    private void submitQueryTask()
-    {
-        if (monitoredTables.isEmpty())
-        {
+    private void submitQueryTask() {
+        if (monitoredTables.isEmpty()) {
             LOGGER.debug("No tables configured for freshness monitoring. Skipping submission cycle.");
             return;
         }
 
-        if (!queryPermits.tryAcquire())
-        {
+        if (!queryPermits.tryAcquire()) {
             LOGGER.debug("Max concurrent queries ({}) reached. Skipping query submission this cycle.", maxConcurrentQueries);
             return;
         }
 
-        try
-        {
+        try {
             connectionExecutor.submit(this::queryAndCalculateFreshness);
-        } catch (RejectedExecutionException e)
-        {
+        } catch (RejectedExecutionException e) {
             queryPermits.release();
             LOGGER.error("Query task rejected by executor. Max concurrent queries may be too low or service is stopping.", e);
-        } catch (Exception e)
-        {
+        } catch (Exception e) {
             queryPermits.release();
             LOGGER.error("Unknown error during task submission.", e);
         }
@@ -257,30 +229,25 @@ public class FreshnessClient
      * The core scheduled task: queries max(freshness_ts) for all monitored tables
      * and calculates the freshness metric.
      */
-    void queryAndCalculateFreshness()
-    {
+    void queryAndCalculateFreshness() {
         Connection conn = null;
         TransContext transContext = null;
 
         String tableName;
-        try
-        {
+        try {
 
             tableName = getRandomTable();
-            if(tableName == null)
-            {
+            if (tableName == null) {
                 return;
             }
 
             LOGGER.debug("Randomly selected table for this cycle: {}", tableName);
             // Timestamp when the query is sent (t_send)
             long tSendMillis = System.currentTimeMillis();
-            if(config.isSinkMonitorFreshnessEmbedSnapshot())
-            {
+            if (config.isSinkMonitorFreshnessEmbedSnapshot()) {
                 transContext = TransService.Instance().beginTrans(true);
                 conn = createNewConnection(transContext.getTimestamp());
-            } else
-            {
+            } else {
                 conn = createNewConnection();
             }
 
@@ -290,49 +257,38 @@ public class FreshnessClient
             String query = String.format("SELECT max(freshness_ts) FROM %s WHERE freshness_ts < TIMESTAMP '%s'", tableName, tSendMillisStr);
 
             try (Statement statement = conn.createStatement();
-                 ResultSet rs = statement.executeQuery(query))
-            {
+                 ResultSet rs = statement.executeQuery(query)) {
 
                 Timestamp maxFreshnessTs = null;
 
-                if (rs.next())
-                {
+                if (rs.next()) {
                     // Read the maximum timestamp value
                     maxFreshnessTs = rs.getTimestamp(1);
                 }
 
-                if (maxFreshnessTs != null)
-                {
+                if (maxFreshnessTs != null) {
                     // Freshness = t_send - data_write_time (maxFreshnessTs)
                     // Result is in milliseconds
                     long freshnessMillis = tSendMillis - maxFreshnessTs.getTime();
                     metricsFacade.recordTableFreshness(tableName, freshnessMillis);
-                } else
-                {
+                } else {
                     LOGGER.warn("Table {} returned null or zero max(freshness_ts). Skipping freshness calculation.", tableName);
                 }
 
-            } catch (SQLException e)
-            {
+            } catch (SQLException e) {
                 // Handle database errors (e.g., table not found, query syntax error)
                 LOGGER.error("Failed to execute query for table {}: {}", tableName, e.getMessage());
-            } catch (Exception e)
-            {
+            } catch (Exception e) {
                 // Catch potential runtime errors (e.g., in MetricsFacade)
                 LOGGER.error("Error calculating or recording freshness for table {}.", tableName, e);
             }
-        } catch (Exception e)
-        {
+        } catch (Exception e) {
             LOGGER.error("Error selecting a random table from the monitor list.", e);
-        } finally
-        {
-            if(config.isSinkMonitorFreshnessEmbedSnapshot() && transContext != null)
-            {
-                try
-                {
+        } finally {
+            if (config.isSinkMonitorFreshnessEmbedSnapshot() && transContext != null) {
+                try {
                     TransService.Instance().commitTrans(transContext.getTransId(), true);
-                } catch (TransException e)
-                {
+                } catch (TransException e) {
                     throw new RuntimeException(e);
                 }
             }
@@ -343,19 +299,15 @@ public class FreshnessClient
     }
 
 
-    private String getRandomTable()
-    {
+    private String getRandomTable() {
         List<String> tableList;
-        if(config.isSinkMonitorFreshnessEmbedStatic())
-        {
+        if (config.isSinkMonitorFreshnessEmbedStatic()) {
             tableList = getStaticList();
-        } else
-        {
+        } else {
             tableList = getDynamicList();
         }
 
-        if(tableList == null || tableList.isEmpty())
-        {
+        if (tableList == null || tableList.isEmpty()) {
             return null;
         }
 
@@ -365,14 +317,12 @@ public class FreshnessClient
         return tableList.get(randomIndex);
     }
 
-    private List<String> getDynamicList()
-    {
+    private List<String> getDynamicList() {
         // Take a snapshot of the tables to monitor for this cycle.
         // This prevents ConcurrentModificationException if a table is added/removed mid-iteration.
         Set<String> tablesSnapshot = new HashSet<>(monitoredTables);
 
-        if (tablesSnapshot.isEmpty())
-        {
+        if (tablesSnapshot.isEmpty()) {
             LOGGER.debug("No tables configured for freshness monitoring. Skipping cycle.");
             return null;
         }
@@ -382,8 +332,7 @@ public class FreshnessClient
         List<String> staticList = getStaticList();
 
         // If staticList is empty or null, return all tablesSnapshot
-        if (staticList == null || staticList.isEmpty())
-        {
+        if (staticList == null || staticList.isEmpty()) {
             return new ArrayList<>(tablesSnapshot);
         }
 
@@ -394,8 +343,7 @@ public class FreshnessClient
         return new ArrayList<>(tablesSnapshot);
     }
 
-    private List<String> getStaticList()
-    {
+    private List<String> getStaticList() {
         return config.getSinkMonitorFreshnessEmbedTableList();
     }
 }

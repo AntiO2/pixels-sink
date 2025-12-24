@@ -17,11 +17,10 @@
  * License along with Pixels.  If not, see
  * <https://www.gnu.org/licenses/>.
  */
- 
+
 
 package io.pixelsdb.pixels.sink.processor;
 
-public interface StoppableProcessor
-{
+public interface StoppableProcessor {
     void stopProcessor();
 }

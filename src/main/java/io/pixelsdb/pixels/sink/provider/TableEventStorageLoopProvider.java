@@ -17,59 +17,49 @@
  * License along with Pixels.  If not, see
  * <https://www.gnu.org/licenses/>.
  */
- 
+
 package io.pixelsdb.pixels.sink.provider;
 
 import com.google.protobuf.InvalidProtocolBufferException;
+import io.pixelsdb.pixels.core.utils.Pair;
 import io.pixelsdb.pixels.sink.SinkProto;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
 import io.pixelsdb.pixels.sink.event.deserializer.RowChangeEventStructDeserializer;
 import io.pixelsdb.pixels.sink.exception.SinkException;
+import io.pixelsdb.pixels.sink.util.DataTransform;
 
 import java.nio.ByteBuffer;
 import java.util.logging.Logger;
-import io.pixelsdb.pixels.core.utils.Pair;
-import io.pixelsdb.pixels.sink.freshness.FreshnessClient;
-import io.pixelsdb.pixels.sink.util.DataTransform;
 
-import javax.xml.crypto.Data;
-
-public class TableEventStorageLoopProvider<T> extends TableEventProvider<T>
-{
+public class TableEventStorageLoopProvider<T> extends TableEventProvider<T> {
     private final Logger LOGGER = Logger.getLogger(TableEventStorageProvider.class.getName());
     private final boolean freshness_embed;
     private final boolean freshness_timestamp;
 
-    protected TableEventStorageLoopProvider()
-    {
+    protected TableEventStorageLoopProvider() {
         super();
         PixelsSinkConfig config = PixelsSinkConfigFactory.getInstance();
         String sinkMonitorFreshnessLevel = config.getSinkMonitorFreshnessLevel();
-        if(sinkMonitorFreshnessLevel.equals("embed"))
-        {
+        if (sinkMonitorFreshnessLevel.equals("embed")) {
             freshness_embed = true;
-        } else
-        {
+        } else {
             freshness_embed = false;
         }
         freshness_timestamp = config.isSinkMonitorFreshnessTimestamp();
     }
 
     @Override
-    RowChangeEvent convertToTargetRecord(T record)
-    {
+    RowChangeEvent convertToTargetRecord(T record) {
         Pair<ByteBuffer, Integer> pairRecord = (Pair<ByteBuffer, Integer>) record;
         ByteBuffer sourceRecord = pairRecord.getLeft();
         Integer loopId = pairRecord.getRight();
-        try
-        {
+        try {
             SinkProto.RowRecord rowRecord = SinkProto.RowRecord.parseFrom(sourceRecord);
 
             SinkProto.RowRecord.Builder rowRecordBuilder = rowRecord.toBuilder();
-            if(freshness_timestamp)
-            {
+            if (freshness_timestamp) {
                 DataTransform.updateRecordTimestamp(rowRecordBuilder, System.currentTimeMillis() * 1000);
             }
 
@@ -78,8 +68,7 @@ public class TableEventStorageLoopProvider<T> extends TableEventProvider<T>
             transactionBuilder.setId(id + "_" + loopId);
             rowRecordBuilder.setTransaction(transactionBuilder);
             return RowChangeEventStructDeserializer.convertToRowChangeEvent(rowRecordBuilder.build());
-        } catch (InvalidProtocolBufferException | SinkException e)
-        {
+        } catch (InvalidProtocolBufferException | SinkException e) {
             LOGGER.warning(e.getMessage());
             return null;
         }

@@ -17,7 +17,7 @@
  * License along with Pixels.  If not, see
  * <https://www.gnu.org/licenses/>.
  */
- 
+
 package io.pixelsdb.pixels.sink.source.storage;
 
 import io.pixelsdb.pixels.common.physical.PhysicalReader;
@@ -32,54 +32,41 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
 
-public abstract class AbstractReaderSinkStorageSource extends AbstractSinkStorageSource
-{
+public abstract class AbstractReaderSinkStorageSource extends AbstractSinkStorageSource {
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractReaderSinkStorageSource.class);
 
     @Override
-    public void start()
-    {
+    public void start() {
         this.running.set(true);
         this.transactionProcessorThread.start();
         this.transactionProviderThread.start();
-        for (String file : files)
-        {
+        for (String file : files) {
             Storage.Scheme scheme = Storage.Scheme.fromPath(file);
             LOGGER.info("Start read from file {}", file);
             PhysicalReader reader;
-            try
-            {
+            try {
                 reader = PhysicalReaderUtil.newPhysicalReader(scheme, file);
-            } catch (IOException e)
-            {
+            } catch (IOException e) {
                 throw new RuntimeException(e);
             }
             readers.add(reader);
         }
-        do
-        {
-            for (PhysicalReader reader : readers)
-            {
+        do {
+            for (PhysicalReader reader : readers) {
                 LOGGER.info("Start Read {}", reader.getPath());
                 long offset = 0;
-                while (true)
-                {
-                    try
-                    {
+                while (true) {
+                    try {
                         int key, valueLen;
                         reader.seek(offset);
-                        try
-                        {
+                        try {
                             key = reader.readInt(ByteOrder.BIG_ENDIAN);
                             valueLen = reader.readInt(ByteOrder.BIG_ENDIAN);
-                        } catch (IOException e)
-                        {
+                        } catch (IOException e) {
                             // EOF
                             break;
                         }
@@ -99,8 +86,7 @@ public abstract class AbstractReaderSinkStorageSource extends AbstractSinkStorag
                                         k -> new LinkedBlockingQueue<>(PixelsSinkConstants.MAX_QUEUE_SIZE));
 
                         // Put future in queue
-                        if(protoType.equals(ProtoType.ROW))
-                        {
+                        if (protoType.equals(ProtoType.ROW)) {
                             sourceRateLimiter.acquire(1);
                         }
                         queue.put(new Pair<>(valueFuture, loopId));
@@ -112,8 +98,7 @@ public abstract class AbstractReaderSinkStorageSource extends AbstractSinkStorag
                             t.start();
                             return t;
                         });
-                    } catch (IOException | InterruptedException e)
-                    {
+                    } catch (IOException | InterruptedException e) {
                         break;
                     }
                 }

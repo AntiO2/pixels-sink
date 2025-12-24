@@ -17,7 +17,7 @@
  * License along with Pixels.  If not, see
  * <https://www.gnu.org/licenses/>.
  */
- 
+
 package io.pixelsdb.pixels.sink.source.storage;
 
 
@@ -49,8 +49,7 @@ import java.util.concurrent.*;
  * @date: 2025/10/5 11:43
  */
 @Deprecated
-public class LegacySinkStorageSource extends AbstractReaderSinkStorageSource implements SinkSource
-{
+public class LegacySinkStorageSource extends AbstractReaderSinkStorageSource implements SinkSource {
     private static final Logger LOGGER = LoggerFactory.getLogger(LegacySinkStorageSource.class);
     static SchemaTableName transactionSchemaTableName = new SchemaTableName("freak", "transaction");
     private final TransactionEventEngineProvider transactionEventProvider = TransactionEventEngineProvider.INSTANCE;
@@ -65,44 +64,35 @@ public class LegacySinkStorageSource extends AbstractReaderSinkStorageSource imp
     private final CompletableFuture<ByteBuffer> POISON_PILL = new CompletableFuture<>();
 
 
-    private static String readString(ByteBuffer buffer, int len)
-    {
+    private static String readString(ByteBuffer buffer, int len) {
         byte[] bytes = new byte[len];
         buffer.get(bytes);
         return new String(bytes);
     }
 
     @Override
-    ProtoType getProtoType(int i)
-    {
+    ProtoType getProtoType(int i) {
         return ProtoType.fromInt(i);
     }
 
     @Override
-    public void start()
-    {
+    public void start() {
 
-        for (String file : files)
-        {
+        for (String file : files) {
             Storage.Scheme scheme = Storage.Scheme.fromPath(file);
             LOGGER.info("Start read from file {}", file);
-            try (PhysicalReader reader = PhysicalReaderUtil.newPhysicalReader(scheme, file))
-            {
+            try (PhysicalReader reader = PhysicalReaderUtil.newPhysicalReader(scheme, file)) {
                 long offset = 0;
                 BlockingQueue<Pair<ByteBuffer, CompletableFuture<ByteBuffer>>> rowQueue = new LinkedBlockingQueue<>();
                 BlockingQueue<CompletableFuture<ByteBuffer>> transQueue = new LinkedBlockingQueue<>();
-                while (true)
-                {
-                    try
-                    {
+                while (true) {
+                    try {
                         int keyLen, valueLen;
                         reader.seek(offset);
-                        try
-                        {
+                        try {
                             keyLen = reader.readInt(ByteOrder.BIG_ENDIAN);
                             valueLen = reader.readInt(ByteOrder.BIG_ENDIAN);
-                        } catch (IOException e)
-                        {
+                        } catch (IOException e) {
                             // EOF
                             break;
                         }
@@ -135,13 +125,11 @@ public class LegacySinkStorageSource extends AbstractReaderSinkStorageSource imp
                             t.start();
                             return t;
                         });
-                    } catch (IOException | InterruptedException e)
-                    {
+                    } catch (IOException | InterruptedException e) {
                         break;
                     }
                 }
-            } catch (IOException e)
-            {
+            } catch (IOException e) {
                 throw new RuntimeException(e);
             }
 
@@ -150,11 +138,9 @@ public class LegacySinkStorageSource extends AbstractReaderSinkStorageSource imp
         // signal all queues to stop
         queueMap.values().forEach(q ->
         {
-            try
-            {
+            try {
                 q.put(POISON_PILL);
-            } catch (InterruptedException e)
-            {
+            } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
         });
@@ -162,74 +148,58 @@ public class LegacySinkStorageSource extends AbstractReaderSinkStorageSource imp
         // wait all consumers to finish
         consumerThreads.values().forEach(t ->
         {
-            try
-            {
+            try {
                 t.join();
-            } catch (InterruptedException e)
-            {
+            } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
         });
     }
 
-    private void consumeQueue(SchemaTableName key, BlockingQueue<CompletableFuture<ByteBuffer>> queue, ProtoType protoType)
-    {
-        try
-        {
-            while (true)
-            {
+    private void consumeQueue(SchemaTableName key, BlockingQueue<CompletableFuture<ByteBuffer>> queue, ProtoType protoType) {
+        try {
+            while (true) {
                 CompletableFuture<ByteBuffer> value = queue.take();
-                if (value == POISON_PILL)
-                {
+                if (value == POISON_PILL) {
                     break;
                 }
                 ByteBuffer valueBuffer = value.get();
                 metricsFacade.recordDebeziumEvent();
-                switch (protoType)
-                {
+                switch (protoType) {
                     case ROW -> handleRowChangeSourceRecord(0, valueBuffer, 0);
                     case TRANS -> handleTransactionSourceRecord(valueBuffer, 0);
                 }
             }
-        } catch (InterruptedException e)
-        {
+        } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-        } catch (ExecutionException e)
-        {
+        } catch (ExecutionException e) {
             LOGGER.error("Error in async processing", e);
         }
     }
 
-    private SchemaTableName computeQueueKey(ByteBuffer keyBuffer, ProtoType protoType)
-    {
-        switch (protoType)
-        {
-            case ROW ->
-            {
+    private SchemaTableName computeQueueKey(ByteBuffer keyBuffer, ProtoType protoType) {
+        switch (protoType) {
+            case ROW -> {
                 int schemaLen = keyBuffer.getInt();
                 int tableLen = keyBuffer.getInt();
                 String schemaName = readString(keyBuffer, schemaLen);
                 String tableName = readString(keyBuffer, tableLen);
                 return new SchemaTableName(schemaName, tableName);
             }
-            case TRANS ->
-            {
+            case TRANS -> {
                 return transactionSchemaTableName;
             }
-            default ->
-            {
+            default -> {
                 throw new IllegalArgumentException("Proto type " + protoType.toString());
             }
         }
     }
 
-    private void handleRowChangeSourceRecord(SchemaTableName schemaTableName, ByteBuffer dataBuffer)
-    {
+    private void handleRowChangeSourceRecord(SchemaTableName schemaTableName, ByteBuffer dataBuffer) {
         tableProvidersManagerImpl.routeRecord(schemaTableName, dataBuffer);
     }
 
-    private void handleRowChangeSourceRecord(ByteBuffer keyBuffer, ByteBuffer dataBuffer)
-    {
+    private void handleRowChangeSourceRecord(ByteBuffer keyBuffer, ByteBuffer dataBuffer) {
         {
             // CODE BLOCK VERSION 2
 //            long tableId = keyBuffer.getLong();

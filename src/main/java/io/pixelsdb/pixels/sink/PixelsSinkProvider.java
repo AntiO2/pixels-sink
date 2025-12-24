@@ -17,7 +17,7 @@
  * License along with Pixels.  If not, see
  * <https://www.gnu.org/licenses/>.
  */
- 
+
 package io.pixelsdb.pixels.sink;
 
 import io.pixelsdb.pixels.common.sink.SinkProvider;
@@ -27,12 +27,10 @@ import io.pixelsdb.pixels.sink.source.SinkSource;
 import io.pixelsdb.pixels.sink.source.SinkSourceFactory;
 import io.pixelsdb.pixels.sink.util.MetricsFacade;
 
-public class PixelsSinkProvider implements SinkProvider
-{
+public class PixelsSinkProvider implements SinkProvider {
     private SinkSource sinkSource;
 
-    public void start(ConfigFactory config)
-    {
+    public void start(ConfigFactory config) {
         PixelsSinkConfigFactory.initialize(config);
         MetricsFacade.getInstance();
         sinkSource = SinkSourceFactory.createSinkSource();
@@ -40,14 +38,12 @@ public class PixelsSinkProvider implements SinkProvider
     }
 
     @Override
-    public void shutdown()
-    {
+    public void shutdown() {
         sinkSource.stopProcessor();
     }
 
     @Override
-    public boolean isRunning()
-    {
+    public boolean isRunning() {
         return sinkSource.isRunning();
     }
 }

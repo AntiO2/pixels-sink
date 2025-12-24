@@ -17,7 +17,7 @@
  * License along with Pixels.  If not, see
  * <https://www.gnu.org/licenses/>.
  */
- 
+
 package io.pixelsdb.pixels.sink.provider;
 
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
@@ -38,8 +38,7 @@ import java.util.Collections;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class TableEventKafkaProvider<T> extends TableEventProvider<Void>
-{
+public class TableEventKafkaProvider<T> extends TableEventProvider<Void> {
     private static final Logger log = LoggerFactory.getLogger(TableEventKafkaProvider.class);
     private final Properties kafkaProperties;
     private final String topic;
@@ -47,8 +46,7 @@ public class TableEventKafkaProvider<T> extends TableEventProvider<Void>
     private final String tableName;
     private KafkaConsumer<String, RowChangeEvent> consumer;
 
-    public TableEventKafkaProvider(Properties kafkaProperties, String topic) throws IOException
-    {
+    public TableEventKafkaProvider(Properties kafkaProperties, String topic) throws IOException {
         PixelsSinkConfig config = PixelsSinkConfigFactory.getInstance();
         this.kafkaProperties = kafkaProperties;
         this.topic = topic;
@@ -59,47 +57,36 @@ public class TableEventKafkaProvider<T> extends TableEventProvider<Void>
     }
 
     @Override
-    protected void processLoop()
-    {
-        try
-        {
+    protected void processLoop() {
+        try {
             consumer = new KafkaConsumer<>(kafkaProperties);
             consumer.subscribe(Collections.singleton(topic));
 
-            while (running.get())
-            {
-                try
-                {
+            while (running.get()) {
+                try {
                     ConsumerRecords<String, RowChangeEvent> records = consumer.poll(Duration.ofSeconds(5));
-                    if (!records.isEmpty())
-                    {
+                    if (!records.isEmpty()) {
                         log.info("{} Consumer poll returned {} records", tableName, records.count());
                         records.forEach(record ->
                         {
-                            if (record.value() == null)
-                            {
+                            if (record.value() == null) {
                                 return;
                             }
                             metricsFacade.recordSerdRowChange();
                             putRowChangeEvent(record.value());
                         });
                     }
-                } catch (InterruptException ignored)
-                {
+                } catch (InterruptException ignored) {
                     Thread.currentThread().interrupt();
                     break;
                 }
             }
-        } catch (WakeupException e)
-        {
+        } catch (WakeupException e) {
             log.info("Consumer wakeup triggered for {}", tableName);
-        } catch (Exception e)
-        {
+        } catch (Exception e) {
             log.info("Exception: {}", e.getMessage());
-        } finally
-        {
-            if (consumer != null)
-            {
+        } finally {
+            if (consumer != null) {
                 consumer.close(Duration.ofSeconds(5));
                 log.info("Kafka consumer closed for {}", tableName);
             }
@@ -107,8 +94,7 @@ public class TableEventKafkaProvider<T> extends TableEventProvider<Void>
     }
 
     @Override
-    RowChangeEvent convertToTargetRecord(Void record)
-    {
+    RowChangeEvent convertToTargetRecord(Void record) {
         throw new UnsupportedOperationException();
     }
 }

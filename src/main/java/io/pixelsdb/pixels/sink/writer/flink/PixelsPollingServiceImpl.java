@@ -17,41 +17,30 @@
  * License along with Pixels.  If not, see
  * <https://www.gnu.org/licenses/>.
  */
- 
+
 package io.pixelsdb.pixels.sink.writer.flink;
 
 import io.grpc.stub.StreamObserver;
 import io.pixelsdb.pixels.common.metadata.SchemaTableName;
+import io.pixelsdb.pixels.sink.PixelsPollingServiceGrpc;
+import io.pixelsdb.pixels.sink.SinkProto;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
-import io.pixelsdb.pixels.sink.SinkProto;
-import io.pixelsdb.pixels.sink.PixelsPollingServiceGrpc;
 import io.pixelsdb.pixels.sink.util.FlushRateLimiter;
-import io.pixelsdb.pixels.sink.writer.flink.FlinkPollingWriter;
-import io.pixelsdb.pixels.sink.util.DataTransform;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.xml.validation.Schema;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-/**
- * 实现了 .proto 文件中定义的 PixelsPollingService 服务。
- * 它处理来自客户端的 PollRequest，并从 FlinkPollingWriter 中拉取数据进行响应。
- */
-// *** 核心修复: 继承自 gRPC 生成的基类 ***
 public class PixelsPollingServiceImpl extends PixelsPollingServiceGrpc.PixelsPollingServiceImplBase {
     private static final Logger LOGGER = LoggerFactory.getLogger(PixelsPollingServiceImpl.class);
     private final FlinkPollingWriter writer;
     private final int pollBatchSize;
     private final long pollTimeoutMs;
     private final FlushRateLimiter flushRateLimiter;
-    /**
-     * 构造函数，注入 FlinkPollingWriter 并初始化服务器端配置。
-     * @param writer 数据缓冲区的实例。
-     */
+
     public PixelsPollingServiceImpl(FlinkPollingWriter writer) {
         if (writer == null) {
             throw new IllegalArgumentException("FlinkPollingWriter cannot be null.");
@@ -73,10 +62,8 @@ public class PixelsPollingServiceImpl extends PixelsPollingServiceGrpc.PixelsPol
         List<SinkProto.RowRecord> records = new ArrayList<>(pollBatchSize);
 
         try {
-            for (int bucketId : request.getBucketsList())
-            {
-                if (records.size() >= pollBatchSize)
-                {
+            for (int bucketId : request.getBucketsList()) {
+                if (records.size() >= pollBatchSize) {
                     break;
                 }
 
@@ -89,15 +76,13 @@ public class PixelsPollingServiceImpl extends PixelsPollingServiceGrpc.PixelsPol
                                 TimeUnit.MILLISECONDS
                         );
 
-                if (polled != null && !polled.isEmpty())
-                {
+                if (polled != null && !polled.isEmpty()) {
                     records.addAll(polled);
                 }
             }
 
             SinkProto.PollResponse.Builder responseBuilder = SinkProto.PollResponse.newBuilder();
-            if(records != null && !records.isEmpty())
-            {
+            if (records != null && !records.isEmpty()) {
                 responseBuilder.addAllRecords(records);
                 this.flushRateLimiter.acquire(records.size());
             }

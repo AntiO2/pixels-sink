@@ -17,20 +17,16 @@
  * License along with Pixels.  If not, see
  * <https://www.gnu.org/licenses/>.
  */
- 
+
 package io.pixelsdb.pixels.sink.event;
 
-import com.google.common.hash.Hashing;
 import com.google.protobuf.ByteString;
 import io.pixelsdb.pixels.common.metadata.SchemaTableName;
 import io.pixelsdb.pixels.common.metadata.domain.SinglePointIndex;
-import io.pixelsdb.pixels.common.node.BucketCache;
 import io.pixelsdb.pixels.common.utils.RetinaUtils;
 import io.pixelsdb.pixels.core.TypeDescription;
 import io.pixelsdb.pixels.index.IndexProto;
 import io.pixelsdb.pixels.sink.SinkProto;
-import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
-import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.exception.SinkException;
 import io.pixelsdb.pixels.sink.metadata.TableMetadata;
 import io.pixelsdb.pixels.sink.metadata.TableMetadataRegistry;
@@ -38,7 +34,6 @@ import io.pixelsdb.pixels.sink.util.MetricsFacade;
 import io.prometheus.client.Summary;
 import lombok.Getter;
 import lombok.Setter;
-import org.apache.logging.log4j.core.util.Assert;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -47,8 +42,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.IntStream;
 
-public class RowChangeEvent
-{
+public class RowChangeEvent {
 
     @Getter
     private final SinkProto.RowRecord rowRecord;
@@ -73,7 +67,7 @@ public class RowChangeEvent
     @Getter
     private IndexProto.IndexKey afterKey;
 
-    private  boolean indexKeyInited = false;
+    private boolean indexKeyInited = false;
 
     @Getter
     private long tableId;
@@ -81,8 +75,7 @@ public class RowChangeEvent
     @Getter
     private SchemaTableName schemaTableName;
 
-    public RowChangeEvent(SinkProto.RowRecord rowRecord) throws SinkException
-    {
+    public RowChangeEvent(SinkProto.RowRecord rowRecord) throws SinkException {
         this.rowRecord = rowRecord;
         TableMetadataRegistry tableMetadataRegistry = TableMetadataRegistry.Instance();
         this.schema = tableMetadataRegistry.getTypeDescription(getSchemaName(), getTable());
@@ -90,8 +83,7 @@ public class RowChangeEvent
         initIndexKey();
     }
 
-    public RowChangeEvent(SinkProto.RowRecord rowRecord, TypeDescription schema) throws SinkException
-    {
+    public RowChangeEvent(SinkProto.RowRecord rowRecord, TypeDescription schema) throws SinkException {
         this.rowRecord = rowRecord;
         this.schema = schema;
 
@@ -99,8 +91,15 @@ public class RowChangeEvent
         // initIndexKey();
     }
 
-    private void init() throws SinkException
-    {
+    protected static int getBucketFromIndexKey(IndexProto.IndexKey indexKey) {
+        return getBucketIdFromByteBuffer(indexKey.getKey());
+    }
+
+    protected static int getBucketIdFromByteBuffer(ByteString byteString) {
+        return RetinaUtils.getBucketIdFromByteBuffer(byteString);
+    }
+
+    private void init() throws SinkException {
         TableMetadataRegistry tableMetadataRegistry = TableMetadataRegistry.Instance();
         this.tableId = tableMetadataRegistry.getTableId(getSchemaName(), getTable());
         this.schemaTableName = new SchemaTableName(getSchemaName(), getTable());
@@ -108,31 +107,25 @@ public class RowChangeEvent
         initColumnValueMap();
     }
 
-    private void initColumnValueMap()
-    {
-        if (hasBeforeData())
-        {
+    private void initColumnValueMap() {
+        if (hasBeforeData()) {
             this.beforeValueMap = new HashMap<>();
             initColumnValueMap(rowRecord.getBefore(), beforeValueMap);
         }
 
-        if (hasAfterData())
-        {
+        if (hasAfterData()) {
             this.afterValueMap = new HashMap<>();
             initColumnValueMap(rowRecord.getAfter(), afterValueMap);
         }
     }
 
-    private void initColumnValueMap(SinkProto.RowValue rowValue, Map<String, SinkProto.ColumnValue> map)
-    {
+    private void initColumnValueMap(SinkProto.RowValue rowValue, Map<String, SinkProto.ColumnValue> map) {
         IntStream.range(0, schema.getFieldNames().size())
                 .forEach(i -> map.put(schema.getFieldNames().get(i), rowValue.getValuesList().get(i)));
     }
 
-    public void initIndexKey() throws SinkException
-    {
-        if(indexKeyInited)
-        {
+    public void initIndexKey() throws SinkException {
+        if (indexKeyInited) {
             return;
         }
 
@@ -140,55 +133,44 @@ public class RowChangeEvent
                 this.rowRecord.getSource().getDb(),
                 this.rowRecord.getSource().getTable());
 
-        if (!this.tableMetadata.hasPrimaryIndex())
-        {
+        if (!this.tableMetadata.hasPrimaryIndex()) {
             return;
         }
-        if (hasBeforeData())
-        {
+        if (hasBeforeData()) {
             this.beforeKey = generateIndexKey(tableMetadata, beforeValueMap);
         }
 
-        if (hasAfterData())
-        {
+        if (hasAfterData()) {
             this.afterKey = generateIndexKey(tableMetadata, afterValueMap);
         }
 
         indexKeyInited = true;
     }
 
-    public void updateIndexKey() throws SinkException
-    {
-        if (hasBeforeData())
-        {
+    public void updateIndexKey() throws SinkException {
+        if (hasBeforeData()) {
             this.beforeKey = generateIndexKey(tableMetadata, beforeValueMap);
         }
 
-        if (hasAfterData())
-        {
+        if (hasAfterData()) {
             this.afterKey = generateIndexKey(tableMetadata, afterValueMap);
         }
     }
 
-    public int getBeforeBucketFromIndex()
-    {
+    public int getBeforeBucketFromIndex() {
         assert indexKeyInited;
-        if(hasBeforeData())
-        {
+        if (hasBeforeData()) {
             return getBucketFromIndexKey(beforeKey);
         }
         throw new IllegalCallerException("Event dosen't have before data");
     }
 
-    public boolean isPkChanged() throws SinkException
-    {
-        if(!indexKeyInited)
-        {
+    public boolean isPkChanged() throws SinkException {
+        if (!indexKeyInited) {
             initIndexKey();
         }
 
-        if(getOp() != SinkProto.OperationType.UPDATE)
-        {
+        if (getOp() != SinkProto.OperationType.UPDATE) {
             return false;
         }
 
@@ -198,44 +180,28 @@ public class RowChangeEvent
         return !beforeKey.equals(afterKey);
     }
 
-    public int getAfterBucketFromIndex()
-    {
+    public int getAfterBucketFromIndex() {
         assert indexKeyInited;
-        if(hasAfterData())
-        {
+        if (hasAfterData()) {
             return getBucketFromIndexKey(afterKey);
         }
         throw new IllegalCallerException("Event dosen't have after data");
     }
 
-    protected static int getBucketFromIndexKey(IndexProto.IndexKey indexKey)
-    {
-        return getBucketIdFromByteBuffer(indexKey.getKey());
-    }
-
-    protected static int getBucketIdFromByteBuffer(ByteString byteString)
-    {
-        return RetinaUtils.getBucketIdFromByteBuffer(byteString);
-    }
-
-
-    private IndexProto.IndexKey generateIndexKey(TableMetadata tableMetadata, Map<String, SinkProto.ColumnValue> rowValue)
-    {
+    private IndexProto.IndexKey generateIndexKey(TableMetadata tableMetadata, Map<String, SinkProto.ColumnValue> rowValue) {
         List<String> keyColumnNames = tableMetadata.getKeyColumnNames();
         SinglePointIndex index = tableMetadata.getIndex();
         int len = keyColumnNames.size();
         List<ByteString> keyColumnValues = new ArrayList<>(len);
         int keySize = 0;
-        for (String keyColumnName : keyColumnNames)
-        {
+        for (String keyColumnName : keyColumnNames) {
             ByteString value = rowValue.get(keyColumnName).getValue();
             keyColumnValues.add(value);
             keySize += value.size();
         }
 
         ByteBuffer byteBuffer = ByteBuffer.allocate(keySize);
-        for (ByteString value : keyColumnValues)
-        {
+        for (ByteString value : keyColumnValues) {
             byteBuffer.put(value.toByteArray());
         }
 
@@ -247,117 +213,96 @@ public class RowChangeEvent
                 .build();
     }
 
-    public String getSourceTable()
-    {
+    public String getSourceTable() {
         return rowRecord.getSource().getTable();
     }
 
-    public SinkProto.TransactionInfo getTransaction()
-    {
+    public SinkProto.TransactionInfo getTransaction() {
         return rowRecord.getTransaction();
     }
 
-    public String getTable()
-    {
+    public String getTable() {
         return rowRecord.getSource().getTable();
     }
 
-    public String getFullTableName()
-    {
+    public String getFullTableName() {
         // TODO(AntiO2): In postgresql, data collection uses schemaName as prefix, while MySQL uses DB as prefix.
         return rowRecord.getSource().getSchema() + "." + rowRecord.getSource().getTable();
         // return getSchemaName() + "." + getTable();
     }
+
     // TODO(AntiO2): How to Map Schema Names Between Source DB and Pixels
-    public String getSchemaName()
-    {
+    public String getSchemaName() {
         return rowRecord.getSource().getDb();
         // return rowRecord.getSource().getSchema();
     }
 
-    public boolean hasError()
-    {
+    public boolean hasError() {
         return false;
     }
 
-    public String getDb()
-    {
+    public String getDb() {
         return rowRecord.getSource().getDb();
     }
 
-    public boolean isDelete()
-    {
+    public boolean isDelete() {
         return getOp() == SinkProto.OperationType.DELETE;
     }
 
-    public boolean isInsert()
-    {
+    public boolean isInsert() {
         return getOp() == SinkProto.OperationType.INSERT;
     }
 
-    public boolean isSnapshot()
-    {
+    public boolean isSnapshot() {
         return getOp() == SinkProto.OperationType.SNAPSHOT;
     }
 
-    public boolean isUpdate()
-    {
+    public boolean isUpdate() {
         return getOp() == SinkProto.OperationType.UPDATE;
     }
 
-    public boolean hasBeforeData()
-    {
+    public boolean hasBeforeData() {
         return isUpdate() || isDelete();
     }
 
-    public boolean hasAfterData()
-    {
+    public boolean hasAfterData() {
         return isUpdate() || isInsert() || isSnapshot();
     }
 
-    public void startLatencyTimer()
-    {
+    public void startLatencyTimer() {
         this.latencyTimer = metricsFacade.startProcessLatencyTimer();
     }
 
-    public void endLatencyTimer()
-    {
-        if (latencyTimer != null)
-        {
+    public void endLatencyTimer() {
+        if (latencyTimer != null) {
             this.latencyTimer.close();
         }
 
     }
 
-    public SinkProto.OperationType getOp()
-    {
+    public SinkProto.OperationType getOp() {
         return rowRecord.getOp();
     }
 
-    public SinkProto.RowValue getBefore()
-    {
+    public SinkProto.RowValue getBefore() {
         return rowRecord.getBefore();
     }
 
-    public SinkProto.RowValue getAfter()
-    {
+    public SinkProto.RowValue getAfter() {
         return rowRecord.getAfter();
     }
 
-    public List<ByteString> getAfterData()
-    {
+    public List<ByteString> getAfterData() {
         List<SinkProto.ColumnValue> colValues = rowRecord.getAfter().getValuesList();
         List<ByteString> colValueList = new ArrayList<>(colValues.size());
-        for (SinkProto.ColumnValue col : colValues)
-        {
+        for (SinkProto.ColumnValue col : colValues) {
             colValueList.add(col.getValue());
         }
         return colValueList;
     }
 
     @Override
-    public String toString()
-    {
+    public String toString() {
         String sb = "RowChangeEvent{" +
                 rowRecord.getSource().getDb() +
                 "." + rowRecord.getSource().getTable() +

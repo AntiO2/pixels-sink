@@ -17,13 +17,12 @@
  * License along with Pixels.  If not, see
  * <https://www.gnu.org/licenses/>.
  */
- 
+
 package io.pixelsdb.pixels.sink.config;
 
 import io.pixelsdb.pixels.sink.event.deserializer.TransactionJsonMessageDeserializer;
 
-public class TransactionConfig
-{
+public class TransactionConfig {
     public static final String DEFAULT_TRANSACTION_TOPIC_SUFFIX = "transaction";
     public static final String DEFAULT_TRANSACTION_TOPIC_VALUE_DESERIALIZER = TransactionJsonMessageDeserializer.class.getName();
     public static final String DEFAULT_TRANSACTION_TOPIC_GROUP_ID = "transaction_consumer";

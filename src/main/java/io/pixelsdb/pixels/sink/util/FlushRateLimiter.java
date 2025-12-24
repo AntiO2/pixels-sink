@@ -17,10 +17,9 @@
  * License along with Pixels.  If not, see
  * <https://www.gnu.org/licenses/>.
  */
- 
+
 package io.pixelsdb.pixels.sink.util;
 
-import com.google.common.util.concurrent.RateLimiter;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import org.slf4j.Logger;
@@ -33,19 +32,15 @@ import java.util.concurrent.TimeUnit;
 
 public class FlushRateLimiter {
     private static final Logger LOGGER = LoggerFactory.getLogger(FlushRateLimiter.class);
-
+    // Configuration derived parameters
+    private static final long REFRESH_PERIOD_MS = 10;
+    private static volatile FlushRateLimiter instance;
     private final Semaphore semaphore;
     private final boolean enableRateLimiter;
     private final ScheduledExecutorService scheduler;
-
-    // Configuration derived parameters
-    private static final long REFRESH_PERIOD_MS = 10;
     private final int replenishmentAmount;
 
-    private static volatile FlushRateLimiter instance;
-
-    private FlushRateLimiter()
-    {
+    private FlushRateLimiter() {
         PixelsSinkConfig pixelsSinkConfig = PixelsSinkConfigFactory.getInstance();
         int sourceRateLimit = pixelsSinkConfig.getSourceRateLimit();
         this.enableRateLimiter = pixelsSinkConfig.isEnableSourceRateLimit();
@@ -62,7 +57,8 @@ public class FlushRateLimiter {
 
         this.semaphore = new Semaphore(this.replenishmentAmount);
 
-        this.scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+        this.scheduler = Executors.newSingleThreadScheduledExecutor(r ->
+        {
             Thread t = Executors.defaultThreadFactory().newThread(r);
             t.setName("Rate-Limiter-Replenish");
             t.setDaemon(true);
@@ -80,20 +76,10 @@ public class FlushRateLimiter {
                 sourceRateLimit, this.replenishmentAmount, REFRESH_PERIOD_MS);
     }
 
-    private void replenishTokens() {
-        if (semaphore != null) {
-            semaphore.release(replenishmentAmount);
-        }
-    }
-
-    public static FlushRateLimiter getInstance()
-    {
-        if(instance == null)
-        {
-            synchronized (FlushRateLimiter.class)
-            {
-                if(instance == null)
-                {
+    public static FlushRateLimiter getInstance() {
+        if (instance == null) {
+            synchronized (FlushRateLimiter.class) {
+                if (instance == null) {
                     instance = new FlushRateLimiter();
                 }
             }
@@ -101,13 +87,17 @@ public class FlushRateLimiter {
         return instance;
     }
 
-    public static FlushRateLimiter getNewInstance()
-    {
+    public static FlushRateLimiter getNewInstance() {
         return new FlushRateLimiter();
     }
 
-    public void acquire(int num)
-    {
+    private void replenishTokens() {
+        if (semaphore != null) {
+            semaphore.release(replenishmentAmount);
+        }
+    }
+
+    public void acquire(int num) {
         if (enableRateLimiter && semaphore != null) {
             try {
                 semaphore.acquire(num);

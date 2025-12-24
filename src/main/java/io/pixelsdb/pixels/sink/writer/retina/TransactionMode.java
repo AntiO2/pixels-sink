@@ -17,21 +17,17 @@
  * License along with Pixels.  If not, see
  * <https://www.gnu.org/licenses/>.
  */
- 
+
 package io.pixelsdb.pixels.sink.writer.retina;
 
-public enum TransactionMode
-{
+public enum TransactionMode {
     SINGLE,
     RECORD,
     BATCH;
 
-    public static TransactionMode fromValue(String value)
-    {
-        for (TransactionMode mode : values())
-        {
-            if (mode.name().equalsIgnoreCase(value))
-            {
+    public static TransactionMode fromValue(String value) {
+        for (TransactionMode mode : values()) {
+            if (mode.name().equalsIgnoreCase(value)) {
                 return mode;
             }
         }

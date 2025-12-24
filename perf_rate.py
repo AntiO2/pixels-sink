@@ -4,7 +4,7 @@ import numpy as np
 from datetime import datetime, date
 
 ##########################################
-# 配置 CSV 文件 和 标签
+# Configuration: CSV Files and Labels
 ##########################################
 csv_files = {
     # "10k": "resulti7i/10k_rate_2.csv",
@@ -20,66 +20,66 @@ csv_files = {
 COL_NAMES = ["time", "rows", "txns", "debezium", "serdRows", "serdTxs"]
 PLOT_COL = "rows"
 
-MAX_SECONDS = 1800          
-SKIP_SECONDS = 10            
-BIN_SECONDS = 60            
+MAX_SECONDS = 1800
+SKIP_SECONDS = 10
+BIN_SECONDS = 60
 
 ##########################################
-# 加载并处理数据
+# Data Loading and Processing
 ##########################################
 data = {}
 for label, path in csv_files.items():
-    print(f"正在处理: {label} -> {path}")
-    
-    # 1. 加载数据
+    print(f"Processing: {label} -> {path}")
+
+    # 1. Load data
     df = pd.read_csv(path, header=None, names=COL_NAMES, sep=',')
 
-    # 2. 【核心修改】处理时间戳并跳过格式不对的行
-    # errors='coerce' 会将无法解析的格式转为 NaT
+    # 2. Handle timestamps and skip rows with incorrect formats
+    # errors='coerce' turns unparseable formats into NaT
     df["ts"] = pd.to_datetime(df["time"], format="%H:%M:%S", errors='coerce')
-    
-    # 剔除无法解析时间的行 (NaT)
+
+    # Remove rows where time could not be parsed (NaT)
     initial_count = len(df)
     df = df.dropna(subset=["ts"]).copy()
     if len(df) < initial_count:
-        print(f"  注意: 跳过了 {initial_count - len(df)} 行格式不正确的数据")
+        print(f"  Note: Skipped {initial_count - len(df)} rows with incorrect data format")
 
-    # 合并日期
+    # Combine with current date
     df["ts"] = df["ts"].dt.time.apply(lambda x: datetime.combine(date.today(), x))
 
-    # 3. 计算相对时间
-    df = df.sort_values("ts") # 确保时间有序
+    # 3. Calculate relative time
+    df = df.sort_values("ts") # Ensure time is ordered
     t0 = df["ts"].iloc[0]
     df["sec"] = (df["ts"] - t0).dt.total_seconds()
 
-    # 4. 过滤时间范围
+    # 4. Filter time range
     df = df[df["sec"] >= SKIP_SECONDS].copy()
     if df.empty:
-        print(f"  警告: {label} 在跳过 {SKIP_SECONDS}s 后没有剩余数据")
+        print(f"  Warning: {label} has no data remaining after skipping {SKIP_SECONDS}s")
         continue
 
     t_new0 = df["ts"].iloc[0]
     df["sec"] = (df["ts"] - t_new0).dt.total_seconds()
     df = df[df["sec"] <= MAX_SECONDS]
 
-    # 5. 【核心修改】重采样聚合
-    # 设置索引前，先确保 PLOT_COL 等数值列是 numeric 类型
-    # 这样可以防止其他列中混入字符串导致 mean() 失败
+    # 5. Resampling and Aggregation
+    # Ensure numeric columns are numeric types before setting index
+    # This prevents mean() failures if strings are mixed in numeric columns
     for col in ["rows", "txns", "debezium", "serdRows", "serdTxs"]:
         df[col] = pd.to_numeric(df[col], errors='coerce')
 
     df = df.set_index("ts")
-    
-    # 只对数值列进行 mean 运算，忽略字符串列（如 time 列）
+
+    # Perform mean calculation on numeric columns only, ignoring strings (like 'time' column)
     df_bin = df.resample(f"{BIN_SECONDS}s").mean(numeric_only=True).reset_index()
 
-    # 6. 对齐横轴
+    # 6. Align horizontal axis
     if not df_bin.empty:
         df_bin["bin_sec"] = (df_bin["ts"] - df_bin["ts"].iloc[0]).dt.total_seconds()
         data[label] = df_bin
 
 ##########################################
-# 图 1：时间序列波动
+# Plot 1: Time Series Fluctuations
 ##########################################
 plt.figure(figsize=(10, 5))
 for label, df in data.items():
@@ -95,7 +95,7 @@ plt.savefig(f"rate_{PLOT_COL}_over_time_variable_bin.png")
 plt.close()
 
 ##########################################
-# 图 2：CDF
+# Plot 2: CDF (Cumulative Distribution Function)
 ##########################################
 plt.figure(figsize=(10, 5))
 for label, df in data.items():
@@ -113,4 +113,4 @@ plt.tight_layout()
 plt.savefig(f"rate_{PLOT_COL}_cdf_variable_bin.png")
 plt.close()
 
-print(f"\n全部完成! 图已生成。")
+print(f"\nAll tasks completed! Plots have been generated.")

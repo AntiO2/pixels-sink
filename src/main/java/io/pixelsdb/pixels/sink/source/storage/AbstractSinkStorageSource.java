@@ -17,7 +17,7 @@
  * License along with Pixels.  If not, see
  * <https://www.gnu.org/licenses/>.
  */
- 
+
 package io.pixelsdb.pixels.sink.source.storage;
 
 import io.pixelsdb.pixels.common.physical.PhysicalReader;
@@ -41,11 +41,13 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.*;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public abstract class AbstractSinkStorageSource implements SinkSource
-{
+public abstract class AbstractSinkStorageSource implements SinkSource {
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractSinkStorageSource.class);
     protected final AtomicBoolean running = new AtomicBoolean(false);
 
@@ -55,20 +57,20 @@ public abstract class AbstractSinkStorageSource implements SinkSource
     protected final List<String> files;
     protected final CompletableFuture<ByteBuffer> POISON_PILL = new CompletableFuture<>();
     protected final Map<Integer, Thread> consumerThreads = new ConcurrentHashMap<>();
-    private final TableMetadataRegistry tableMetadataRegistry = TableMetadataRegistry.Instance();
     protected final Map<Integer, BlockingQueue<Pair<CompletableFuture<ByteBuffer>, Integer>>> queueMap = new ConcurrentHashMap<>();
-    private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
-    private final TableProviderAndProcessorPipelineManager<Pair<ByteBuffer, Integer>> tablePipelineManager = new TableProviderAndProcessorPipelineManager<>();
     protected final boolean storageLoopEnabled;
     protected final FlushRateLimiter sourceRateLimiter;
+    private final TableMetadataRegistry tableMetadataRegistry = TableMetadataRegistry.Instance();
+    private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
+    private final TableProviderAndProcessorPipelineManager<Pair<ByteBuffer, Integer>> tablePipelineManager = new TableProviderAndProcessorPipelineManager<>();
     protected TransactionEventStorageLoopProvider<Pair<ByteBuffer, Integer>> transactionEventProvider;
     protected TransactionProcessor transactionProcessor;
     protected Thread transactionProviderThread;
     protected Thread transactionProcessorThread;
     protected int loopId = 0;
-    protected  List<PhysicalReader> readers = new ArrayList<>();
-    protected AbstractSinkStorageSource()
-    {
+    protected List<PhysicalReader> readers = new ArrayList<>();
+
+    protected AbstractSinkStorageSource() {
         PixelsSinkConfig pixelsSinkConfig = PixelsSinkConfigFactory.getInstance();
         this.topic = pixelsSinkConfig.getSinkProtoData();
         this.baseDir = pixelsSinkConfig.getSinkProtoDir();
@@ -86,82 +88,62 @@ public abstract class AbstractSinkStorageSource implements SinkSource
 
     abstract ProtoType getProtoType(int i);
 
-    protected void clean()
-    {
+    protected void clean() {
         queueMap.values().forEach(q ->
         {
-            try
-            {
+            try {
                 q.put(new Pair<>(POISON_PILL, loopId));
-            }
-            catch (InterruptedException e)
-            {
+            } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
         });
 
         consumerThreads.values().forEach(t ->
         {
-            try
-            {
+            try {
                 t.join();
-            }
-            catch (InterruptedException e)
-            {
+            } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
         });
 
-        for (PhysicalReader reader : readers)
-        {
-            try
-            {
+        for (PhysicalReader reader : readers) {
+            try {
                 reader.close();
-            }
-            catch (IOException e)
-            {
+            } catch (IOException e) {
                 LOGGER.warn("Failed to close reader", e);
             }
         }
     }
 
-    protected void handleTransactionSourceRecord(ByteBuffer record, Integer loopId)
-    {
+    protected void handleTransactionSourceRecord(ByteBuffer record, Integer loopId) {
         transactionEventProvider.putTransRawEvent(new Pair<>(record, loopId));
     }
 
-    protected void consumeQueue(int key, BlockingQueue<Pair<CompletableFuture<ByteBuffer>, Integer>> queue, ProtoType protoType)
-    {
-        try
-        {
-            while (true)
-            {
+    protected void consumeQueue(int key, BlockingQueue<Pair<CompletableFuture<ByteBuffer>, Integer>> queue, ProtoType protoType) {
+        try {
+            while (true) {
                 Pair<CompletableFuture<ByteBuffer>, Integer> pair = queue.take();
                 CompletableFuture<ByteBuffer> value = pair.getLeft();
                 int loopId = pair.getRight();
-                if (value == POISON_PILL)
-                {
+                if (value == POISON_PILL) {
                     break;
                 }
                 ByteBuffer valueBuffer = value.get();
                 metricsFacade.recordDebeziumEvent();
-                switch (protoType)
-                {
+                switch (protoType) {
                     case ROW -> handleRowChangeSourceRecord(key, valueBuffer, loopId);
                     case TRANS -> handleTransactionSourceRecord(valueBuffer, loopId);
                 }
             }
-        } catch (InterruptedException e)
-        {
+        } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-        } catch (ExecutionException e)
-        {
+        } catch (ExecutionException e) {
             LOGGER.error("Error in async processing", e);
         }
     }
 
-    protected ByteBuffer copyToHeap(ByteBuffer directBuffer)
-    {
+    protected ByteBuffer copyToHeap(ByteBuffer directBuffer) {
         ByteBuffer duplicate = directBuffer.duplicate();
         ByteBuffer heapBuffer = ByteBuffer.allocate(duplicate.remaining());
         heapBuffer.put(duplicate);
@@ -169,20 +151,17 @@ public abstract class AbstractSinkStorageSource implements SinkSource
         return heapBuffer;
     }
 
-    protected void handleRowChangeSourceRecord(int key, ByteBuffer dataBuffer, int loopId)
-    {
+    protected void handleRowChangeSourceRecord(int key, ByteBuffer dataBuffer, int loopId) {
         tablePipelineManager.routeRecord(key, new Pair<>(dataBuffer, loopId));
     }
 
     @Override
-    public boolean isRunning()
-    {
+    public boolean isRunning() {
         return running.get();
     }
 
     @Override
-    public void stopProcessor()
-    {
+    public void stopProcessor() {
         running.set(false);
         transactionProviderThread.interrupt();
         transactionProcessorThread.interrupt();

@@ -17,7 +17,7 @@
  * License along with Pixels.  If not, see
  * <https://www.gnu.org/licenses/>.
  */
- 
+
 package io.pixelsdb.pixels.sink.provider;
 
 
@@ -29,25 +29,20 @@ import io.pixelsdb.pixels.sink.event.RowChangeEvent;
  * @author: AntiO2
  * @date: 2025/9/26 07:47
  */
-public abstract class TableEventProvider<SOURCE_RECORD_T> extends EventProvider<SOURCE_RECORD_T, RowChangeEvent>
-{
-    protected void putRowChangeEvent(RowChangeEvent rowChangeEvent)
-    {
+public abstract class TableEventProvider<SOURCE_RECORD_T> extends EventProvider<SOURCE_RECORD_T, RowChangeEvent> {
+    protected void putRowChangeEvent(RowChangeEvent rowChangeEvent) {
         putTargetEvent(rowChangeEvent);
     }
 
-    public RowChangeEvent getRowChangeEvent()
-    {
+    public RowChangeEvent getRowChangeEvent() {
         return getTargetEvent();
     }
 
-    protected void putRawRowChangeEvent(SOURCE_RECORD_T record)
-    {
+    protected void putRawRowChangeEvent(SOURCE_RECORD_T record) {
         putRawEvent(record);
     }
 
-    final protected void recordSerdEvent()
-    {
+    final protected void recordSerdEvent() {
         metricsFacade.recordSerdRowChange();
     }
 }

@@ -17,7 +17,7 @@
  * License along with Pixels.  If not, see
  * <https://www.gnu.org/licenses/>.
  */
- 
+
 package io.pixelsdb.pixels.sink.source.engine;
 
 
@@ -42,8 +42,7 @@ import java.util.List;
  * @author: AntiO2
  * @date: 2025/9/25 12:51
  */
-public class PixelsDebeziumConsumer implements DebeziumEngine.ChangeConsumer<RecordChangeEvent<SourceRecord>>, StoppableProcessor
-{
+public class PixelsDebeziumConsumer implements DebeziumEngine.ChangeConsumer<RecordChangeEvent<SourceRecord>>, StoppableProcessor {
     private final String checkTransactionTopic;
     private final TransactionEventEngineProvider<SourceRecord> transactionEventProvider = TransactionEventEngineProvider.INSTANCE;
     private final TableProviderAndProcessorPipelineManager<SourceRecord> tableProvidersManagerImpl = new TableProviderAndProcessorPipelineManager<>();
@@ -53,8 +52,7 @@ public class PixelsDebeziumConsumer implements DebeziumEngine.ChangeConsumer<Rec
     private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
     PixelsSinkConfig pixelsSinkConfig = PixelsSinkConfigFactory.getInstance();
 
-    public PixelsDebeziumConsumer()
-    {
+    public PixelsDebeziumConsumer() {
         this.checkTransactionTopic = pixelsSinkConfig.getDebeziumTopicPrefix() + ".transaction";
         this.transactionProviderThread = new Thread(this.transactionEventProvider, "transaction-adapter");
         this.transactionProcessorThread = new Thread(this.processor, "transaction-processor");
@@ -65,28 +63,21 @@ public class PixelsDebeziumConsumer implements DebeziumEngine.ChangeConsumer<Rec
 
 
     public void handleBatch(List<RecordChangeEvent<SourceRecord>> event,
-                            DebeziumEngine.RecordCommitter<RecordChangeEvent<SourceRecord>> committer) throws InterruptedException
-    {
-        for (RecordChangeEvent<SourceRecord> record : event)
-        {
-            try
-            {
+                            DebeziumEngine.RecordCommitter<RecordChangeEvent<SourceRecord>> committer) throws InterruptedException {
+        for (RecordChangeEvent<SourceRecord> record : event) {
+            try {
                 SourceRecord sourceRecord = record.record();
-                if (sourceRecord == null)
-                {
+                if (sourceRecord == null) {
                     continue;
                 }
 
                 metricsFacade.recordDebeziumEvent();
-                if (isTransactionEvent(sourceRecord))
-                {
+                if (isTransactionEvent(sourceRecord)) {
                     handleTransactionSourceRecord(sourceRecord);
-                } else
-                {
+                } else {
                     handleRowChangeSourceRecord(sourceRecord);
                 }
-            } finally
-            {
+            } finally {
                 committer.markProcessed(record);
             }
 
@@ -94,13 +85,11 @@ public class PixelsDebeziumConsumer implements DebeziumEngine.ChangeConsumer<Rec
         committer.markBatchFinished();
     }
 
-    private void handleTransactionSourceRecord(SourceRecord sourceRecord) throws InterruptedException
-    {
+    private void handleTransactionSourceRecord(SourceRecord sourceRecord) throws InterruptedException {
         transactionEventProvider.putTransRawEvent(sourceRecord);
     }
 
-    private void handleRowChangeSourceRecord(SourceRecord sourceRecord)
-    {
+    private void handleRowChangeSourceRecord(SourceRecord sourceRecord) {
         Struct value = (Struct) sourceRecord.value();
         Struct source = (Struct) value.get("source");
         String schemaName = source.get("db").toString();
@@ -109,14 +98,12 @@ public class PixelsDebeziumConsumer implements DebeziumEngine.ChangeConsumer<Rec
         tableProvidersManagerImpl.routeRecord(schemaTableName, sourceRecord);
     }
 
-    private boolean isTransactionEvent(SourceRecord sourceRecord)
-    {
+    private boolean isTransactionEvent(SourceRecord sourceRecord) {
         return checkTransactionTopic.equals(sourceRecord.topic());
     }
 
     @Override
-    public void stopProcessor()
-    {
+    public void stopProcessor() {
         transactionProviderThread.interrupt();
         processor.stopProcessor();
         transactionProcessorThread.interrupt();

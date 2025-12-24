@@ -17,23 +17,19 @@
  * License along with Pixels.  If not, see
  * <https://www.gnu.org/licenses/>.
  */
- 
+
 package io.pixelsdb.pixels.sink.exception;
 
-public class SinkException extends Exception
-{
-    public SinkException(String msg)
-    {
+public class SinkException extends Exception {
+    public SinkException(String msg) {
         super(msg);
     }
 
-    public SinkException(String message, Throwable cause)
-    {
+    public SinkException(String message, Throwable cause) {
         super(message, cause);
     }
 
-    public SinkException(Throwable cause)
-    {
+    public SinkException(Throwable cause) {
         super(cause);
     }
 }

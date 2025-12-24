@@ -17,7 +17,7 @@
  * License along with Pixels.  If not, see
  * <https://www.gnu.org/licenses/>.
  */
- 
+
 package io.pixelsdb.pixels.sink.writer.flink;
 
 import io.pixelsdb.pixels.common.metadata.SchemaTableName;
@@ -50,10 +50,8 @@ import java.util.concurrent.TimeUnit;
 public class FlinkPollingWriter extends AbstractBucketedWriter<Void> implements PixelsSinkWriter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(FlinkPollingWriter.class);
-    record TableBucketKey(SchemaTableName table, int bucketId) {}
     // Core data structure: A thread-safe map from table name to a thread-safe blocking queue.
     private final Map<TableBucketKey, BlockingQueue<SinkProto.RowRecord>> tableQueues;
-
     // The gRPC server instance managed by this writer.
     private final PollingRpcServer pollingRpcServer;
 
@@ -71,7 +69,7 @@ public class FlinkPollingWriter extends AbstractBucketedWriter<Void> implements 
             int rpcPort = config.getSinkFlinkServerPort();
             // 2. Create the gRPC service implementation first, passing a reference to this writer.
             PixelsPollingServiceImpl service = new PixelsPollingServiceImpl(this);
-            
+
             // 3. Create the PollingRpcServer instance with the service and port.
             LOGGER.info("Attempting to start gRPC Polling Server on port {}...", rpcPort);
             this.pollingRpcServer = new PollingRpcServer(service, rpcPort);
@@ -101,13 +99,10 @@ public class FlinkPollingWriter extends AbstractBucketedWriter<Void> implements 
             return false;
         }
 
-        try
-        {
+        try {
             writeRowChangeEvent(event, null);
             return true;
-        }
-        catch (Exception e)
-        {
+        } catch (Exception e) {
             LOGGER.error(
                     "Failed to process and write row for table: {}",
                     event.getFullTableName(),
@@ -122,11 +117,11 @@ public class FlinkPollingWriter extends AbstractBucketedWriter<Void> implements 
      * Implements long-polling logic: if the queue is empty, it blocks for a specified timeout.
      * batchSize acts as an upper limit on the number of records pulled to prevent oversized RPC responses.
      *
-     * @param tableName  The name of the table to pull data from
+     * @param tableName The name of the table to pull data from
      * @param bucketId
-     * @param batchSize  The maximum number of records to pull
-     * @param timeout    The maximum time to wait for data
-     * @param unit       The time unit for the timeout
+     * @param batchSize The maximum number of records to pull
+     * @param timeout   The maximum time to wait for data
+     * @param unit      The time unit for the timeout
      * @return A list of RowRecords, which will be empty if no data is available before the timeout.
      * @throws InterruptedException if the thread is interrupted while waiting
      */
@@ -136,22 +131,19 @@ public class FlinkPollingWriter extends AbstractBucketedWriter<Void> implements 
             int batchSize,
             long timeout,
             TimeUnit unit
-    ) throws InterruptedException
-    {
+    ) throws InterruptedException {
         List<SinkProto.RowRecord> records = new ArrayList<>(batchSize);
         TableBucketKey key = new TableBucketKey(tableName, bucketId);
 
         BlockingQueue<SinkProto.RowRecord> queue = tableQueues.get(key);
 
-        if (queue == null)
-        {
+        if (queue == null) {
             unit.sleep(timeout);
             return records;
         }
 
         SinkProto.RowRecord first = queue.poll(timeout, unit);
-        if (first == null)
-        {
+        if (first == null) {
             return records;
         }
 
@@ -164,7 +156,6 @@ public class FlinkPollingWriter extends AbstractBucketedWriter<Void> implements 
         );
         return records;
     }
-
 
     /**
      * This implementation does not involve transactions, so this method is a no-op.
@@ -186,8 +177,7 @@ public class FlinkPollingWriter extends AbstractBucketedWriter<Void> implements 
      * Cleans up resources on close. This is where we stop the gRPC server.
      */
     @Override
-    public void close() throws IOException 
-    {
+    public void close() throws IOException {
         LOGGER.info("Closing FlinkPollingWriter...");
         if (this.pollingRpcServer != null) {
             LOGGER.info("Attempting to shut down the gRPC Polling Server...");
@@ -200,8 +190,7 @@ public class FlinkPollingWriter extends AbstractBucketedWriter<Void> implements 
     }
 
     @Override
-    protected void emit(RowChangeEvent event, int bucketId, Void unused)
-    {
+    protected void emit(RowChangeEvent event, int bucketId, Void unused) {
         TableBucketKey key =
                 new TableBucketKey(event.getSchemaTableName(), bucketId);
 
@@ -211,21 +200,21 @@ public class FlinkPollingWriter extends AbstractBucketedWriter<Void> implements 
                         k -> new LinkedBlockingQueue<>(PixelsSinkConstants.MAX_QUEUE_SIZE)
                 );
 
-        try
-        {
+        try {
             queue.put(event.getRowRecord());
             LOGGER.debug(
                     "Enqueued row for table {}, bucket {}, queueSize={}",
                     event.getFullTableName(), bucketId, queue.size()
             );
-        }
-        catch (InterruptedException e)
-        {
+        } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new RuntimeException(
                     "Interrupted while enqueueing row for " + event.getFullTableName(),
                     e
             );
         }
+    }
+
+    record TableBucketKey(SchemaTableName table, int bucketId) {
     }
 }

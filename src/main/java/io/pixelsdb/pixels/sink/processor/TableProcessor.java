@@ -17,15 +17,11 @@
  * License along with Pixels.  If not, see
  * <https://www.gnu.org/licenses/>.
  */
- 
+
 package io.pixelsdb.pixels.sink.processor;
 
 
-import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
-import io.pixelsdb.pixels.sink.exception.SinkException;
-import io.pixelsdb.pixels.sink.freshness.FreshnessClient;
-import io.pixelsdb.pixels.sink.metadata.TableMetadataRegistry;
 import io.pixelsdb.pixels.sink.provider.TableEventProvider;
 import io.pixelsdb.pixels.sink.util.MetricsFacade;
 import io.pixelsdb.pixels.sink.writer.PixelsSinkWriter;
@@ -41,8 +37,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * @author: AntiO2
  * @date: 2025/9/26 11:01
  */
-public class TableProcessor implements StoppableProcessor, Runnable
-{
+public class TableProcessor implements StoppableProcessor, Runnable {
     private static final Logger LOGGER = LoggerFactory.getLogger(TableProcessor.class);
     private final AtomicBoolean running = new AtomicBoolean(true);
     private final PixelsSinkWriter pixelsSinkWriter;
@@ -50,26 +45,22 @@ public class TableProcessor implements StoppableProcessor, Runnable
     private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
     private Thread processorThread;
     private boolean tableAdded = false;
-    public TableProcessor(TableEventProvider<?> tableEventProvider)
-    {
+
+    public TableProcessor(TableEventProvider<?> tableEventProvider) {
         this.pixelsSinkWriter = PixelsSinkWriterFactory.getWriter();
         this.tableEventProvider = tableEventProvider;
     }
 
     @Override
-    public void run()
-    {
+    public void run() {
         processorThread = new Thread(this::processLoop);
         processorThread.start();
     }
 
-    private void processLoop()
-    {
-        while (running.get())
-        {
+    private void processLoop() {
+        while (running.get()) {
             RowChangeEvent event = tableEventProvider.getRowChangeEvent();
-            if (event == null)
-            {
+            if (event == null) {
                 continue;
             }
             pixelsSinkWriter.writeRow(event);
@@ -78,8 +69,7 @@ public class TableProcessor implements StoppableProcessor, Runnable
     }
 
     @Override
-    public void stopProcessor()
-    {
+    public void stopProcessor() {
         LOGGER.info("Stopping transaction monitor");
         running.set(false);
         processorThread.interrupt();

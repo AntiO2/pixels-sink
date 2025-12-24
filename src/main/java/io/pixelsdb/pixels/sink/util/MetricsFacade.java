@@ -17,7 +17,7 @@
  * License along with Pixels.  If not, see
  * <https://www.gnu.org/licenses/>.
  */
- 
+
 package io.pixelsdb.pixels.sink.util;
 
 import com.google.protobuf.ByteString;
@@ -44,8 +44,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class MetricsFacade
-{
+public class MetricsFacade {
     private static final Logger LOGGER = LoggerFactory.getLogger(MetricsFacade.class);
     private static final PixelsSinkConfig config = PixelsSinkConfigFactory.getInstance();
     private static MetricsFacade instance;
@@ -82,118 +81,115 @@ public class MetricsFacade
     private final String freshnessReportPath;
 
     private final AtomicBoolean running = new AtomicBoolean(false);
-
-    @Setter
-    private SinkContextManager sinkContextManager;
-
     private final Thread reportThread;
     private final Thread freshnessThread;
+    @Setter
+    private SinkContextManager sinkContextManager;
     private long lastRowChangeCount = 0;
     private long lastTransactionCount = 0;
     private long lastDebeziumCount = 0;
     private long lastSerdRowRecordCount = 0;
     private long lastSerdTxRecordCount = 0;
 
-    private MetricsFacade(boolean enabled)
-    {
+    private MetricsFacade(boolean enabled) {
         this.enabled = enabled;
-            this.debeziumEventCounter = Counter.build()
-                    .name("debezium_event_total")
-                    .help("Debezium Event Total")
-                    .register();
+        this.debeziumEventCounter = Counter.build()
+                .name("debezium_event_total")
+                .help("Debezium Event Total")
+                .register();
 
-            this.rowEventCounter = Counter.build()
-                    .name("row_event_total")
-                    .help("Debezium Row Event Total")
-                    .register();
+        this.rowEventCounter = Counter.build()
+                .name("row_event_total")
+                .help("Debezium Row Event Total")
+                .register();
 
-            this.serdRowRecordCounter = Counter.build()
-                    .name("serd_row_record")
-                    .help("Serialized Row Record Total")
-                    .register();
+        this.serdRowRecordCounter = Counter.build()
+                .name("serd_row_record")
+                .help("Serialized Row Record Total")
+                .register();
 
-            this.serdTxRecordCounter = Counter.build()
-                    .name("serd_tx_record")
-                    .help("Serialized Transaction Record Total")
-                    .register();
+        this.serdTxRecordCounter = Counter.build()
+                .name("serd_tx_record")
+                .help("Serialized Transaction Record Total")
+                .register();
 
-            this.tableChangeCounter = Counter.build()
-                    .name("sink_table_changes_total")
-                    .help("Total processed table changes")
-                    .labelNames("table")
-                    .register();
+        this.tableChangeCounter = Counter.build()
+                .name("sink_table_changes_total")
+                .help("Total processed table changes")
+                .labelNames("table")
+                .register();
 
-            this.rowChangeCounter = Counter.build()
-                    .name("sink_row_changes_total")
-                    .help("Total processed row changes")
-                    .labelNames("table", "operation")
-                    .register();
+        this.rowChangeCounter = Counter.build()
+                .name("sink_row_changes_total")
+                .help("Total processed row changes")
+                .labelNames("table", "operation")
+                .register();
 
-            this.transactionCounter = Counter.build()
-                    .name("sink_transactions_total")
-                    .help("Total committed transactions")
-                    .register();
+        this.transactionCounter = Counter.build()
+                .name("sink_transactions_total")
+                .help("Total committed transactions")
+                .register();
 
-            this.processingLatency = Summary.build()
-                    .name("sink_processing_latency_seconds")
-                    .help("End-to-end processing latency")
-                    .quantile(0.5, 0.05)
-                    .quantile(0.75, 0.01)
-                    .quantile(0.95, 0.005)
-                    .quantile(0.99, 0.001)
-                    .register();
+        this.processingLatency = Summary.build()
+                .name("sink_processing_latency_seconds")
+                .help("End-to-end processing latency")
+                .quantile(0.5, 0.05)
+                .quantile(0.75, 0.01)
+                .quantile(0.95, 0.005)
+                .quantile(0.99, 0.001)
+                .register();
 
-            this.rawDataThroughputCounter = Counter.build()
-                    .name("sink_data_throughput_counter")
-                    .help("Data throughput")
-                    .register();
+        this.rawDataThroughputCounter = Counter.build()
+                .name("sink_data_throughput_counter")
+                .help("Data throughput")
+                .register();
 
-            this.transServiceLatency = Summary.build()
-                    .name("trans_service_latency_seconds")
-                    .help("End-to-end processing latency")
-                    .quantile(0.5, 0.05)
-                    .quantile(0.75, 0.01)
-                    .quantile(0.95, 0.005)
-                    .quantile(0.99, 0.001)
-                    .register();
+        this.transServiceLatency = Summary.build()
+                .name("trans_service_latency_seconds")
+                .help("End-to-end processing latency")
+                .quantile(0.5, 0.05)
+                .quantile(0.75, 0.01)
+                .quantile(0.95, 0.005)
+                .quantile(0.99, 0.001)
+                .register();
 
-            this.indexServiceLatency = Summary.build()
-                    .name("index_service_latency_seconds")
-                    .help("End-to-end processing latency")
-                    .quantile(0.5, 0.05)
-                    .quantile(0.75, 0.01)
-                    .quantile(0.95, 0.005)
-                    .quantile(0.99, 0.001)
-                    .register();
+        this.indexServiceLatency = Summary.build()
+                .name("index_service_latency_seconds")
+                .help("End-to-end processing latency")
+                .quantile(0.5, 0.05)
+                .quantile(0.75, 0.01)
+                .quantile(0.95, 0.005)
+                .quantile(0.99, 0.001)
+                .register();
 
-            this.retinaServiceLatency = Summary.build()
-                    .name("retina_service_latency_seconds")
-                    .help("End-to-end processing latency")
-                    .quantile(0.5, 0.05)
-                    .quantile(0.75, 0.01)
-                    .quantile(0.95, 0.005)
-                    .quantile(0.99, 0.001)
-                    .register();
+        this.retinaServiceLatency = Summary.build()
+                .name("retina_service_latency_seconds")
+                .help("End-to-end processing latency")
+                .quantile(0.5, 0.05)
+                .quantile(0.75, 0.01)
+                .quantile(0.95, 0.005)
+                .quantile(0.99, 0.001)
+                .register();
 
-            this.writerLatency = Summary.build()
-                    .name("write_latency_seconds")
-                    .help("Write latency")
-                    .labelNames("table")
-                    .quantile(0.5, 0.05)
-                    .quantile(0.75, 0.01)
-                    .quantile(0.95, 0.005)
-                    .quantile(0.99, 0.001)
-                    .register();
+        this.writerLatency = Summary.build()
+                .name("write_latency_seconds")
+                .help("Write latency")
+                .labelNames("table")
+                .quantile(0.5, 0.05)
+                .quantile(0.75, 0.01)
+                .quantile(0.95, 0.005)
+                .quantile(0.99, 0.001)
+                .register();
 
-            this.totalLatency = Summary.build()
-                    .name("total_latency_seconds")
-                    .help("total latency to ETL a row change event")
-                    .labelNames("table", "operation")
-                    .quantile(0.5, 0.05)
-                    .quantile(0.75, 0.01)
-                    .quantile(0.95, 0.005)
-                    .quantile(0.99, 0.001)
-                    .register();
+        this.totalLatency = Summary.build()
+                .name("total_latency_seconds")
+                .help("total latency to ETL a row change event")
+                .labelNames("table", "operation")
+                .quantile(0.5, 0.05)
+                .quantile(0.75, 0.01)
+                .quantile(0.95, 0.005)
+                .quantile(0.99, 0.001)
+                .register();
 
         this.tableFreshness = Summary.build()
                 .name("data_freshness_latency_ms")
@@ -204,29 +200,27 @@ public class MetricsFacade
                 .quantile(0.99, 0.001)
                 .register();
 
-            this.transactionRowCountHistogram = Histogram.build()
-                    .name("transaction_row_count_histogram")
-                    .help("Distribution of row counts within a single transaction")
-                    .buckets(1, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 200)
-                    .register();
-            this.primaryKeyUpdateDistribution = Histogram.build()
-                    .name("primary_key_update_distribution")
-                    .help("Distribution of primary key updates by logical bucket/hash for hot spot analysis")
-                    .labelNames("table") // Table name tag
-                    .buckets(1, 2, 3, 4, 5, 6, 7, 8, 9, 10) // 10 buckets for distribution
-                    .register();
-            this.freshness = new SynchronizedDescriptiveStatistics();
-            this.rowChangeSpeed = new SynchronizedDescriptiveStatistics();
+        this.transactionRowCountHistogram = Histogram.build()
+                .name("transaction_row_count_histogram")
+                .help("Distribution of row counts within a single transaction")
+                .buckets(1, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 200)
+                .register();
+        this.primaryKeyUpdateDistribution = Histogram.build()
+                .name("primary_key_update_distribution")
+                .help("Distribution of primary key updates by logical bucket/hash for hot spot analysis")
+                .labelNames("table") // Table name tag
+                .buckets(1, 2, 3, 4, 5, 6, 7, 8, 9, 10) // 10 buckets for distribution
+                .register();
+        this.freshness = new SynchronizedDescriptiveStatistics();
+        this.rowChangeSpeed = new SynchronizedDescriptiveStatistics();
 
         freshnessReportInterval = config.getFreshnessReportInterval();
         freshnessReportPath = config.getMonitorFreshnessReportFile();
         freshnessAvg = new OneSecondAverage(freshnessReportInterval);
         freshnessVerbose = config.isSinkMonitorFreshnessVerbose();
-        if(freshnessVerbose)
-        {
+        if (freshnessVerbose) {
             freshnessHistory = new FreshnessHistory();
-        } else
-        {
+        } else {
             freshnessHistory = null;
         }
 
@@ -234,183 +228,145 @@ public class MetricsFacade
         monitorReportEnabled = config.isMonitorReportEnabled();
         monitorReportInterval = config.getMonitorReportInterval();
         monitorReportPath = config.getMonitorReportFile();
-        if (monitorReportEnabled)
-        {
+        if (monitorReportEnabled) {
             running.set(true);
             reportThread = new Thread(this::run, "Metrics Report Thread");
             LOGGER.info("Metrics Report Thread Started");
             reportThread.start();
             freshnessThread = new Thread(this::runFreshness, "Freshness Thread");
             freshnessThread.start();
-        } else
-        {
+        } else {
             reportThread = null;
             freshnessThread = null;
         }
     }
 
-    private static synchronized void initialize()
-    {
-        if (instance == null)
-        {
+    private static synchronized void initialize() {
+        if (instance == null) {
             instance = new MetricsFacade(config.isMonitorEnabled());
             LOGGER.info("Init Metrics Facade");
         }
     }
 
-    public static MetricsFacade getInstance()
-    {
-        if (instance == null)
-        {
+    public static MetricsFacade getInstance() {
+        if (instance == null) {
             initialize();
         }
         return instance;
     }
 
-    public void stop()
-    {
+    public void stop() {
         running.set(false);
-        if (reportThread != null)
-        {
+        if (reportThread != null) {
             reportThread.interrupt();
         }
 
-        if (freshnessThread != null)
-        {
+        if (freshnessThread != null) {
             freshnessThread.interrupt();
         }
         LOGGER.info("Monitor report thread stopped.");
     }
 
-    public void recordDebeziumEvent()
-    {
-        if (enabled && debeziumEventCounter != null)
-        {
+    public void recordDebeziumEvent() {
+        if (enabled && debeziumEventCounter != null) {
             debeziumEventCounter.inc();
         }
     }
 
-    public void recordRowChange(String table, SinkProto.OperationType operation)
-    {
+    public void recordRowChange(String table, SinkProto.OperationType operation) {
         recordRowChange(table, operation, 1);
     }
 
-    public void recordRowChange(String table, SinkProto.OperationType operation, int rows)
-    {
-        if (enabled && rowChangeCounter != null)
-        {
+    public void recordRowChange(String table, SinkProto.OperationType operation, int rows) {
+        if (enabled && rowChangeCounter != null) {
             tableChangeCounter.labels(table).inc(rows);
             rowChangeCounter.labels(table, operation.toString()).inc(rows);
         }
     }
 
-    public void recordSerdRowChange()
-    {
+    public void recordSerdRowChange() {
         recordSerdRowChange(1);
     }
 
-    public void recordSerdRowChange(int i)
-    {
-        if (enabled && serdRowRecordCounter != null)
-        {
+    public void recordSerdRowChange(int i) {
+        if (enabled && serdRowRecordCounter != null) {
             serdRowRecordCounter.inc(i);
         }
     }
 
 
-    public void recordSerdTxChange()
-    {
+    public void recordSerdTxChange() {
         recordSerdTxChange(1);
     }
 
-    public void recordSerdTxChange(int i)
-    {
-        if (enabled && serdTxRecordCounter != null)
-        {
+    public void recordSerdTxChange(int i) {
+        if (enabled && serdTxRecordCounter != null) {
             serdTxRecordCounter.inc(i);
         }
     }
 
 
-    public void recordTransaction(int i)
-    {
-        if (enabled && transactionCounter != null)
-        {
+    public void recordTransaction(int i) {
+        if (enabled && transactionCounter != null) {
             transactionCounter.inc(i);
         }
     }
 
-    public void recordTransaction()
-    {
+    public void recordTransaction() {
         recordTransaction(1);
     }
 
-    public Summary.Timer startProcessLatencyTimer()
-    {
+    public Summary.Timer startProcessLatencyTimer() {
         return enabled ? processingLatency.startTimer() : null;
     }
 
-    public Summary.Timer startIndexLatencyTimer()
-    {
+    public Summary.Timer startIndexLatencyTimer() {
         return enabled ? indexServiceLatency.startTimer() : null;
     }
 
-    public Summary.Timer startTransLatencyTimer()
-    {
+    public Summary.Timer startTransLatencyTimer() {
         return enabled ? transServiceLatency.startTimer() : null;
     }
 
-    public Summary.Timer startRetinaLatencyTimer()
-    {
+    public Summary.Timer startRetinaLatencyTimer() {
         return enabled ? retinaServiceLatency.startTimer() : null;
     }
 
-    public Summary.Timer startWriteLatencyTimer(String tableName)
-    {
+    public Summary.Timer startWriteLatencyTimer(String tableName) {
         return enabled ? writerLatency.labels(tableName).startTimer() : null;
     }
 
-    public void addRawData(double data)
-    {
+    public void addRawData(double data) {
         rawDataThroughputCounter.inc(data);
     }
 
-    public void recordTotalLatency(RowChangeEvent event)
-    {
-        if (event.getTimeStamp() != 0)
-        {
+    public void recordTotalLatency(RowChangeEvent event) {
+        if (event.getTimeStamp() != 0) {
             long recordLatency = System.currentTimeMillis() - event.getTimeStamp();
             totalLatency.labels(event.getFullTableName(), event.getOp().toString()).observe(recordLatency);
         }
     }
 
-    public void recordRowEvent()
-    {
+    public void recordRowEvent() {
         recordRowEvent(1);
     }
 
-    public void recordRowEvent(int i)
-    {
-        if (enabled && rowEventCounter != null)
-        {
+    public void recordRowEvent(int i) {
+        if (enabled && rowEventCounter != null) {
             rowEventCounter.inc(i);
         }
     }
 
-    public int getRecordRowEvent()
-    {
+    public int getRecordRowEvent() {
         return (int) rowEventCounter.get();
     }
 
-    public int getTransactionEvent()
-    {
+    public int getTransactionEvent() {
         return (int) transactionCounter.get();
     }
 
-    public void recordTableFreshness(String table, double freshnessMill)
-    {
-        if(!enabled)
-        {
+    public void recordTableFreshness(String table, double freshnessMill) {
+        if (!enabled) {
             return;
         }
 
@@ -418,20 +374,16 @@ public class MetricsFacade
         recordFreshness(freshnessMill);
     }
 
-    public void recordFreshness(double freshnessMill)
-    {
-        if(enabled && freshness != null)
-        {
+    public void recordFreshness(double freshnessMill) {
+        if (enabled && freshness != null) {
             freshness.addValue(freshnessMill);
         }
 
-        if(freshnessAvg != null)
-        {
+        if (freshnessAvg != null) {
             freshnessAvg.record(freshnessMill);
         }
 
-        if(freshnessVerbose)
-        {
+        if (freshnessVerbose) {
             freshnessHistory.record(freshnessMill);
         }
     }
@@ -471,89 +423,68 @@ public class MetricsFacade
 
         LOGGER.debug("Table {}: PK {} mapped to bucket index {}", table, numericPK, bucketIndex);
     }
-    public void recordTransactionRowCount(int rowCount)
-    {
-        if (enabled && transactionRowCountHistogram != null)
-        {
+
+    public void recordTransactionRowCount(int rowCount) {
+        if (enabled && transactionRowCountHistogram != null) {
             // Use observe() to add the value to the Histogram's configured buckets.
             transactionRowCountHistogram.observe(rowCount);
         }
     }
 
-    public void run()
-    {
-        while (running.get())
-        {
-            try
-            {
+    public void run() {
+        while (running.get()) {
+            try {
                 Thread.sleep(monitorReportInterval);
                 logPerformance();
-            } catch (InterruptedException e)
-            {
+            } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 break;
-            } catch (Throwable t)
-            {
+            } catch (Throwable t) {
                 LOGGER.warn("Error while reporting performance.", t);
             }
         }
     }
 
-    public void runFreshness()
-    {
-        try
-        {
+    public void runFreshness() {
+        try {
             Thread.sleep(monitorReportInterval);
-        } catch (InterruptedException e)
-        {
+        } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
-        while (running.get())
-        {
-            try
-            {
+        while (running.get()) {
+            try {
                 Thread.sleep(freshnessReportInterval);
-                try (FileWriter fw = new FileWriter(freshnessReportPath, true))
-                {
-                    if(freshnessVerbose)
-                    {
+                try (FileWriter fw = new FileWriter(freshnessReportPath, true)) {
+                    if (freshnessVerbose) {
                         List<FreshnessHistory.Record> detailedRecords = freshnessHistory.pollAll();
-                        if (!detailedRecords.isEmpty())
-                        {
-                            for (FreshnessHistory.Record record : detailedRecords)
-                            {
+                        if (!detailedRecords.isEmpty()) {
+                            for (FreshnessHistory.Record record : detailedRecords) {
                                 fw.write(record.toString() + "\n");
                             }
                             fw.flush();
                         }
-                    } else
-                    {
+                    } else {
                         long now = System.currentTimeMillis();
                         double avg = freshnessAvg.getWindowAverage();
-                        if(Double.isNaN(avg))
-                        {
+                        if (Double.isNaN(avg)) {
                             continue;
                         }
                         fw.write(now + "," + avg + "\n");
                         fw.flush();
                     }
-                } catch (IOException e)
-                {
+                } catch (IOException e) {
                     LOGGER.warn("Failed to write perf metrics: " + e.getMessage());
                 }
-            } catch (InterruptedException e)
-            {
+            } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 break;
-            } catch (Throwable t)
-            {
+            } catch (Throwable t) {
                 LOGGER.warn("Error while reporting performance.", t);
             }
         }
     }
 
-    public void logPerformance()
-    {
+    public void logPerformance() {
         long currentRows = (long) rowEventCounter.get();
         long currentTxns = (long) transactionCounter.get();
         long currentDebezium = (long) debeziumEventCounter.get();
@@ -626,12 +557,10 @@ public class MetricsFacade
 
         String time = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
         // Append to CSV for plotting
-        try (FileWriter fw = new FileWriter(monitorReportPath, true))
-        {
+        try (FileWriter fw = new FileWriter(monitorReportPath, true)) {
             fw.write(String.format("%s,%.2f,%.2f,%.2f,%.2f,%.2f%n",
                     time, rowOips, txnOips, dbOips, serdRowsOips, serdTxsOips));
-        } catch (IOException e)
-        {
+        } catch (IOException e) {
             LOGGER.warn("Failed to write perf metrics: " + e.getMessage());
         }
     }

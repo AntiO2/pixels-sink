@@ -17,61 +17,51 @@
  * License along with Pixels.  If not, see
  * <https://www.gnu.org/licenses/>.
  */
- 
- package io.pixelsdb.pixels.sink.util;
 
- import com.google.protobuf.ByteString;
- import io.pixelsdb.pixels.retina.RetinaProto;
- import io.pixelsdb.pixels.sink.SinkProto;
- import java.util.ArrayList;
+package io.pixelsdb.pixels.sink.util;
 
- import java.nio.ByteBuffer;
- import java.util.List;
+import com.google.protobuf.ByteString;
+import io.pixelsdb.pixels.retina.RetinaProto;
+import io.pixelsdb.pixels.sink.SinkProto;
 
- public class DataTransform
- {
-     private static ByteString longToByteString(long value)
-     {
-         byte[] bytes = ByteBuffer.allocate(Long.BYTES).putLong(value).array();
-         return ByteString.copyFrom(bytes);
-     }
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.List;
 
-     @Deprecated
-     public static void updateTimeStamp(List<RetinaProto.TableUpdateData.Builder> updateData, long txStartTime)
-     {
-         ByteString timestampBytes = longToByteString(txStartTime);
+public class DataTransform {
+    private static ByteString longToByteString(long value) {
+        byte[] bytes = ByteBuffer.allocate(Long.BYTES).putLong(value).array();
+        return ByteString.copyFrom(bytes);
+    }
 
-         for (RetinaProto.TableUpdateData.Builder tableUpdateDataBuilder : updateData)
-         {
-             int insertDataCount = tableUpdateDataBuilder.getInsertDataCount();
-             for (int i = 0; i < insertDataCount; i++)
-             {
-                 RetinaProto.InsertData.Builder insertBuilder = tableUpdateDataBuilder.getInsertDataBuilder(i);
-                 int colValueCount = insertBuilder.getColValuesCount();
-                 if (colValueCount > 0)
-                 {
-                     insertBuilder.setColValues(colValueCount - 1, timestampBytes);
-                 }
-             }
+    @Deprecated
+    public static void updateTimeStamp(List<RetinaProto.TableUpdateData.Builder> updateData, long txStartTime) {
+        ByteString timestampBytes = longToByteString(txStartTime);
 
-             int updateDataCount = tableUpdateDataBuilder.getUpdateDataCount();
-             for (int i = 0; i < updateDataCount; i++)
-             {
-                 RetinaProto.UpdateData.Builder updateBuilder = tableUpdateDataBuilder.getUpdateDataBuilder(i);
+        for (RetinaProto.TableUpdateData.Builder tableUpdateDataBuilder : updateData) {
+            int insertDataCount = tableUpdateDataBuilder.getInsertDataCount();
+            for (int i = 0; i < insertDataCount; i++) {
+                RetinaProto.InsertData.Builder insertBuilder = tableUpdateDataBuilder.getInsertDataBuilder(i);
+                int colValueCount = insertBuilder.getColValuesCount();
+                if (colValueCount > 0) {
+                    insertBuilder.setColValues(colValueCount - 1, timestampBytes);
+                }
+            }
 
-                 int colValueCount = updateBuilder.getColValuesCount();
-                 if (colValueCount > 0)
-                 {
-                     updateBuilder.setColValues(colValueCount - 1, timestampBytes);
-                 }
-             }
-         }
-     }
+            int updateDataCount = tableUpdateDataBuilder.getUpdateDataCount();
+            for (int i = 0; i < updateDataCount; i++) {
+                RetinaProto.UpdateData.Builder updateBuilder = tableUpdateDataBuilder.getUpdateDataBuilder(i);
+
+                int colValueCount = updateBuilder.getColValuesCount();
+                if (colValueCount > 0) {
+                    updateBuilder.setColValues(colValueCount - 1, timestampBytes);
+                }
+            }
+        }
+    }
 
 
-
-    public static List<SinkProto.RowRecord> updateRecordTimestamp(List<SinkProto.RowRecord> records, long timestamp)
-    {
+    public static List<SinkProto.RowRecord> updateRecordTimestamp(List<SinkProto.RowRecord> records, long timestamp) {
         if (records == null || records.isEmpty()) {
             return records;
         }
@@ -84,71 +74,65 @@
         return updatedRecords;
     }
 
-     private static SinkProto.ColumnValue getTimestampColumn(long timestamp)
-     {
-         ByteString timestampBytes = longToByteString(timestamp);
-         return SinkProto.ColumnValue.newBuilder().setValue(timestampBytes).build();
-     }
+    private static SinkProto.ColumnValue getTimestampColumn(long timestamp) {
+        ByteString timestampBytes = longToByteString(timestamp);
+        return SinkProto.ColumnValue.newBuilder().setValue(timestampBytes).build();
+    }
 
-     public static SinkProto.RowRecord updateRecordTimestamp(SinkProto.RowRecord record, long timestamp)
-     {
-         if (record == null) {
-             return null;
-         }
-         SinkProto.ColumnValue timestampColumn = getTimestampColumn(timestamp);
-         return updateRecordTimestamp(record, timestampColumn);
-     }
+    public static SinkProto.RowRecord updateRecordTimestamp(SinkProto.RowRecord record, long timestamp) {
+        if (record == null) {
+            return null;
+        }
+        SinkProto.ColumnValue timestampColumn = getTimestampColumn(timestamp);
+        return updateRecordTimestamp(record, timestampColumn);
+    }
 
-     public static void updateRecordTimestamp(SinkProto.RowRecord.Builder recordBuilder, long timestamp)
-     {
-         switch (recordBuilder.getOp()) {
-             case INSERT:
-             case UPDATE:
-             case SNAPSHOT:
-                 if (recordBuilder.hasAfter()) {
-                     SinkProto.RowValue.Builder afterBuilder = recordBuilder.getAfterBuilder();
-                     int colCount = afterBuilder.getValuesCount();
-                     if (colCount > 0) {
-                         afterBuilder.setValues(colCount - 1, getTimestampColumn(timestamp));
-                     }
-                 }
-                 break;
-             case DELETE:
-             default:
-                 break;
-         }
-     }
+    public static void updateRecordTimestamp(SinkProto.RowRecord.Builder recordBuilder, long timestamp) {
+        switch (recordBuilder.getOp()) {
+            case INSERT:
+            case UPDATE:
+            case SNAPSHOT:
+                if (recordBuilder.hasAfter()) {
+                    SinkProto.RowValue.Builder afterBuilder = recordBuilder.getAfterBuilder();
+                    int colCount = afterBuilder.getValuesCount();
+                    if (colCount > 0) {
+                        afterBuilder.setValues(colCount - 1, getTimestampColumn(timestamp));
+                    }
+                }
+                break;
+            case DELETE:
+            default:
+                break;
+        }
+    }
 
-     private static SinkProto.RowRecord updateRecordTimestamp(SinkProto.RowRecord.Builder recordBuilder, SinkProto.ColumnValue timestampColumn)
-     {
-         switch (recordBuilder.getOp()) {
-             case INSERT:
-             case UPDATE:
-             case SNAPSHOT:
-                 if (recordBuilder.hasAfter()) {
-                     SinkProto.RowValue.Builder afterBuilder = recordBuilder.getAfterBuilder();
-                     int colCount = afterBuilder.getValuesCount();
-                     if (colCount > 0) {
-                         afterBuilder.setValues(colCount - 1, timestampColumn);
-                     }
-                 }
-                 break;
-             case DELETE:
-             default:
-                 break;
-         }
-         return recordBuilder.build();
-     }
+    private static SinkProto.RowRecord updateRecordTimestamp(SinkProto.RowRecord.Builder recordBuilder, SinkProto.ColumnValue timestampColumn) {
+        switch (recordBuilder.getOp()) {
+            case INSERT:
+            case UPDATE:
+            case SNAPSHOT:
+                if (recordBuilder.hasAfter()) {
+                    SinkProto.RowValue.Builder afterBuilder = recordBuilder.getAfterBuilder();
+                    int colCount = afterBuilder.getValuesCount();
+                    if (colCount > 0) {
+                        afterBuilder.setValues(colCount - 1, timestampColumn);
+                    }
+                }
+                break;
+            case DELETE:
+            default:
+                break;
+        }
+        return recordBuilder.build();
+    }
 
-     private static SinkProto.RowRecord updateRecordTimestamp(SinkProto.RowRecord record, SinkProto.ColumnValue timestampColumn)
-     {
-         SinkProto.RowRecord.Builder recordBuilder = record.toBuilder();
-         return updateRecordTimestamp(recordBuilder, timestampColumn);
-     }
+    private static SinkProto.RowRecord updateRecordTimestamp(SinkProto.RowRecord record, SinkProto.ColumnValue timestampColumn) {
+        SinkProto.RowRecord.Builder recordBuilder = record.toBuilder();
+        return updateRecordTimestamp(recordBuilder, timestampColumn);
+    }
 
-     public static String extractTableName(String topic)
-     {
-         String[] parts = topic.split("\\.");
-         return parts[parts.length - 1];
-     }
- }
+    public static String extractTableName(String topic) {
+        String[] parts = topic.split("\\.");
+        return parts[parts.length - 1];
+    }
+}

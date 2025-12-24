@@ -17,7 +17,7 @@
  * License along with Pixels.  If not, see
  * <https://www.gnu.org/licenses/>.
  */
- 
+
 
 package io.pixelsdb.pixels.sink.source;
 
@@ -30,8 +30,7 @@ import io.pixelsdb.pixels.sink.processor.StoppableProcessor;
  * @author: AntiO2
  * @date: 2025/9/26 13:45
  */
-public interface SinkSource extends StoppableProcessor
-{
+public interface SinkSource extends StoppableProcessor {
     void start();
 
     boolean isRunning();

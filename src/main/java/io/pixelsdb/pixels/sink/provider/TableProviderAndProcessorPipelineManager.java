@@ -17,18 +17,12 @@
  * License along with Pixels.  If not, see
  * <https://www.gnu.org/licenses/>.
  */
- 
+
 package io.pixelsdb.pixels.sink.provider;
 
 
 import io.pixelsdb.pixels.common.metadata.SchemaTableName;
 import io.pixelsdb.pixels.core.utils.Pair;
-import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
-import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
-import io.pixelsdb.pixels.sink.exception.SinkException;
-import io.pixelsdb.pixels.sink.freshness.FreshnessClient;
-import io.pixelsdb.pixels.sink.metadata.TableMetadata;
-import io.pixelsdb.pixels.sink.metadata.TableMetadataRegistry;
 import io.pixelsdb.pixels.sink.processor.TableProcessor;
 import org.apache.kafka.connect.source.SourceRecord;
 
@@ -43,21 +37,18 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @author: AntiO2
  * @date: 2025/9/26 10:44
  */
-public class TableProviderAndProcessorPipelineManager<SOURCE_RECORD_T>
-{
+public class TableProviderAndProcessorPipelineManager<SOURCE_RECORD_T> {
     protected final Map<Integer, TableProcessor> activeTableProcessors = new ConcurrentHashMap<>();
     protected final Map<SchemaTableName, Integer> tableIds = new ConcurrentHashMap<>();
     private final Map<Integer, TableEventProvider<SOURCE_RECORD_T>> tableProviders = new ConcurrentHashMap<>();
     private final AtomicInteger nextTableId = new AtomicInteger();
 
 
-    public void routeRecord(SchemaTableName schemaTableName, SOURCE_RECORD_T record)
-    {
+    public void routeRecord(SchemaTableName schemaTableName, SOURCE_RECORD_T record) {
         routeRecord(getTableId(schemaTableName), record);
     }
 
-    public void routeRecord(Integer tableId, SOURCE_RECORD_T record)
-    {
+    public void routeRecord(Integer tableId, SOURCE_RECORD_T record) {
         TableEventProvider<SOURCE_RECORD_T> pipeline = tableProviders.computeIfAbsent(tableId, k ->
         {
             TableEventProvider<SOURCE_RECORD_T> newPipeline = createProvider(record);
@@ -71,32 +62,25 @@ public class TableProviderAndProcessorPipelineManager<SOURCE_RECORD_T>
         pipeline.putRawEvent(record);
     }
 
-    private TableEventProvider<SOURCE_RECORD_T> createProvider(SOURCE_RECORD_T record)
-    {
+    private TableEventProvider<SOURCE_RECORD_T> createProvider(SOURCE_RECORD_T record) {
         Class<?> recordType = record.getClass();
-        if (recordType == Pair.class)
-        {
+        if (recordType == Pair.class) {
             return new TableEventStorageLoopProvider<>();
         }
-        if (recordType == SourceRecord.class)
-        {
+        if (recordType == SourceRecord.class) {
             return new TableEventEngineProvider<>();
-        } else if (ByteBuffer.class.isAssignableFrom(recordType))
-        {
+        } else if (ByteBuffer.class.isAssignableFrom(recordType)) {
             return new TableEventStorageProvider<>();
-        } else
-        {
+        } else {
             throw new IllegalArgumentException("Unsupported record type: " + recordType.getName());
         }
     }
 
-    private Integer getTableId(SchemaTableName schemaTableName)
-    {
+    private Integer getTableId(SchemaTableName schemaTableName) {
         return tableIds.computeIfAbsent(schemaTableName, k -> allocateTableId());
     }
 
-    private Integer allocateTableId()
-    {
+    private Integer allocateTableId() {
         return nextTableId.getAndIncrement();
     }
 }

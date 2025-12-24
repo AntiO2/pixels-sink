@@ -17,7 +17,7 @@
  * License along with Pixels.  If not, see
  * <https://www.gnu.org/licenses/>.
  */
- 
+
 package io.pixelsdb.pixels.sink.provider;
 
 
@@ -40,14 +40,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * @author: AntiO2
  * @date: 2025/9/25 13:40
  */
-public class TransactionEventKafkaProvider<T> extends TransactionEventProvider<T>
-{
+public class TransactionEventKafkaProvider<T> extends TransactionEventProvider<T> {
     private final AtomicBoolean running = new AtomicBoolean(true);
     private final String transactionTopic;
     private final KafkaConsumer<String, SinkProto.TransactionMetadata> consumer;
 
-    private TransactionEventKafkaProvider()
-    {
+    private TransactionEventKafkaProvider() {
         Properties kafkaProperties = new Properties();
         PixelsSinkConfig pixelsSinkConfig = PixelsSinkConfigFactory.getInstance();
         this.transactionTopic = pixelsSinkConfig.getTopicPrefix() + "." + pixelsSinkConfig.getTransactionTopicSuffix();
@@ -56,33 +54,25 @@ public class TransactionEventKafkaProvider<T> extends TransactionEventProvider<T
 
 
     @Override
-    public void processLoop()
-    {
+    public void processLoop() {
         consumer.subscribe(Collections.singletonList(transactionTopic));
-        while (running.get())
-        {
-            try
-            {
+        while (running.get()) {
+            try {
 
                 ConsumerRecords<String, SinkProto.TransactionMetadata> records =
                         consumer.poll(Duration.ofMillis(1000));
 
-                for (ConsumerRecord<String, SinkProto.TransactionMetadata> record : records)
-                {
-                    if (record.value() == null)
-                    {
+                for (ConsumerRecord<String, SinkProto.TransactionMetadata> record : records) {
+                    if (record.value() == null) {
                         continue;
                     }
                     putTargetEvent(record.value());
                 }
-            } catch (WakeupException e)
-            {
-                if (running.get())
-                {
+            } catch (WakeupException e) {
+                if (running.get()) {
                     // LOGGER.warn("Consumer wakeup unexpectedly", e);
                 }
-            } catch (Exception e)
-            {
+            } catch (Exception e) {
                 e.printStackTrace();
                 throw new RuntimeException(e);
             }
@@ -90,8 +80,7 @@ public class TransactionEventKafkaProvider<T> extends TransactionEventProvider<T
     }
 
     @Override
-    SinkProto.TransactionMetadata convertToTargetRecord(T record)
-    {
+    SinkProto.TransactionMetadata convertToTargetRecord(T record) {
         throw new UnsupportedOperationException();
     }
 

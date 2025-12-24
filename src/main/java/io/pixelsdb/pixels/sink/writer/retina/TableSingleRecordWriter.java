@@ -17,7 +17,7 @@
  * License along with Pixels.  If not, see
  * <https://www.gnu.org/licenses/>.
  */
- 
+
 package io.pixelsdb.pixels.sink.writer.retina;
 
 import io.pixelsdb.pixels.common.transaction.TransContext;
@@ -35,14 +35,12 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-public class TableSingleRecordWriter extends TableCrossTxWriter
-{
+public class TableSingleRecordWriter extends TableCrossTxWriter {
     @Getter
     private final Logger LOGGER = LoggerFactory.getLogger(TableSingleRecordWriter.class);
     private final TransactionProxy transactionProxy;
 
-    public TableSingleRecordWriter(String t, int bucketId)
-    {
+    public TableSingleRecordWriter(String t, int bucketId) {
         super(t, bucketId);
         this.transactionProxy = TransactionProxy.Instance();
     }
@@ -50,22 +48,18 @@ public class TableSingleRecordWriter extends TableCrossTxWriter
     /**
      * Flush any buffered events for the current transaction.
      */
-    public void flush(List<RowChangeEvent> batch)
-    {
+    public void flush(List<RowChangeEvent> batch) {
         TransContext pixelsTransContext = transactionProxy.getNewTransContext(tableName);
         writeLock.lock();
-        try
-        {
+        try {
             List<RetinaProto.TableUpdateData.Builder> tableUpdateDataBuilderList = new LinkedList<>();
-            for (RowChangeEvent event : batch)
-            {
+            for (RowChangeEvent event : batch) {
                 event.setTimeStamp(pixelsTransContext.getTimestamp());
                 event.updateIndexKey();
             }
 
             RetinaProto.TableUpdateData.Builder builder = buildTableUpdateDataFromBatch(pixelsTransContext, batch);
-            if (builder != null)
-            {
+            if (builder != null) {
                 tableUpdateDataBuilderList.add(builder);
             }
 
@@ -73,8 +67,7 @@ public class TableSingleRecordWriter extends TableCrossTxWriter
             long txStartTime = System.currentTimeMillis();
 
             List<RetinaProto.TableUpdateData> tableUpdateData = new ArrayList<>(tableUpdateDataBuilderList.size());
-            for (RetinaProto.TableUpdateData.Builder tableUpdateDataItem : tableUpdateDataBuilderList)
-            {
+            for (RetinaProto.TableUpdateData.Builder tableUpdateDataItem : tableUpdateDataBuilderList) {
                 tableUpdateData.add(tableUpdateDataItem.build());
             }
 
@@ -84,54 +77,43 @@ public class TableSingleRecordWriter extends TableCrossTxWriter
             updateRecordResponseCompletableFuture.thenAccept(
                     resp ->
                     {
-                        if(freshness_embed)
-                        {
+                        if (freshness_embed) {
                             FreshnessClient.getInstance().addMonitoredTable(tableName);
                         }
 
-                        if (resp.getHeader().getErrorCode() != 0)
-                        {
+                        if (resp.getHeader().getErrorCode() != 0) {
                             transactionProxy.rollbackTrans(pixelsTransContext);
-                        } else
-                        {
+                        } else {
                             metricsFacade.recordRowEvent(batch.size());
                             long txEndTime = System.currentTimeMillis();
-                            if (freshnessLevel.equals("row"))
-                            {
+                            if (freshnessLevel.equals("row")) {
                                 metricsFacade.recordFreshness(txEndTime - txStartTime);
                             }
                             transactionProxy.commitTrans(pixelsTransContext);
-                            if(startWriteLatencyTimer != null)
-                            {
+                            if (startWriteLatencyTimer != null) {
                                 startWriteLatencyTimer.observeDuration();
                             }
                         }
                     }
             );
-        } catch (SinkException e)
-        {
+        } catch (SinkException e) {
             throw new RuntimeException(e);
-        } finally
-        {
+        } finally {
             writeLock.unlock();
         }
     }
 
-    protected RetinaProto.TableUpdateData.Builder buildTableUpdateDataFromBatch(TransContext transContext, List<RowChangeEvent> smallBatch)
-    {
+    protected RetinaProto.TableUpdateData.Builder buildTableUpdateDataFromBatch(TransContext transContext, List<RowChangeEvent> smallBatch) {
         RowChangeEvent event1 = smallBatch.get(0);
         RetinaProto.TableUpdateData.Builder builder = RetinaProto.TableUpdateData.newBuilder()
                 .setTimestamp(transContext.getTimestamp())
                 .setPrimaryIndexId(event1.getTableMetadata().getPrimaryIndexKeyId())
                 .setTableName(tableName);
-        try
-        {
-            for (RowChangeEvent smallEvent : smallBatch)
-            {
+        try {
+            for (RowChangeEvent smallEvent : smallBatch) {
                 addUpdateData(smallEvent, builder);
             }
-        } catch (SinkException e)
-        {
+        } catch (SinkException e) {
             throw new RuntimeException("Flush failed for table " + tableName, e);
         }
         return builder;
