@@ -27,6 +27,7 @@ import io.pixelsdb.pixels.sink.SinkProto;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.util.FlushRateLimiter;
+import io.pixelsdb.pixels.sink.util.MetricsFacade;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,6 +41,7 @@ public class PixelsPollingServiceImpl extends PixelsPollingServiceGrpc.PixelsPol
     private final int pollBatchSize;
     private final long pollTimeoutMs;
     private final FlushRateLimiter flushRateLimiter;
+    private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
 
     public PixelsPollingServiceImpl(FlinkPollingWriter writer) {
         if (writer == null) {
@@ -84,6 +86,8 @@ public class PixelsPollingServiceImpl extends PixelsPollingServiceGrpc.PixelsPol
             SinkProto.PollResponse.Builder responseBuilder = SinkProto.PollResponse.newBuilder();
             if (records != null && !records.isEmpty()) {
                 responseBuilder.addAllRecords(records);
+                metricsFacade.recordRowEvent(records.size());
+                metricsFacade.recordTransaction();
                 this.flushRateLimiter.acquire(records.size());
             }
 
