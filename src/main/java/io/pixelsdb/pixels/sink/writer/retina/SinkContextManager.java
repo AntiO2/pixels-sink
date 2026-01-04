@@ -43,7 +43,7 @@ public class SinkContextManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(SinkContextManager.class);
     private static final Logger BUCKET_TRACE_LOGGER = LoggerFactory.getLogger("bucket_trace");
     private static volatile SinkContextManager instance;
-    private final BlockingBoundedMap<String, SinkContext> activeTxContexts = new BlockingBoundedMap<>(100000);
+    private final BlockingBoundedMap<String, SinkContext> activeTxContexts;
     // private final ConcurrentMap<String, SinkContext> activeTxContexts = new ConcurrentHashMap<>(10000);
     private final TransactionProxy transactionProxy = TransactionProxy.Instance();
     private final CommitMethod commitMethod;
@@ -59,6 +59,7 @@ public class SinkContextManager {
         }
         this.freshnessLevel = config.getSinkMonitorFreshnessLevel();
         this.retinaBucketDispatcher = new RetinaBucketDispatcher();
+        this.activeTxContexts =  new BlockingBoundedMap<>(config.getRetinaTransLimit());
     }
 
     public static SinkContextManager getInstance() {

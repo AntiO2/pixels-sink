@@ -22,6 +22,8 @@ package io.pixelsdb.pixels.sink.provider;
 
 
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
+import io.pixelsdb.pixels.sink.util.rateLimiter.FlushRateLimiter;
+import io.pixelsdb.pixels.sink.util.rateLimiter.FlushRateLimiterFactory;
 
 /**
  * @package: io.pixelsdb.pixels.sink.provider
@@ -30,7 +32,11 @@ import io.pixelsdb.pixels.sink.event.RowChangeEvent;
  * @date: 2025/9/26 07:47
  */
 public abstract class TableEventProvider<SOURCE_RECORD_T> extends EventProvider<SOURCE_RECORD_T, RowChangeEvent> {
+
+    private final FlushRateLimiter flushRateLimiter = FlushRateLimiterFactory.getInstance();
+
     protected void putRowChangeEvent(RowChangeEvent rowChangeEvent) {
+        flushRateLimiter.acquire(1);
         putTargetEvent(rowChangeEvent);
     }
 

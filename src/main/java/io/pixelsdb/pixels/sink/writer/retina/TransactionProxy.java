@@ -51,6 +51,8 @@ public class TransactionProxy {
     private final BlockingQueue<SinkContext> toCommitTransContextQueue;
     private final String freshnessLevel;
     private final int BATCH_SIZE;
+    private final int REQUEST_BATCH_SIZE;
+    private final boolean REQUEST_BATCH;
     private final int WORKER_COUNT;
     private final int MAX_WAIT_MS;
 
@@ -63,6 +65,8 @@ public class TransactionProxy {
         WORKER_COUNT = pixelsSinkConfig.getCommitBatchWorkers();
         MAX_WAIT_MS = pixelsSinkConfig.getCommitBatchDelay();
 
+        REQUEST_BATCH_SIZE = pixelsSinkConfig.getRetinaTransRequestBatchSize();
+        REQUEST_BATCH = pixelsSinkConfig.isRetinaTransRequestBatch();
         this.transService = TransService.Instance();
         this.transContextQueue = new ConcurrentLinkedDeque<>();
         this.toCommitTransContextQueue = new LinkedBlockingQueue<>();
@@ -102,7 +106,7 @@ public class TransactionProxy {
 
     private void requestTransactions() {
         try {
-            List<TransContext> newContexts = transService.beginTransBatch(1000, false);
+            List<TransContext> newContexts = transService.beginTransBatch(REQUEST_BATCH_SIZE, false);
             transContextQueue.addAll(newContexts);
         } catch (TransException e) {
             throw new RuntimeException("Batch request failed", e);
@@ -116,13 +120,13 @@ public class TransactionProxy {
 
     public TransContext getNewTransContext(String txId) {
         beginCount.incrementAndGet();
-        if (true) {
+        if (!REQUEST_BATCH) {
             try {
                 TransContext transContext = transService.beginTrans(false);
                 LOGGER.trace("{} begin {}", txId, transContext.getTransId());
                 return transContext;
             } catch (TransException e) {
-                throw null;
+                return null;
             }
         }
 

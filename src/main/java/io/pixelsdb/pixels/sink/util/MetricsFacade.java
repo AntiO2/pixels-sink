@@ -484,27 +484,45 @@ public class MetricsFacade {
         }
     }
 
+    // Define this as a class member variable
+    private long lastLogTimestampNano = System.nanoTime();
+
     public void logPerformance() {
+        // 1. Calculate actual elapsed time since the last execution
+        long currentTimestampNano = System.nanoTime();
+        long elapsedNano = currentTimestampNano - lastLogTimestampNano;
+
+        // 2. Prevent division by zero and handle edge cases
+        if (elapsedNano <= 0) {
+            return;
+        }
+
+        // Convert nanoseconds to seconds for accurate rate calculation
+        double seconds = elapsedNano / 1_000_000_000.0;
+        lastLogTimestampNano = currentTimestampNano;
+
+        // 3. Capture current counter values
         long currentRows = (long) rowEventCounter.get();
         long currentTxns = (long) transactionCounter.get();
         long currentDebezium = (long) debeziumEventCounter.get();
         long currentSerdRows = (long) serdRowRecordCounter.get();
         long currentSerdTxs = (long) serdTxRecordCounter.get();
 
+        // 4. Calculate the delta (change) since the last log
         long deltaRows = currentRows - lastRowChangeCount;
         long deltaTxns = currentTxns - lastTransactionCount;
         long deltaDebezium = currentDebezium - lastDebeziumCount;
         long deltaSerdRows = currentSerdRows - lastSerdRowRecordCount;
         long deltaSerdTxs = currentSerdTxs - lastSerdTxRecordCount;
 
+        // 5. Update last counts for the next cycle
         lastRowChangeCount = currentRows;
         lastTransactionCount = currentTxns;
         lastDebeziumCount = currentDebezium;
         lastSerdRowRecordCount = currentSerdRows;
         lastSerdTxRecordCount = currentSerdTxs;
 
-        double seconds = monitorReportInterval / 1000.0;
-
+        // 6. Calculate Operations Per Second (OIPS) based on actual seconds elapsed
         double rowOips = deltaRows / seconds;
         double txnOips = deltaTxns / seconds;
         double dbOips = deltaDebezium / seconds;
@@ -513,20 +531,23 @@ public class MetricsFacade {
 
         rowChangeSpeed.addValue(rowOips);
 
+        // 7. Log detailed performance metrics
         LOGGER.info(
                 "Performance report: +{} rows (+{}/s), +{} transactions (+{}/s), +{} debezium (+{}/s)" +
                         ", +{} serdRows (+{}/s), +{} serdTxs (+{}/s)" +
-                        " in {} ms\t activeTxNum: {} min Tx: {}",
+                        " in {} ms (Actual: {} ms)\t activeTxNum: {} min Tx: {}",
                 deltaRows, String.format("%.2f", rowOips),
                 deltaTxns, String.format("%.2f", txnOips),
                 deltaDebezium, String.format("%.2f", dbOips),
                 deltaSerdRows, String.format("%.2f", serdRowsOips),
                 deltaSerdTxs, String.format("%.2f", serdTxsOips),
                 monitorReportInterval,
+                String.format("%.2f", seconds * 1000), // Actual interval in ms
                 sinkContextManager.getActiveTxnsNum(),
                 sinkContextManager.findMinActiveTx()
         );
 
+        // 8. Log statistical summaries
         LOGGER.info(
                 String.format(
                         "Row Per/Second Summary: Max=%.2f, Min=%.2f, Mean=%.2f, P10=%.2f, P50=%.2f, P90=%.2f, P95=%.2f, P99=%.2f",
@@ -541,27 +562,14 @@ public class MetricsFacade {
                 )
         );
 
-        LOGGER.info(
-                String.format(
-                        "Freshness Report: Count=%d, Max=%.2f, Min=%.2f, Mean=%.2f, P50=%.2f, P90=%.2f, P95=%.2f, P99=%.2f",
-                        freshness.getN(),
-                        freshness.getMax(),
-                        freshness.getMin(),
-                        freshness.getMean(),
-                        freshness.getPercentile(50),
-                        freshness.getPercentile(90),
-                        freshness.getPercentile(95),
-                        freshness.getPercentile(99)
-                )
-        );
-
+        // 9. Append metrics to CSV for analysis and plotting
         String time = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
-        // Append to CSV for plotting
         try (FileWriter fw = new FileWriter(monitorReportPath, true)) {
-            fw.write(String.format("%s,%.2f,%.2f,%.2f,%.2f,%.2f%n",
-                    time, rowOips, txnOips, dbOips, serdRowsOips, serdTxsOips));
+            // Format: time, rows/s, txns/s, debezium/s, serdRows/s, serdTxs/s
+            fw.write(String.format("%s,%.2f,%.2f,%.2f,%.2f,%.2f,%.4f%n",
+                    time, rowOips, txnOips, dbOips, serdRowsOips, serdTxsOips, seconds));
         } catch (IOException e) {
-            LOGGER.warn("Failed to write perf metrics: " + e.getMessage());
+            LOGGER.warn("Failed to write performance metrics to CSV: " + e.getMessage());
         }
     }
 }

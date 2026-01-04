@@ -25,8 +25,9 @@ import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
 import io.pixelsdb.pixels.sink.exception.SinkException;
-import io.pixelsdb.pixels.sink.util.FlushRateLimiter;
+import io.pixelsdb.pixels.sink.util.rateLimiter.FlushRateLimiter;
 import io.pixelsdb.pixels.sink.util.MetricsFacade;
+import io.pixelsdb.pixels.sink.util.rateLimiter.FlushRateLimiterFactory;
 import io.pixelsdb.pixels.sink.writer.PixelsSinkWriter;
 import org.apache.commons.lang3.RandomUtils;
 import org.slf4j.Logger;
@@ -43,7 +44,6 @@ public class RetinaWriter implements PixelsSinkWriter {
     final ExecutorService dispatchExecutor = Executors.newCachedThreadPool();
     private final ScheduledExecutorService timeoutScheduler =
             Executors.newSingleThreadScheduledExecutor();
-    private final FlushRateLimiter flushRateLimiter;
     private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
     private final SinkContextManager sinkContextManager;
     private final TransactionMode transactionMode;
@@ -51,7 +51,6 @@ public class RetinaWriter implements PixelsSinkWriter {
     public RetinaWriter() {
         PixelsSinkConfig config = PixelsSinkConfigFactory.getInstance();
         this.sinkContextManager = SinkContextManager.getInstance();
-        this.flushRateLimiter = FlushRateLimiter.getInstance();
         this.transactionMode = config.getTransactionMode();
     }
 

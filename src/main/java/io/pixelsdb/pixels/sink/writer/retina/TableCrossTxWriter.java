@@ -46,10 +46,12 @@ public class TableCrossTxWriter extends TableWriter {
     @Getter
     private final Logger LOGGER = LoggerFactory.getLogger(TableCrossTxWriter.class);
     private final int flushBatchSize;
+    private final InFlightControlManager inFlightControlManager;
 
     public TableCrossTxWriter(String t, int bucketId) {
         super(t, bucketId);
         flushBatchSize = config.getFlushBatchSize();
+        inFlightControlManager = InFlightControlManager.getInstance();
     }
 
     /**
@@ -105,12 +107,15 @@ public class TableCrossTxWriter extends TableWriter {
             for (RetinaProto.TableUpdateData.Builder tableUpdateDataItem : tableUpdateDataBuilderList) {
                 tableUpdateData.add(tableUpdateDataItem.build());
             }
+
+            inFlightControlManager.acquire(1);
             CompletableFuture<RetinaProto.UpdateRecordResponse> updateRecordResponseCompletableFuture =
                     delegate.writeBatchAsync(batch.get(0).getSchemaName(), tableUpdateData);
 
             updateRecordResponseCompletableFuture.thenAccept(
                     resp ->
                     {
+                        inFlightControlManager.release(1);
                         if (resp.getHeader().getErrorCode() != 0) {
                             failCtxs(txIds);
                         } else {

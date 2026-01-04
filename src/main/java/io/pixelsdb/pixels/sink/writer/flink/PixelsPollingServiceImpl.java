@@ -26,8 +26,9 @@ import io.pixelsdb.pixels.sink.PixelsPollingServiceGrpc;
 import io.pixelsdb.pixels.sink.SinkProto;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
-import io.pixelsdb.pixels.sink.util.FlushRateLimiter;
+import io.pixelsdb.pixels.sink.util.rateLimiter.FlushRateLimiter;
 import io.pixelsdb.pixels.sink.util.MetricsFacade;
+import io.pixelsdb.pixels.sink.util.rateLimiter.FlushRateLimiterFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,7 +52,7 @@ public class PixelsPollingServiceImpl extends PixelsPollingServiceGrpc.PixelsPol
         PixelsSinkConfig config = PixelsSinkConfigFactory.getInstance();
         this.pollBatchSize = config.getCommitBatchSize();
         this.pollTimeoutMs = config.getTimeoutMs();
-        this.flushRateLimiter = FlushRateLimiter.getInstance();
+        this.flushRateLimiter = FlushRateLimiterFactory.getInstance();
         LOGGER.info("PixelsPollingServiceImpl initialized. Using 'sink.commit.batch.size' for pollBatchSize ({}) " +
                         "and 'sink.timeout.ms' for pollTimeoutMs ({}).",
                 this.pollBatchSize, this.pollTimeoutMs);

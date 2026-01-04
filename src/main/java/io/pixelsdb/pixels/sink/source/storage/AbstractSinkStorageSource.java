@@ -31,8 +31,9 @@ import io.pixelsdb.pixels.sink.provider.TableProviderAndProcessorPipelineManager
 import io.pixelsdb.pixels.sink.provider.TransactionEventStorageLoopProvider;
 import io.pixelsdb.pixels.sink.source.SinkSource;
 import io.pixelsdb.pixels.sink.util.EtcdFileRegistry;
-import io.pixelsdb.pixels.sink.util.FlushRateLimiter;
+import io.pixelsdb.pixels.sink.util.rateLimiter.FlushRateLimiter;
 import io.pixelsdb.pixels.sink.util.MetricsFacade;
+import io.pixelsdb.pixels.sink.util.rateLimiter.FlushRateLimiterFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -83,7 +84,7 @@ public abstract class AbstractSinkStorageSource implements SinkSource {
 
         this.transactionProcessor = new TransactionProcessor(transactionEventProvider);
         this.transactionProcessorThread = new Thread(transactionProcessor, "debezium-processor");
-        this.sourceRateLimiter = FlushRateLimiter.getNewInstance();
+        this.sourceRateLimiter = FlushRateLimiterFactory.getNewInstance();
     }
 
     abstract ProtoType getProtoType(int i);

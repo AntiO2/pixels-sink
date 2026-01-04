@@ -50,6 +50,12 @@ public class PixelsSinkConfig {
     @ConfigKey(value = "sink.retina.log.queue", defaultValue = "true")
     private boolean retinaLogQueueEnabled;
 
+    @ConfigKey(value = "sink.retina.rpc.limit", defaultValue = "1000")
+    private int retinaRpcLimit;
+
+    @ConfigKey(value = "sink.retina.trans.limit", defaultValue = "1000")
+    private int retinaTransLimit;
+
     @ConfigKey(value = "sink.trans.mode", defaultValue = TransactionConfig.DEFAULT_TRANSACTION_MODE)
     private TransactionMode transactionMode;
 
@@ -116,6 +122,12 @@ public class PixelsSinkConfig {
     @ConfigKey(value = "sink.trans.batch.size", defaultValue = "100")
     private int transBatchSize;
 
+    @ConfigKey(value = "sink.retina.trans.request.batch", defaultValue = "false")
+    private boolean retinaTransRequestBatch;
+
+    @ConfigKey(value = "sink.retina.trans.request.batch.size", defaultValue = "100")
+    private int retinaTransRequestBatchSize;
+
     private boolean retinaEmbedded = false;
 
     @ConfigKey("topic.prefix")
@@ -166,6 +178,9 @@ public class PixelsSinkConfig {
 
     @ConfigKey(value = "sink.datasource.rate.limit", defaultValue = "-1")
     private int sourceRateLimit;
+
+    @ConfigKey(value = "sink.datasource.rate.limit.type", defaultValue = "-1")
+    private String rateLimiterType;
 
     private boolean enableSourceRateLimit;
 
