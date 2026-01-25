@@ -269,8 +269,9 @@ public class FreshnessClient {
                 if (maxFreshnessTs != null) {
                     // Freshness = t_send - data_write_time (maxFreshnessTs)
                     // Result is in milliseconds
+                    long tQueryMillis = System.currentTimeMillis() - tSendMillis;
                     long freshnessMillis = tSendMillis - maxFreshnessTs.getTime();
-                    metricsFacade.recordTableFreshness(tableName, freshnessMillis);
+                    metricsFacade.recordTableFreshness(tableName, freshnessMillis, tQueryMillis);
                 } else {
                     LOGGER.warn("Table {} returned null or zero max(freshness_ts). Skipping freshness calculation.", tableName);
                 }

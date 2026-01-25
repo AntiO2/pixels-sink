@@ -56,3 +56,9 @@ freshness*.png
 rate*.png
 resulti7i/
 cluster*.png
+pixels-sink.out
+/*.png
+/*.csv
+*logs/*.out
+*logs/*.png
+*logs/**/*.png

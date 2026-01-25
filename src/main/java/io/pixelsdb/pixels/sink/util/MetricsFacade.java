@@ -91,6 +91,8 @@ public class MetricsFacade {
     private long lastSerdRowRecordCount = 0;
     private long lastSerdTxRecordCount = 0;
 
+    private boolean pkWarned = false;
+
     private MetricsFacade(boolean enabled) {
         this.enabled = enabled;
         this.debeziumEventCounter = Counter.build()
@@ -374,19 +376,34 @@ public class MetricsFacade {
         recordFreshness(freshnessMill);
     }
 
+    public void recordTableFreshness(
+            String table,
+            double freshnessMill,
+            double queryTimeMill
+    ) {
+        if (!enabled) {
+            return;
+        }
+        tableFreshness.labels(table).observe(freshnessMill);
+        recordFreshness(freshnessMill);
+        if (freshnessVerbose && freshnessHistory != null) {
+            freshnessHistory.record(freshnessMill, queryTimeMill);
+        }
+    }
     public void recordFreshness(double freshnessMill) {
-        if (enabled && freshness != null) {
+        if (!enabled) {
+            return;
+        }
+
+        if (freshness != null) {
             freshness.addValue(freshnessMill);
         }
 
         if (freshnessAvg != null) {
             freshnessAvg.record(freshnessMill);
         }
-
-        if (freshnessVerbose) {
-            freshnessHistory.record(freshnessMill);
-        }
     }
+
 
     public void recordPrimaryKeyUpdateDistribution(String table, ByteString pkValue) {
         if (!enabled || primaryKeyUpdateDistribution == null) {
@@ -408,7 +425,11 @@ public class MetricsFacade {
             } else if (length == Long.BYTES) {
                 numericPK = buffer.getLong();
             } else {
-                LOGGER.warn("Unsupported PK ByteString length {} for table {}. Expected 4 or 8.", length, table);
+                if (!pkWarned)
+                {
+                    LOGGER.warn("Unsupported PK ByteString length {} for table {}. Expected 4 or 8.", length, table);
+                    pkWarned = true;
+                }
                 return;
             }
         } catch (Exception e) {

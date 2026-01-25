@@ -34,6 +34,10 @@ public class DataTransform {
         return ByteString.copyFrom(bytes);
     }
 
+    private static int byteStringToInt(ByteString bytes) {
+        return ByteBuffer.wrap(bytes.toByteArray()).getInt();
+    }
+
     @Deprecated
     public static void updateTimeStamp(List<RetinaProto.TableUpdateData.Builder> updateData, long txStartTime) {
         ByteString timestampBytes = longToByteString(txStartTime);
@@ -105,6 +109,20 @@ public class DataTransform {
                 break;
         }
     }
+
+    public static void transIdToBigint(SinkProto.RowRecord.Builder recordBuilder)
+    {
+
+        if (recordBuilder.hasAfter()) {
+            SinkProto.RowValue.Builder afterBuilder = recordBuilder.getAfterBuilder();
+            afterBuilder.setValues(0, getTimestampColumn(byteStringToInt(afterBuilder.getValues(0).getValue())));
+        }
+        if (recordBuilder.hasBefore()) {
+            SinkProto.RowValue.Builder beforeBuilder = recordBuilder.getBeforeBuilder();
+            beforeBuilder.setValues(0, getTimestampColumn(byteStringToInt(beforeBuilder.getValues(0).getValue())));
+        }
+    }
+
 
     private static SinkProto.RowRecord updateRecordTimestamp(SinkProto.RowRecord.Builder recordBuilder, SinkProto.ColumnValue timestampColumn) {
         switch (recordBuilder.getOp()) {

@@ -6,22 +6,26 @@ import seaborn as sns
 ##########################################
 # Configuration: CSV Files and Labels
 ##########################################
+# csv_files = {
+#     "10k": "result100/fresh_1n4_10k_2.csv",
+#     "20k": "result100/fresh_1n4_20k_2.csv",
+#     "40k": "result100/fresh_1n4_40k.csv",
+#     "80k": "result100/fresh_1n4_80k.csv",
+#     "120k": "result100/fresh_1n4_120k_2.csv",
+#     # "150k": "result100/nouse_fresh_1n4_150k.csv",
+# }
+
 csv_files = {
-    # "10k_2": "resulti7i/10k_freshness.csv",
-    # "10k": "resulti7i/10k_freshness_2.csv",
-    # "20k": "resulti7i/20k_freshness.csv",
-    # "20k": "resulti7i/20k_freshness_2.csv",
-    # "30k": "resulti7i/30k_freshness_2.csv",
-    # "40k": "resulti7i/40k_freshness_2.csv",
-    # "50k": "resulti7i/50k_freshness.csv",
-    # "60k": "resulti7i/60k_freshness_2.csv",
-    # "80k": "resulti7i/80k_freshness_2.csv",
-    # "10k": "resulti7i_100/10k_fresh.csv",
-    # "20k": "resulti7i_100/20k_fresh.csv",
-    # # "30k": "resulti7i_100/30k_fresh.csv",
-    # "40k": "resulti7i_100/40k_fresh.csv",
+    "10k": "result1k2/fresh_1n16_10k_3.csv",
+    "40k": "result1k2/fresh_1n16_40k_3.csv",
+    "80k": "result1k2/fresh_1n16_80k_3.csv",
+    "100k": "result1k2/fresh_1n16_100k_3.csv",
+    "120k": "result1k2/fresh_1n16_120k_3_batch200_flush_10.csv",
+    "200k": "result_res/fresh_200k.csv",
+    # "150k": "result1k2/fresh_1n16_150k_3.csv",
+    # "150k": "result1k2/fresh_1n16_150k_2_batch200_flush_40.csv",
     # "60k": "resulti7i_100/60k_fresh.csv",
-    "100k": "resulti7i_100/100k_fresh.csv",
+    # "100k": "resulti7i_100/100k_fresh.csv",
 }
 # csv_files = {
 #     "Query Transaction": "tmp/i7i_2k_dec_freshness.csv",
@@ -30,10 +34,10 @@ csv_files = {
 #     "Query Selected Table, Trans Mode": "tmp/i7i_2k_batchtest_dec_freshness_2.csv"
 # }
 
-MAX_SECONDS = 1800           # Capture data for the first N seconds
+MAX_SECONDS = 3000           # Capture data for the first N seconds
 SKIP_SECONDS = 10            # Skip the first N seconds (adjustable)
-BIN_SECONDS = 180            # Average window (seconds)
-MAX_FRESHNESS = 500000       # Filter out useless data during initial warmup
+BIN_SECONDS = 3            # Average window (seconds)
+MAX_FRESHNESS = 5000       # Filter out useless data during initial warmup
 ##########################################
 # Data Loading and Processing
 ##########################################
@@ -145,3 +149,40 @@ plt.savefig("freshness_cdf_fixed_ticks.png")
 plt.close()
 
 print("Plots generated: freshness_over_time_smooth.png, freshness_cdf_fixed_ticks.png")
+
+
+##########################################
+# Data Export: Export Raw Filtered Data
+##########################################
+# 提取每个 label 的原始过滤后数据
+raw_columns = {}
+for label, df in data.items():
+    # 注意：这里的 data[label] 存储的是 df_bin
+    # 为了获取原始数据，我们需要在过滤步骤时多存一个副本
+    pass # 见下方完整集成代码
+
+# 建议在循环处理数据时直接保存原始列
+raw_series_list = []
+for label, path in csv_files.items():
+    df_raw = pd.read_csv(path, header=None, names=["ts", "freshness"])
+    df_raw["ts"] = pd.to_datetime(df_raw["ts"], unit="ms")
+    t0 = df_raw["ts"].iloc[0]
+    df_raw["sec"] = (df_raw["ts"] - t0).dt.total_seconds()
+    
+    # 执行您的过滤逻辑
+    mask = (df_raw["sec"] >= SKIP_SECONDS) & \
+           (df_raw["sec"] <= MAX_SECONDS) & \
+           (df_raw["freshness"] <= MAX_FRESHNESS)
+    
+    # 提取符合条件的原始 freshness 数据并重命名列名为 label
+    filtered_series = df_raw.loc[mask, "freshness"].reset_index(drop=True)
+    filtered_series.name = label
+    raw_series_list.append(filtered_series)
+
+# 横向合并数据 (由于行数可能不等，缺失值会填补为 NaN)
+df_export = pd.concat(raw_series_list, axis=1)
+
+# 保存为 CSV
+export_filename = "freshness_raw_filtered.csv"
+df_export.to_csv(export_filename, index=False)
+print(f"Filtered raw data exported to: {export_filename}")

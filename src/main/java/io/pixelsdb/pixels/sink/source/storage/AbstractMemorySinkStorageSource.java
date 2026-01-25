@@ -75,7 +75,10 @@ public abstract class AbstractMemorySinkStorageSource extends AbstractSinkStorag
                     // Synchronous read and copy to heap buffer
                     ByteBuffer valueBuffer = reader.readFully(valueLen);
                     // Store into a single global array
-                    preloadedRecords.add(new Pair<>(key, valueBuffer));
+                    ByteBuffer cleanBuffer = valueBuffer.duplicate();
+                    cleanBuffer.rewind();
+                    cleanBuffer.limit(cleanBuffer.position() + valueLen);
+                    preloadedRecords.add(new Pair<>(key, cleanBuffer));
                 }
             }
 
@@ -89,8 +92,10 @@ public abstract class AbstractMemorySinkStorageSource extends AbstractSinkStorag
             do {
                 for (Pair<Integer, ByteBuffer> record : preloadedRecords) {
                     int key = record.getLeft();
-                    ByteBuffer buffer = record.getRight();
-
+                    ByteBuffer src = record.getRight();
+                    ByteBuffer copy = ByteBuffer.allocate(src.remaining());
+                    copy.put(src.duplicate().rewind());
+                    copy.flip();
                     // Lazily create queue
                     BlockingQueue<Pair<CompletableFuture<ByteBuffer>, Integer>> queue =
                             queueMap.computeIfAbsent(
@@ -115,7 +120,7 @@ public abstract class AbstractMemorySinkStorageSource extends AbstractSinkStorag
 
                     // Use completed future to keep consumer logic unchanged
                     CompletableFuture<ByteBuffer> future =
-                            CompletableFuture.completedFuture(buffer);
+                            CompletableFuture.completedFuture(copy);
 
                     queue.put(new Pair<>(future, loopId));
                 }

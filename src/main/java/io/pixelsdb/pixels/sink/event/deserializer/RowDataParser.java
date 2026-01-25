@@ -84,9 +84,7 @@ class RowDataParser {
 
         switch (type.getCategory()) {
             case INT: {
-                int value = valueNode.asInt();
-                byte[] bytes = ByteBuffer.allocate(Integer.BYTES).putInt(value).array();
-                columnValueBuilder.setValue(ByteString.copyFrom(bytes));
+                buildInt32(valueNode.asInt(), Integer.BYTES, columnValueBuilder);
                 // columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.INT));
                 break;
             }
@@ -142,16 +140,12 @@ class RowDataParser {
             }
             case FLOAT: {
                 float value = (float) valueNode.asDouble();
-                int intBits = Float.floatToIntBits(value);
-                byte[] bytes = ByteBuffer.allocate(4).putInt(intBits).array();
-                columnValueBuilder.setValue(ByteString.copyFrom(bytes));
+                buildFloat32(value, columnValueBuilder);
                 // columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.FLOAT));
                 break;
             }
             case DATE: {
-                int isoDate = valueNode.asInt();
-                byte[] bytes = ByteBuffer.allocate(Integer.BYTES).putInt(isoDate).array();
-                columnValueBuilder.setValue(ByteString.copyFrom(bytes));
+                buildInt32(valueNode.asInt(), Integer.BYTES, columnValueBuilder);
                 // columnValueBuilder.setType(PixelsProto.Type.newBuilder()
                 //        .setKind(PixelsProto.Type.Kind.DATE));
                 break;
@@ -250,11 +244,13 @@ class RowDataParser {
         SinkProto.ColumnValue.Builder columnValueBuilder = SinkProto.ColumnValue.newBuilder();
         switch (type) {
             case INT8:
-            case INT16:
+            case INT16: {
+                buildInt32((Short) record, Integer.BYTES, columnValueBuilder);
+                // columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.INT));
+                break;
+            }
             case INT32: {
-                int value = (Integer) record;
-                byte[] bytes = ByteBuffer.allocate(Integer.BYTES).putInt(value).array();
-                columnValueBuilder.setValue(ByteString.copyFrom(bytes));
+                buildInt32((Integer) record, Integer.BYTES, columnValueBuilder);
                 // columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.INT));
                 break;
             }
@@ -266,6 +262,12 @@ class RowDataParser {
                 break;
             }
             case BYTES: {
+                if (record instanceof BigDecimal)
+                {
+                    float value = ((BigDecimal) record).floatValue();
+                    buildFloat32(value, columnValueBuilder);
+                    break;
+                }
                 byte[] bytes = (byte[]) record;
                 columnValueBuilder.setValue(ByteString.copyFrom(bytes));
                 // columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.BYTE));
@@ -275,7 +277,7 @@ class RowDataParser {
             case STRING: {
                 String value = (String) record;
                 columnValueBuilder.setValue(ByteString.copyFrom(value, StandardCharsets.UTF_8));
-                // columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.STRING));
+//                  columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.STRING));
                 break;
             }
             case STRUCT: {
@@ -292,9 +294,7 @@ class RowDataParser {
             }
             case FLOAT32: {
                 float value = (float) record;
-                int intBits = Float.floatToIntBits(value);
-                byte[] bytes = ByteBuffer.allocate(4).putInt(intBits).array();
-                columnValueBuilder.setValue(ByteString.copyFrom(bytes));
+                buildFloat32(value, columnValueBuilder);
                 // columnValueBuilder.setType(PixelsProto.Type.newBuilder().setKind(PixelsProto.Type.Kind.FLOAT));
                 break;
             }
@@ -303,6 +303,18 @@ class RowDataParser {
         }
 
         return columnValueBuilder;
+    }
+
+    private static void buildFloat32(float value, SinkProto.ColumnValue.Builder columnValueBuilder)
+    {
+        buildInt32(Float.floatToIntBits(value), 4, columnValueBuilder);
+    }
+
+    private static void buildInt32(int value, int capacity, SinkProto.ColumnValue.Builder columnValueBuilder)
+    {
+        int intBits = value;
+        byte[] bytes = ByteBuffer.allocate(capacity).putInt(intBits).array();
+        columnValueBuilder.setValue(ByteString.copyFrom(bytes));
     }
 
     private Map<String, Object> parseDeleteRecord() {

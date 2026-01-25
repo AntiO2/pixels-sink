@@ -21,7 +21,8 @@ package io.pixelsdb.pixels.sink.metadata;
 import com.google.protobuf.ByteString;
 import io.pixelsdb.pixels.common.exception.IndexException;
 import io.pixelsdb.pixels.common.exception.MetadataException;
-import io.pixelsdb.pixels.common.index.IndexService;
+import io.pixelsdb.pixels.common.index.IndexOption;
+import io.pixelsdb.pixels.common.index.service.IndexService;
 import io.pixelsdb.pixels.common.metadata.MetadataService;
 import io.pixelsdb.pixels.common.metadata.domain.Layout;
 import io.pixelsdb.pixels.common.metadata.domain.SinglePointIndex;
@@ -156,12 +157,12 @@ public class TestIndexService
                 .setRgId(rgId)
                 .setFileId(0)
                 .setRgRowOffset(rgoffset);
-
-        boolean b = indexService.putPrimaryIndexEntry(builder.build());
+        IndexOption indexOption = IndexOption.builder().build();
+        boolean b = indexService.putPrimaryIndexEntry(builder.build(), indexOption);
 
         builder.getIndexKeyBuilder().setTimestamp(ts2);
 
-        IndexProto.RowLocation rowLocation = indexService.deletePrimaryIndexEntry(builder.getIndexKey());
+        IndexProto.RowLocation rowLocation = indexService.deletePrimaryIndexEntry(builder.getIndexKey(), indexOption);
 
         boolean pause = false;
     }

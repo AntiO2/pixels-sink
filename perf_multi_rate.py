@@ -8,28 +8,91 @@ from datetime import datetime, date
 ##########################################
 # Configuration: Labels and Base Directory
 ##########################################
+# csv_labels = {
+#     "1 Node": "nodes_1_rate_2.csv",
+#     "2 Nodes": "nodes_2_rate_2.csv",
+#     "4 Nodes": "nodes_4_rate_2.csv",
+#     "8 Nodes": "nodes_8_rate_2.csv",
+#     # "16 Nodes 8WB": "nodes_16_rate_2.csv",
+#     # "16 Nodes 16WB": "nodes_16_rate_3.csv",
+#     # "16 Nodes": "nodes_16_rate_4.csv",
+#     "16 Nodes": "nodes_16_rate_16c.csv",
+
+# }
+
 csv_labels = {
-    "1 Node": "nodes_1_rate_2.csv",
-    "2 Nodes": "nodes_2_rate_2.csv",
-    "4 Nodes": "nodes_4_rate_2.csv",
-    "8 Nodes": "nodes_8_rate_2.csv",
-    # "16 Nodes 8WB": "nodes_16_rate_2.csv",
-    # "16 Nodes 16WB": "nodes_16_rate_3.csv",
-    # "16 Nodes": "nodes_16_rate_4.csv",
-    "16 Nodes": "nodes_16_rate_16c.csv",
+    # "4 Node 6 Client": "test_rate_4nodes_6c.csv",
+    "100k": "test_rate_1n16_1c_batch50.csv",
+    "120k": "rate_1n16_120k_batch500.csv",
+    "160k 2Client": "rate_1n16c2_160k_batch500.csv",
+    "180k 3Client": "rate_1n16c3_180k_batch500.csv",
+    "200k 2Client": "rate_1n16c2_200k_batch500.csv",
+    "240k 3Client": "rate_1n16c3_240k_batch500.csv",
 }
 
+csv_labels = {
+    "1Node" : "rate_1n16_120k_batch500.csv",
+    "2Nodes": "rate_2n162c_250k.csv",
+    "4Nodes": "rate_4n162c_500k.csv",
+    "8Nodes": "rate_8n164c.csv",
+    # "16Nodes": "rate_16n168c_250k.csv",
+    # "16Nodes_2": "rate_16n168c.csv",
+    # "16Nodes_2": "rate_16n168c_180k.csv",
+    "16Nodes": "rate_16n168c_500k.csv"
+}
 LOG_BASE_DIR = "collected-logs"
 # Added "interval_sec" to handle the precise delta time from Java logs
 COL_NAMES_NEW = ["time", "rows", "txns", "debezium", "serdRows", "serdTxs", "interval_sec"]
 NUMERIC_COLS = ["rows", "txns", "debezium", "serdRows", "serdTxs"]
 PLOT_COL = "rows" # This represents 'rows' ops
 
-MAX_SECONDS = 2100
-SKIP_SECONDS = 0
-BIN_SECONDS = 20
+MAX_SECONDS = 1800
+SKIP_SECONDS = 30
+BIN_SECONDS = 5
 
 data = {}
+
+
+
+def export_scalability_matrix(data_dict, output_file="scalability_results.csv"):
+    """
+    将处理后的 data 对象转换为按列排列的 CSV (1Node, 2Nodes, 4Nodes...)
+    """
+    # 1. 自动识别并排序节点维度 (1, 2, 4, 8, 16)
+    # 通过正则表达式从 label 中提取数字
+    def get_node_count(label):
+        import re
+        nums = re.findall(r'\d+', label)
+        return int(nums[0]) if nums else 999
+
+    sorted_labels = sorted(data_dict.keys(), key=get_node_count)
+    
+    # 2. 对齐各实验的样本行数 (取各组数据的最小行数，保证矩阵对齐)
+    min_len = min([len(data_dict[label][PLOT_COL]) for label in sorted_labels])
+    print(f"\n[Export] 对齐样本行数: {min_len}")
+
+    # 3. 构造结果矩阵
+    matrix_data = {}
+    for label in sorted_labels:
+        # 获取该实验下的吞吐量序列
+        series = data_dict[label][PLOT_COL].dropna().values
+        # 只截取 min_len 长度
+        matrix_data[label] = series[:min_len].astype(int)
+
+    # 4. 转换为 DataFrame 并导出
+    df_result = pd.DataFrame(matrix_data)
+    
+    # 按照您要求的格式重命名列头 (1node, 2node...)
+    rename_map = {lbl: f"{get_node_count(lbl)}node" for lbl in sorted_labels}
+    df_result = df_result.rename(columns=rename_map)
+
+    # 导出
+    df_result.to_csv(output_file, index=False)
+    
+    print(f"--- 性能数据矩阵 (前5行) ---")
+    print(df_result.head(5))
+    print(f"---------------------------")
+    print(f"CSV 文件已生成: {output_file}")
 
 for label, filename in csv_labels.items():
     print(f"Processing Experiment: {label}")
@@ -207,3 +270,50 @@ plt.legend()
 plt.grid(True, linestyle='--', alpha=0.7)
 plt.tight_layout()
 plt.savefig(f"cluster_rate_{PLOT_COL}_time_units.png")
+
+##########################################
+# Plot 3: Scalability (Using Filtered Data)
+##########################################
+plt.figure(figsize=(10, 6))
+
+# 1. 提取并解析节点数
+node_results = []
+for label, df in data.items():
+    # 从 label (如 "16 Nodes") 中提取数字 16
+    node_num = int(''.join(filter(str.isdigit, label)))
+    # 使用你过滤并重采样后的数据列
+    series = df[PLOT_COL].dropna()
+    node_results.append((node_num, series.values))
+
+# 2. 排序确保连线正确
+node_results.sort(key=lambda x: x[0])
+sorted_nodes = [x[0] for x in node_results]
+sorted_values = [x[1] for x in node_results]
+means = [np.mean(v) for v in sorted_values]
+
+# 3. 绘图
+box = plt.boxplot(sorted_values, positions=sorted_nodes, widths=np.array(sorted_nodes) * 0.2)
+
+# 绘制均值趋势线
+plt.plot(sorted_nodes, means, marker='o', markersize=8, linestyle='-', 
+         linewidth=2, label='Mean Throughput (Filtered)', color='#1f77b4')
+
+# 4. 坐标轴与美化 (使用 log2 比例展示扩展性)
+plt.xscale('log', base=2)
+plt.xticks(sorted_nodes, labels=[f"{n}N" for n in sorted_nodes])
+# plt.yscale('log') # 吞吐量通常用 log 轴看线性增长斜率
+
+# 格式化 Y 轴（取消科学计数法，或者使用你之前的 100k 逻辑）
+plt.gca().yaxis.set_major_formatter(ticker.ScalarFormatter())
+plt.ticklabel_format(style='plain', axis='y')
+
+plt.xlabel("Cluster Size (Nodes, log2 scale)")
+plt.ylabel(f"Filtered {PLOT_COL} (Ops/s, {BIN_SECONDS}s bin)")
+plt.title(f"Throughput Scalability: {PLOT_COL} (Filtered Data)")
+plt.grid(True, which="both", linestyle='--', alpha=0.5)
+plt.legend()
+plt.tight_layout()
+
+plt.savefig(f"cluster_scalability_{PLOT_COL}_final.png")
+
+export_scalability_matrix(data)

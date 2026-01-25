@@ -91,7 +91,11 @@ public class NoneWriter implements PixelsSinkWriter {
         metricsFacade.recordRowChange(rowChangeEvent.getTable(), rowChangeEvent.getOp());
         try {
             rowChangeEvent.initIndexKey();
-            metricsFacade.recordPrimaryKeyUpdateDistribution(rowChangeEvent.getTable(), rowChangeEvent.getAfterKey().getKey());
+            if (rowChangeEvent.getAfterKey() != null)
+            {
+                metricsFacade.recordPrimaryKeyUpdateDistribution(rowChangeEvent.getTable(), rowChangeEvent.getAfterKey().getKey());
+            }
+
 
             // Get transaction ID and table name
             String transId = rowChangeEvent.getTransaction().getId();

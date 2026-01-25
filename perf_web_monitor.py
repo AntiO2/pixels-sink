@@ -5,7 +5,7 @@ from functools import lru_cache
 from time import time
 
 # Configuration
-DATA_DIR = "/home/ubuntu/pixels-sink/resulti7i_100"
+DATA_DIR = "/home/ubuntu/pixels-sink/result1k2"
 # DATA_DIR = "/home/antio2/projects/pixels-sink/tmp"
 PORT = 8083
 CACHE_TTL = 5  # seconds
@@ -16,7 +16,7 @@ app = Flask(__name__, template_folder='develop')
 @lru_cache(maxsize=64)
 def _read_csv_cached(path, mtime):
     """Read CSV with simple caching by modification time."""
-    df = pd.read_csv(path, names=["time", "rows", "txns", "debezium", "serdRows", "serdTxs"])
+    df = pd.read_csv(path, names=["time", "rows", "txns", "debezium", "serdRows", "serdTxs", "last"])
     # Take only the last 300 records for real-time display
     df = df.tail(300)
 

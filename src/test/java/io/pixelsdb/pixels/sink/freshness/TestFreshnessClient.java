@@ -24,22 +24,15 @@ import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.util.MetricsFacade;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.MockedStatic;
-import org.mockito.Mockito;
 
+import java.io.FileWriter;
 import java.io.IOException;
-import java.lang.reflect.Field;
+import java.io.PrintWriter;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.concurrent.ScheduledExecutorService;
-
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.*;
 
 // We extend FreshnessClient to access the protected queryAndCalculateFreshness method
 public class TestFreshnessClient
@@ -61,13 +54,17 @@ public class TestFreshnessClient
         // Initialization as per the user's template
         PixelsSinkConfigFactory.initialize("/home/ubuntu/pixels-sink/conf/pixels-sink.aws.properties");
     }
+
     @Test
-    public void testFreshnessCalculationSuccess() throws Exception {
+    public void testFreshnessCalculationSuccess() throws Exception
+    {
 
         FreshnessClient freshnessClient = FreshnessClient.getInstance();
         freshnessClient.addMonitoredTable("customer");
         freshnessClient.start();
-        while(true){}
+        while (true)
+        {
+        }
     }
 
     @Test
@@ -79,5 +76,53 @@ public class TestFreshnessClient
         Statement statement = connection.createStatement();
         ResultSet resultSet = statement.executeQuery(query);
         resultSet.next();
+    }
+
+    @Test
+    public void testLoanTransQueryPerformance() throws SQLException
+    {
+        FreshnessClient freshnessClient = FreshnessClient.getInstance();
+        Connection connection = freshnessClient.createNewConnection(12345689100L);
+        String query = "SELECT max(freshness_ts) FROM loantrans";
+        String csvFileName = "loantrans_query_results.csv";
+        int iterations = 1000;
+        try (PrintWriter writer = new PrintWriter(new FileWriter(csvFileName)))
+        {
+
+            for (int i = 0; i < iterations; i++)
+            {
+                long startTime = System.currentTimeMillis();
+                long startNano = System.nanoTime();
+
+                long maxFreshnessTs = 0;
+                try (Statement statement = connection.createStatement();
+                     ResultSet resultSet = statement.executeQuery(query))
+                {
+
+                    if (resultSet.next())
+                    {
+                        maxFreshnessTs = resultSet.getLong(1);
+                    }
+                } catch (SQLException e)
+                {
+                    System.err.println("Query failed at iteration " + i + ": " + e.getMessage());
+                }
+
+                long endNano = System.nanoTime();
+                long durationMs = (endNano - startNano) / 1_000_000;
+                writer.printf("%d,%d,%d%n", startTime, maxFreshnessTs, durationMs);
+                writer.flush();
+            }
+            System.out.println("Test completed. Results saved to: " + csvFileName);
+        } catch (IOException e)
+        {
+            e.printStackTrace();
+        } finally
+        {
+            if (connection != null && !connection.isClosed())
+            {
+                connection.close();
+            }
+        }
     }
 }

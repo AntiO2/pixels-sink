@@ -31,12 +31,10 @@ import io.pixelsdb.pixels.sink.util.rateLimiter.FlushRateLimiterFactory;
  * @author: AntiO2
  * @date: 2025/9/26 07:47
  */
-public abstract class TableEventProvider<SOURCE_RECORD_T> extends EventProvider<SOURCE_RECORD_T, RowChangeEvent> {
-
-    private final FlushRateLimiter flushRateLimiter = FlushRateLimiterFactory.getInstance();
+public abstract class TableEventProvider<SOURCE_RECORD_T> extends EventProvider<SOURCE_RECORD_T, RowChangeEvent>
+{
 
     protected void putRowChangeEvent(RowChangeEvent rowChangeEvent) {
-        flushRateLimiter.acquire(1);
         putTargetEvent(rowChangeEvent);
     }
 

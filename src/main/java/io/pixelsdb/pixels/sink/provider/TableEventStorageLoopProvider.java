@@ -54,6 +54,7 @@ public class TableEventStorageLoopProvider<T> extends TableEventProvider<T> {
     RowChangeEvent convertToTargetRecord(T record) {
         Pair<ByteBuffer, Integer> pairRecord = (Pair<ByteBuffer, Integer>) record;
         ByteBuffer sourceRecord = pairRecord.getLeft();
+        sourceRecord.rewind();
         Integer loopId = pairRecord.getRight();
         try {
             SinkProto.RowRecord rowRecord = SinkProto.RowRecord.parseFrom(sourceRecord);
@@ -62,6 +63,11 @@ public class TableEventStorageLoopProvider<T> extends TableEventProvider<T> {
             if (freshness_timestamp) {
                 DataTransform.updateRecordTimestamp(rowRecordBuilder, System.currentTimeMillis() * 1000);
             }
+
+//            if(rowRecord.getSource().getTable().equals("transfer"))
+//            {
+//                DataTransform.transIdToBigint(rowRecordBuilder);
+//            }
 
             SinkProto.TransactionInfo.Builder transactionBuilder = rowRecordBuilder.getTransactionBuilder();
             String id = transactionBuilder.getId();

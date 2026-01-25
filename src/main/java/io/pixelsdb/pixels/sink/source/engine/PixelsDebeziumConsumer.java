@@ -91,7 +91,12 @@ public class PixelsDebeziumConsumer implements DebeziumEngine.ChangeConsumer<Rec
 
     private void handleRowChangeSourceRecord(SourceRecord sourceRecord) {
         Struct value = (Struct) sourceRecord.value();
-        Struct source = (Struct) value.get("source");
+        if(value == null)
+        {
+            return; // Delete Record, We will handle it in next record
+        }
+        Object sourceObject = value.get("source");
+        Struct source = (Struct) sourceObject;
         String schemaName = source.get("db").toString();
         String tableName = source.get("table").toString();
         SchemaTableName schemaTableName = new SchemaTableName(schemaName, tableName);
