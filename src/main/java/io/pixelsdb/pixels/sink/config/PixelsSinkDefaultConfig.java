@@ -20,7 +20,8 @@
 
 package io.pixelsdb.pixels.sink.config;
 
-public class PixelsSinkDefaultConfig {
+public class PixelsSinkDefaultConfig
+{
     public static final String DATA_SOURCE = "kafka";
     public static final String PROPERTIES_PATH = "pixels-sink.properties";
     public static final String CSV_SINK_PATH = "./data";

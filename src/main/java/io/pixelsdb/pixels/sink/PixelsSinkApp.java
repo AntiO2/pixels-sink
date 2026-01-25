@@ -41,31 +41,38 @@ import java.io.IOException;
 /**
  * Run PixelsSink as a server
  */
-public class PixelsSinkApp {
+public class PixelsSinkApp
+{
     private static final Logger LOGGER = LoggerFactory.getLogger(PixelsSinkApp.class);
     private static SinkSource sinkSource;
     private static HTTPServer prometheusHttpServer;
     private static FreshnessClient freshnessClient;
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws IOException
+    {
         Runtime.getRuntime().addShutdownHook(new Thread(() ->
         {
             PixelsSinkConfig config = PixelsSinkConfigFactory.getInstance();
             TransactionProxy.staticClose();
             sinkSource.stopProcessor();
             LOGGER.info("Pixels Sink Server shutdown complete");
-            if (config.getSinkMonitorFreshnessLevel().equals("embed") && freshnessClient != null) {
+            if (config.getSinkMonitorFreshnessLevel().equals("embed") && freshnessClient != null)
+            {
                 freshnessClient.stop();
             }
-            if (prometheusHttpServer != null) {
+            if (prometheusHttpServer != null)
+            {
                 prometheusHttpServer.close();
             }
             MetricsFacade.getInstance().stop();
             PixelsSinkWriter pixelsSinkWriter = PixelsSinkWriterFactory.getWriter();
-            if (pixelsSinkWriter != null) {
-                try {
+            if (pixelsSinkWriter != null)
+            {
+                try
+                {
                     pixelsSinkWriter.close();
-                } catch (IOException e) {
+                } catch (IOException e)
+                {
                     throw new RuntimeException(e);
                 }
             }
@@ -76,23 +83,28 @@ public class PixelsSinkApp {
         PixelsSinkConfig config = PixelsSinkConfigFactory.getInstance();
         sinkSource = SinkSourceFactory.createSinkSource();
 
-        try {
-            if (config.isMonitorEnabled()) {
+        try
+        {
+            if (config.isMonitorEnabled())
+            {
                 DefaultExports.initialize();
                 prometheusHttpServer = new HTTPServer(config.getMonitorPort());
             }
-        } catch (IOException e) {
+        } catch (IOException e)
+        {
             throw new RuntimeException(e);
         }
 
-        if (config.getSinkMonitorFreshnessLevel().equals("embed")) {
+        if (config.getSinkMonitorFreshnessLevel().equals("embed"))
+        {
             freshnessClient = FreshnessClient.getInstance();
             freshnessClient.start();
         }
         sinkSource.start();
     }
 
-    private static void init(String[] args) throws IOException {
+    private static void init(String[] args) throws IOException
+    {
         CommandLineConfig cmdLineConfig = new CommandLineConfig(args);
         PixelsSinkConfigFactory.initialize(cmdLineConfig.getConfigPath());
         MetricsFacade metricsFacade = MetricsFacade.getInstance();

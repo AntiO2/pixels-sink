@@ -25,11 +25,11 @@ import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 
 import java.util.concurrent.Semaphore;
 
-public class InFlightControlManager {
-
-    private final Semaphore semaphore;
+public class InFlightControlManager
+{
 
     private static volatile InFlightControlManager instance;
+    private final Semaphore semaphore;
 
     private InFlightControlManager()
     {
@@ -38,10 +38,14 @@ public class InFlightControlManager {
         this.semaphore = new Semaphore(MAX_IN_FLIGHT);
     }
 
-    public static InFlightControlManager getInstance() {
-        if (instance == null) {
-            synchronized (InFlightControlManager.class) {
-                if (instance == null) {
+    public static InFlightControlManager getInstance()
+    {
+        if (instance == null)
+        {
+            synchronized (InFlightControlManager.class)
+            {
+                if (instance == null)
+                {
                     instance = new InFlightControlManager();
                 }
             }
@@ -49,7 +53,8 @@ public class InFlightControlManager {
         return instance;
     }
 
-    public void acquire(int permits) {
+    public void acquire(int permits)
+    {
         try
         {
             semaphore.acquire(permits);
@@ -59,7 +64,8 @@ public class InFlightControlManager {
         }
     }
 
-    public void release(int permits) {
+    public void release(int permits)
+    {
         semaphore.release(permits);
     }
 }

@@ -22,8 +22,6 @@ package io.pixelsdb.pixels.sink.provider;
 
 
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
-import io.pixelsdb.pixels.sink.util.rateLimiter.FlushRateLimiter;
-import io.pixelsdb.pixels.sink.util.rateLimiter.FlushRateLimiterFactory;
 
 /**
  * @package: io.pixelsdb.pixels.sink.provider
@@ -34,19 +32,23 @@ import io.pixelsdb.pixels.sink.util.rateLimiter.FlushRateLimiterFactory;
 public abstract class TableEventProvider<SOURCE_RECORD_T> extends EventProvider<SOURCE_RECORD_T, RowChangeEvent>
 {
 
-    protected void putRowChangeEvent(RowChangeEvent rowChangeEvent) {
+    protected void putRowChangeEvent(RowChangeEvent rowChangeEvent)
+    {
         putTargetEvent(rowChangeEvent);
     }
 
-    public RowChangeEvent getRowChangeEvent() {
+    public RowChangeEvent getRowChangeEvent()
+    {
         return getTargetEvent();
     }
 
-    protected void putRawRowChangeEvent(SOURCE_RECORD_T record) {
+    protected void putRawRowChangeEvent(SOURCE_RECORD_T record)
+    {
         putRawEvent(record);
     }
 
-    final protected void recordSerdEvent() {
+    final protected void recordSerdEvent()
+    {
         metricsFacade.recordSerdRowChange();
     }
 }

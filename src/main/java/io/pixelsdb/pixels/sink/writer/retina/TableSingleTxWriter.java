@@ -30,26 +30,31 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 
-public class TableSingleTxWriter extends TableWriter {
+public class TableSingleTxWriter extends TableWriter
+{
     private static final long TX_TIMEOUT_MS = 3000;
     @Getter
     private final Logger LOGGER = LoggerFactory.getLogger(TableSingleTxWriter.class);
 
-    public TableSingleTxWriter(String tableName, int bucketId) {
+    public TableSingleTxWriter(String tableName, int bucketId)
+    {
         super(tableName, bucketId);
     }
 
     /**
      * Flush any buffered events for the current transaction.
      */
-    public void flush(List<RowChangeEvent> batchToFlush) {
+    public void flush(List<RowChangeEvent> batchToFlush)
+    {
         List<RowChangeEvent> batch;
         String txId;
         RetinaProto.TableUpdateData.Builder toBuild;
         SinkContext sinkContext = null;
         bufferLock.lock();
-        try {
-            if (buffer.isEmpty() || currentTxId == null) {
+        try
+        {
+            if (buffer.isEmpty() || currentTxId == null)
+            {
                 return;
             }
             txId = currentTxId;
@@ -57,21 +62,26 @@ public class TableSingleTxWriter extends TableWriter {
 
             sinkContext = SinkContextManager.getInstance().getSinkContext(txId);
             sinkContext.getLock().lock();
-            try {
-                while (sinkContext.getPixelsTransCtx() == null) {
+            try
+            {
+                while (sinkContext.getPixelsTransCtx() == null)
+                {
                     LOGGER.warn("Wait for prev tx to begin trans: {}", txId);
                     sinkContext.getCond().await();
                 }
-            } finally {
+            } finally
+            {
                 sinkContext.getLock().unlock();
             }
 
             // Swap buffers quickly under lock
             batch = buffer;
             buffer = new ArrayList<>();
-        } catch (InterruptedException e) {
+        } catch (InterruptedException e)
+        {
             throw new RuntimeException(e);
-        } finally {
+        } finally
+        {
             bufferLock.unlock();
         }
 
@@ -82,8 +92,10 @@ public class TableSingleTxWriter extends TableWriter {
                 .setTableName(tableName);
 
 
-        try {
-            for (RowChangeEvent event : batch) {
+        try
+        {
+            for (RowChangeEvent event : batch)
+            {
                 addUpdateData(event, builder);
             }
             List<RetinaProto.TableUpdateData> tableUpdateData = List.of(builder.build());
@@ -91,14 +103,17 @@ public class TableSingleTxWriter extends TableWriter {
             sinkContext.updateCounter(fullTableName, batch.size());
             // ---- Outside lock: build proto and write ----
             LOGGER.info("Flushing {} events for table {} txId={}", batch.size(), fullTableName, txId);
-        } catch (SinkException e) {
+        } catch (SinkException e)
+        {
             throw new RuntimeException("Flush failed for table " + tableName, e);
         }
     }
 
     @Override
-    protected boolean needFlush() {
-        if (currentTxId == null || !currentTxId.equals(txId)) {
+    protected boolean needFlush()
+    {
+        if (currentTxId == null || !currentTxId.equals(txId))
+        {
             return !buffer.isEmpty();
         }
         return false;

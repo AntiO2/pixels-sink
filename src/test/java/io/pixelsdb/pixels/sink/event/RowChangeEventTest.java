@@ -21,7 +21,6 @@
 package io.pixelsdb.pixels.sink.event;
 
 import com.google.protobuf.ByteString;
-import io.pixelsdb.pixels.index.IndexProto;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -45,7 +44,7 @@ public class RowChangeEventTest
     @Test
     public void testSameHash()
     {
-        for(int i = 0; i < 10; ++i)
+        for (int i = 0; i < 10; ++i)
         {
             ByteString indexKey = getIndexKey(0);
             int bucket = RowChangeEvent.getBucketIdFromByteBuffer(indexKey);

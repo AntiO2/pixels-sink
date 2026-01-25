@@ -26,8 +26,8 @@ import io.pixelsdb.pixels.sink.PixelsPollingServiceGrpc;
 import io.pixelsdb.pixels.sink.SinkProto;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
-import io.pixelsdb.pixels.sink.util.rateLimiter.FlushRateLimiter;
 import io.pixelsdb.pixels.sink.util.MetricsFacade;
+import io.pixelsdb.pixels.sink.util.rateLimiter.FlushRateLimiter;
 import io.pixelsdb.pixels.sink.util.rateLimiter.FlushRateLimiterFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,7 +36,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-public class PixelsPollingServiceImpl extends PixelsPollingServiceGrpc.PixelsPollingServiceImplBase {
+public class PixelsPollingServiceImpl extends PixelsPollingServiceGrpc.PixelsPollingServiceImplBase
+{
     private static final Logger LOGGER = LoggerFactory.getLogger(PixelsPollingServiceImpl.class);
     private final FlinkPollingWriter writer;
     private final int pollBatchSize;
@@ -44,8 +45,10 @@ public class PixelsPollingServiceImpl extends PixelsPollingServiceGrpc.PixelsPol
     private final FlushRateLimiter flushRateLimiter;
     private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
 
-    public PixelsPollingServiceImpl(FlinkPollingWriter writer) {
-        if (writer == null) {
+    public PixelsPollingServiceImpl(FlinkPollingWriter writer)
+    {
+        if (writer == null)
+        {
             throw new IllegalArgumentException("FlinkPollingWriter cannot be null.");
         }
         this.writer = writer;
@@ -59,14 +62,18 @@ public class PixelsPollingServiceImpl extends PixelsPollingServiceGrpc.PixelsPol
     }
 
     @Override
-    public void pollEvents(SinkProto.PollRequest request, StreamObserver<SinkProto.PollResponse> responseObserver) {
+    public void pollEvents(SinkProto.PollRequest request, StreamObserver<SinkProto.PollResponse> responseObserver)
+    {
         SchemaTableName schemaTableName = new SchemaTableName(request.getSchemaName(), request.getTableName());
         LOGGER.debug("Received poll request for table '{}'", schemaTableName);
         List<SinkProto.RowRecord> records = new ArrayList<>(pollBatchSize);
 
-        try {
-            for (int bucketId : request.getBucketsList()) {
-                if (records.size() >= pollBatchSize) {
+        try
+        {
+            for (int bucketId : request.getBucketsList())
+            {
+                if (records.size() >= pollBatchSize)
+                {
                     break;
                 }
 
@@ -79,13 +86,15 @@ public class PixelsPollingServiceImpl extends PixelsPollingServiceGrpc.PixelsPol
                                 TimeUnit.MILLISECONDS
                         );
 
-                if (polled != null && !polled.isEmpty()) {
+                if (polled != null && !polled.isEmpty())
+                {
                     records.addAll(polled);
                 }
             }
 
             SinkProto.PollResponse.Builder responseBuilder = SinkProto.PollResponse.newBuilder();
-            if (records != null && !records.isEmpty()) {
+            if (records != null && !records.isEmpty())
+            {
                 responseBuilder.addAllRecords(records);
                 metricsFacade.recordRowEvent(records.size());
                 metricsFacade.recordTransaction();
@@ -94,13 +103,15 @@ public class PixelsPollingServiceImpl extends PixelsPollingServiceGrpc.PixelsPol
 
             responseObserver.onNext(responseBuilder.build());
             responseObserver.onCompleted();
-        } catch (InterruptedException e) {
+        } catch (InterruptedException e)
+        {
             Thread.currentThread().interrupt();
             LOGGER.error("Polling thread was interrupted for table: " + schemaTableName, e);
             responseObserver.onError(io.grpc.Status.INTERNAL
                     .withDescription("Server polling was interrupted")
                     .asRuntimeException());
-        } catch (Exception e) {
+        } catch (Exception e)
+        {
             LOGGER.error("An unexpected error occurred while polling for table: " + schemaTableName, e);
             responseObserver.onError(io.grpc.Status.UNKNOWN
                     .withDescription("An unexpected error occurred: " + e.getMessage())

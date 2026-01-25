@@ -27,26 +27,32 @@ package io.pixelsdb.pixels.sink.provider;
  * @author: AntiO2
  * @date: 2025/10/5 12:56
  */
-public enum ProtoType {
+public enum ProtoType
+{
     ROW(0),
     TRANS(1);
 
     private final int value;
 
-    ProtoType(int value) {
+    ProtoType(int value)
+    {
         this.value = value;
     }
 
-    public static ProtoType fromInt(int value) {
-        for (ProtoType type : ProtoType.values()) {
-            if (type.value == value) {
+    public static ProtoType fromInt(int value)
+    {
+        for (ProtoType type : ProtoType.values())
+        {
+            if (type.value == value)
+            {
                 return type;
             }
         }
         throw new IllegalArgumentException("Unknown ProtoType value: " + value);
     }
 
-    public int toInt() {
+    public int toInt()
+    {
         return value;
     }
 }

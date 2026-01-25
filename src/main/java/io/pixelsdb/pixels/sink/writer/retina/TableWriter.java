@@ -26,7 +26,6 @@ import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
 import io.pixelsdb.pixels.sink.exception.SinkException;
-import io.pixelsdb.pixels.sink.util.rateLimiter.FlushRateLimiter;
 import io.pixelsdb.pixels.sink.util.MetricsFacade;
 import org.slf4j.Logger;
 
@@ -46,7 +45,8 @@ import java.util.concurrent.locks.ReentrantLock;
  * @author: AntiO2
  * @date: 2025/9/27 09:58
  */
-public abstract class TableWriter {
+public abstract class TableWriter
+{
 
     protected final RetinaServiceProxy delegate; // physical writer
     protected final ReentrantLock bufferLock = new ReentrantLock();
@@ -70,7 +70,8 @@ public abstract class TableWriter {
     protected MetricsFacade metricsFacade = MetricsFacade.getInstance();
     protected TransactionMode transactionMode;
 
-    protected TableWriter(String tableName, int bucketId) {
+    protected TableWriter(String tableName, int bucketId)
+    {
         this.config = PixelsSinkConfigFactory.getInstance();
         this.tableName = tableName;
         this.flushInterval = config.getFlushIntervalMs();
@@ -79,12 +80,15 @@ public abstract class TableWriter {
         this.delegate = new RetinaServiceProxy(bucketId);
         this.transactionMode = config.getTransactionMode();
         String sinkMonitorFreshnessLevel = config.getSinkMonitorFreshnessLevel();
-        if (sinkMonitorFreshnessLevel.equals("embed")) {
+        if (sinkMonitorFreshnessLevel.equals("embed"))
+        {
             freshness_embed = true;
-        } else {
+        } else
+        {
             freshness_embed = false;
         }
-        if (this.config.isMonitorReportEnabled() && this.config.isRetinaLogQueueEnabled()) {
+        if (this.config.isMonitorReportEnabled() && this.config.isRetinaLogQueueEnabled())
+        {
             long interval = this.config.getMonitorReportInterval();
             Runnable monitorTask = writerInfoTask(tableName);
             logScheduler.scheduleAtFixedRate(
@@ -102,33 +106,41 @@ public abstract class TableWriter {
      * Helper: add insert/delete data into proto builder.
      */
     protected static void addUpdateData(RowChangeEvent rowChangeEvent,
-                                        RetinaProto.TableUpdateData.Builder builder) throws SinkException {
-        switch (rowChangeEvent.getOp()) {
-            case SNAPSHOT, INSERT -> {
+                                        RetinaProto.TableUpdateData.Builder builder) throws SinkException
+    {
+        switch (rowChangeEvent.getOp())
+        {
+            case SNAPSHOT, INSERT ->
+            {
                 RetinaProto.InsertData.Builder insertDataBuilder = RetinaProto.InsertData.newBuilder();
                 insertDataBuilder.addIndexKeys(rowChangeEvent.getAfterKey());
                 insertDataBuilder.addAllColValues(rowChangeEvent.getAfterData());
                 builder.addInsertData(insertDataBuilder);
             }
-            case UPDATE -> {
+            case UPDATE ->
+            {
                 RetinaProto.UpdateData.Builder updateDataBuilder = RetinaProto.UpdateData.newBuilder();
                 updateDataBuilder.addIndexKeys(rowChangeEvent.getAfterKey());
                 updateDataBuilder.addAllColValues(rowChangeEvent.getAfterData());
                 builder.addUpdateData(updateDataBuilder);
             }
-            case DELETE -> {
+            case DELETE ->
+            {
                 RetinaProto.DeleteData.Builder deleteDataBuilder = RetinaProto.DeleteData.newBuilder();
                 deleteDataBuilder.addIndexKeys(rowChangeEvent.getBeforeKey());
                 builder.addDeleteData(deleteDataBuilder);
             }
-            case UNRECOGNIZED -> {
+            case UNRECOGNIZED ->
+            {
                 throw new SinkException("Unrecognized op: " + rowChangeEvent.getOp());
             }
         }
     }
 
-    private void submitFlushTask(List<RowChangeEvent> batch) {
-        if (batch == null || batch.isEmpty()) {
+    private void submitFlushTask(List<RowChangeEvent> batch)
+    {
+        if (batch == null || batch.isEmpty())
+        {
             return;
         }
         flushExecutor.submit(() ->
@@ -137,7 +149,8 @@ public abstract class TableWriter {
         });
     }
 
-    private Runnable writerInfoTask(String tableName) {
+    private Runnable writerInfoTask(String tableName)
+    {
         final AtomicInteger reportId = new AtomicInteger();
         final AtomicInteger lastRunCounter = new AtomicInteger();
         Runnable monitorTask = () ->
@@ -147,11 +160,13 @@ public abstract class TableWriter {
             int len = 0;
             bufferLock.lock();
             len = buffer.size();
-            if (!buffer.isEmpty()) {
+            if (!buffer.isEmpty())
+            {
                 firstEvent = buffer.get(0);
             }
             bufferLock.unlock();
-            if (firstEvent != null) {
+            if (firstEvent != null)
+            {
                 firstTx = firstEvent.getTransaction().getId();
                 int count = counter.get();
                 getLOGGER().info("{} Writer {}: Tx Now is {}. Buffer Len is {}. Total Count {}", reportId.incrementAndGet(), tableName, firstTx, len, count);
@@ -162,28 +177,36 @@ public abstract class TableWriter {
 
     protected abstract Logger getLOGGER();
 
-    public boolean write(RowChangeEvent event, SinkContext ctx) {
-        try {
+    public boolean write(RowChangeEvent event, SinkContext ctx)
+    {
+        try
+        {
             bufferLock.lock();
-            try {
-                if (!transactionMode.equals(TransactionMode.RECORD)) {
+            try
+            {
+                if (!transactionMode.equals(TransactionMode.RECORD))
+                {
                     txId = ctx.getSourceTxId();
                 }
                 currentTxId = txId;
-                if (fullTableName == null) {
+                if (fullTableName == null)
+                {
                     fullTableName = event.getFullTableName();
                 }
                 counter.incrementAndGet();
                 buffer.add(event);
 
-                if (needFlush()) {
+                if (needFlush())
+                {
                     flushCondition.signalAll();
                 }
-            } finally {
+            } finally
+            {
                 bufferLock.unlock();
             }
             return true;
-        } catch (Exception e) {
+        } catch (Exception e)
+        {
             getLOGGER().error("Write failed for table {}", tableName, e);
             return false;
         }
@@ -193,36 +216,49 @@ public abstract class TableWriter {
 
     protected abstract boolean needFlush();
 
-    public void close() {
+    public void close()
+    {
         this.running = false;
-        if (this.flusherThread != null) {
+        if (this.flusherThread != null)
+        {
             this.flusherThread.interrupt();
         }
         logScheduler.shutdown();
-        try {
+        try
+        {
             logScheduler.awaitTermination(5, TimeUnit.SECONDS);
             flushExecutor.awaitTermination(5, TimeUnit.SECONDS);
-            if (this.flusherThread != null) {
+            if (this.flusherThread != null)
+            {
                 this.flusherThread.join(5000);
             }
             delegate.close();
-        } catch (InterruptedException ignored) {
-        } catch (IOException e) {
+        } catch (InterruptedException ignored)
+        {
+        } catch (IOException e)
+        {
             throw new RuntimeException(e);
         }
     }
 
-    private class FlusherRunnable implements Runnable {
+    private class FlusherRunnable implements Runnable
+    {
         @Override
-        public void run() {
-            while (running) {
+        public void run()
+        {
+            while (running)
+            {
                 bufferLock.lock();
-                try {
-                    if (!needFlush()) {
-                        try {
+                try
+                {
+                    if (!needFlush())
+                    {
+                        try
+                        {
                             // Conditional wait: will wait until signaled by write() or timeout
                             flushCondition.await(flushInterval, TimeUnit.MILLISECONDS);
-                        } catch (InterruptedException e) {
+                        } catch (InterruptedException e)
+                        {
                             // Exit loop if interrupted during shutdown
                             running = false;
                             Thread.currentThread().interrupt();
@@ -235,7 +271,8 @@ public abstract class TableWriter {
                     bufferLock.unlock();
                     submitFlushTask(batchToFlush);
                     bufferLock.lock();
-                } finally {
+                } finally
+                {
                     bufferLock.unlock();
                 }
             }

@@ -32,17 +32,20 @@ import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-public class SinkEngineSource implements SinkSource {
+public class SinkEngineSource implements SinkSource
+{
     private final PixelsDebeziumConsumer consumer;
     private DebeziumEngine<RecordChangeEvent<SourceRecord>> engine;
     private ExecutorService executor;
     private volatile boolean running = true;
 
-    public SinkEngineSource() {
+    public SinkEngineSource()
+    {
         this.consumer = new PixelsDebeziumConsumer();
     }
 
-    public void start() {
+    public void start()
+    {
         Properties debeziumProps = PixelsSinkConfigFactory.getInstance()
                 .getConfig().extractPropertiesByPrefix("debezium.", true);
 
@@ -56,24 +59,31 @@ public class SinkEngineSource implements SinkSource {
     }
 
     @Override
-    public void stopProcessor() {
-        try {
-            if (engine != null) {
+    public void stopProcessor()
+    {
+        try
+        {
+            if (engine != null)
+            {
                 engine.close();
             }
-            if (executor != null) {
+            if (executor != null)
+            {
                 executor.shutdown();
             }
             consumer.stopProcessor();
-        } catch (Exception e) {
+        } catch (Exception e)
+        {
             throw new RuntimeException("Failed to stop PixelsSinkEngine", e);
-        } finally {
+        } finally
+        {
             running = false;
         }
     }
 
     @Override
-    public boolean isRunning() {
+    public boolean isRunning()
+    {
         return running;
     }
 }

@@ -44,7 +44,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class MetricsFacade {
+public class MetricsFacade
+{
     private static final Logger LOGGER = LoggerFactory.getLogger(MetricsFacade.class);
     private static final PixelsSinkConfig config = PixelsSinkConfigFactory.getInstance();
     private static MetricsFacade instance;
@@ -92,8 +93,11 @@ public class MetricsFacade {
     private long lastSerdTxRecordCount = 0;
 
     private boolean pkWarned = false;
+    // Define this as a class member variable
+    private long lastLogTimestampNano = System.nanoTime();
 
-    private MetricsFacade(boolean enabled) {
+    private MetricsFacade(boolean enabled)
+    {
         this.enabled = enabled;
         this.debeziumEventCounter = Counter.build()
                 .name("debezium_event_total")
@@ -220,9 +224,11 @@ public class MetricsFacade {
         freshnessReportPath = config.getMonitorFreshnessReportFile();
         freshnessAvg = new OneSecondAverage(freshnessReportInterval);
         freshnessVerbose = config.isSinkMonitorFreshnessVerbose();
-        if (freshnessVerbose) {
+        if (freshnessVerbose)
+        {
             freshnessHistory = new FreshnessHistory();
-        } else {
+        } else
+        {
             freshnessHistory = null;
         }
 
@@ -230,145 +236,181 @@ public class MetricsFacade {
         monitorReportEnabled = config.isMonitorReportEnabled();
         monitorReportInterval = config.getMonitorReportInterval();
         monitorReportPath = config.getMonitorReportFile();
-        if (monitorReportEnabled) {
+        if (monitorReportEnabled)
+        {
             running.set(true);
             reportThread = new Thread(this::run, "Metrics Report Thread");
             LOGGER.info("Metrics Report Thread Started");
             reportThread.start();
             freshnessThread = new Thread(this::runFreshness, "Freshness Thread");
             freshnessThread.start();
-        } else {
+        } else
+        {
             reportThread = null;
             freshnessThread = null;
         }
     }
 
-    private static synchronized void initialize() {
-        if (instance == null) {
+    private static synchronized void initialize()
+    {
+        if (instance == null)
+        {
             instance = new MetricsFacade(config.isMonitorEnabled());
             LOGGER.info("Init Metrics Facade");
         }
     }
 
-    public static MetricsFacade getInstance() {
-        if (instance == null) {
+    public static MetricsFacade getInstance()
+    {
+        if (instance == null)
+        {
             initialize();
         }
         return instance;
     }
 
-    public void stop() {
+    public void stop()
+    {
         running.set(false);
-        if (reportThread != null) {
+        if (reportThread != null)
+        {
             reportThread.interrupt();
         }
 
-        if (freshnessThread != null) {
+        if (freshnessThread != null)
+        {
             freshnessThread.interrupt();
         }
         LOGGER.info("Monitor report thread stopped.");
     }
 
-    public void recordDebeziumEvent() {
-        if (enabled && debeziumEventCounter != null) {
+    public void recordDebeziumEvent()
+    {
+        if (enabled && debeziumEventCounter != null)
+        {
             debeziumEventCounter.inc();
         }
     }
 
-    public void recordRowChange(String table, SinkProto.OperationType operation) {
+    public void recordRowChange(String table, SinkProto.OperationType operation)
+    {
         recordRowChange(table, operation, 1);
     }
 
-    public void recordRowChange(String table, SinkProto.OperationType operation, int rows) {
-        if (enabled && rowChangeCounter != null) {
+    public void recordRowChange(String table, SinkProto.OperationType operation, int rows)
+    {
+        if (enabled && rowChangeCounter != null)
+        {
             tableChangeCounter.labels(table).inc(rows);
             rowChangeCounter.labels(table, operation.toString()).inc(rows);
         }
     }
 
-    public void recordSerdRowChange() {
+    public void recordSerdRowChange()
+    {
         recordSerdRowChange(1);
     }
 
-    public void recordSerdRowChange(int i) {
-        if (enabled && serdRowRecordCounter != null) {
+    public void recordSerdRowChange(int i)
+    {
+        if (enabled && serdRowRecordCounter != null)
+        {
             serdRowRecordCounter.inc(i);
         }
     }
 
-
-    public void recordSerdTxChange() {
+    public void recordSerdTxChange()
+    {
         recordSerdTxChange(1);
     }
 
-    public void recordSerdTxChange(int i) {
-        if (enabled && serdTxRecordCounter != null) {
+    public void recordSerdTxChange(int i)
+    {
+        if (enabled && serdTxRecordCounter != null)
+        {
             serdTxRecordCounter.inc(i);
         }
     }
 
-
-    public void recordTransaction(int i) {
-        if (enabled && transactionCounter != null) {
+    public void recordTransaction(int i)
+    {
+        if (enabled && transactionCounter != null)
+        {
             transactionCounter.inc(i);
         }
     }
 
-    public void recordTransaction() {
+    public void recordTransaction()
+    {
         recordTransaction(1);
     }
 
-    public Summary.Timer startProcessLatencyTimer() {
+    public Summary.Timer startProcessLatencyTimer()
+    {
         return enabled ? processingLatency.startTimer() : null;
     }
 
-    public Summary.Timer startIndexLatencyTimer() {
+    public Summary.Timer startIndexLatencyTimer()
+    {
         return enabled ? indexServiceLatency.startTimer() : null;
     }
 
-    public Summary.Timer startTransLatencyTimer() {
+    public Summary.Timer startTransLatencyTimer()
+    {
         return enabled ? transServiceLatency.startTimer() : null;
     }
 
-    public Summary.Timer startRetinaLatencyTimer() {
+    public Summary.Timer startRetinaLatencyTimer()
+    {
         return enabled ? retinaServiceLatency.startTimer() : null;
     }
 
-    public Summary.Timer startWriteLatencyTimer(String tableName) {
+    public Summary.Timer startWriteLatencyTimer(String tableName)
+    {
         return enabled ? writerLatency.labels(tableName).startTimer() : null;
     }
 
-    public void addRawData(double data) {
+    public void addRawData(double data)
+    {
         rawDataThroughputCounter.inc(data);
     }
 
-    public void recordTotalLatency(RowChangeEvent event) {
-        if (event.getTimeStamp() != 0) {
+    public void recordTotalLatency(RowChangeEvent event)
+    {
+        if (event.getTimeStamp() != 0)
+        {
             long recordLatency = System.currentTimeMillis() - event.getTimeStamp();
             totalLatency.labels(event.getFullTableName(), event.getOp().toString()).observe(recordLatency);
         }
     }
 
-    public void recordRowEvent() {
+    public void recordRowEvent()
+    {
         recordRowEvent(1);
     }
 
-    public void recordRowEvent(int i) {
-        if (enabled && rowEventCounter != null) {
+    public void recordRowEvent(int i)
+    {
+        if (enabled && rowEventCounter != null)
+        {
             rowEventCounter.inc(i);
         }
     }
 
-    public int getRecordRowEvent() {
+    public int getRecordRowEvent()
+    {
         return (int) rowEventCounter.get();
     }
 
-    public int getTransactionEvent() {
+    public int getTransactionEvent()
+    {
         return (int) transactionCounter.get();
     }
 
-    public void recordTableFreshness(String table, double freshnessMill) {
-        if (!enabled) {
+    public void recordTableFreshness(String table, double freshnessMill)
+    {
+        if (!enabled)
+        {
             return;
         }
 
@@ -380,36 +422,46 @@ public class MetricsFacade {
             String table,
             double freshnessMill,
             double queryTimeMill
-    ) {
-        if (!enabled) {
+    )
+    {
+        if (!enabled)
+        {
             return;
         }
         tableFreshness.labels(table).observe(freshnessMill);
         recordFreshness(freshnessMill);
-        if (freshnessVerbose && freshnessHistory != null) {
+        if (freshnessVerbose && freshnessHistory != null)
+        {
             freshnessHistory.record(freshnessMill, queryTimeMill);
         }
     }
-    public void recordFreshness(double freshnessMill) {
-        if (!enabled) {
+
+    public void recordFreshness(double freshnessMill)
+    {
+        if (!enabled)
+        {
             return;
         }
 
-        if (freshness != null) {
+        if (freshness != null)
+        {
             freshness.addValue(freshnessMill);
         }
 
-        if (freshnessAvg != null) {
+        if (freshnessAvg != null)
+        {
             freshnessAvg.record(freshnessMill);
         }
     }
 
-
-    public void recordPrimaryKeyUpdateDistribution(String table, ByteString pkValue) {
-        if (!enabled || primaryKeyUpdateDistribution == null) {
+    public void recordPrimaryKeyUpdateDistribution(String table, ByteString pkValue)
+    {
+        if (!enabled || primaryKeyUpdateDistribution == null)
+        {
             return;
         }
-        if (pkValue == null || pkValue.isEmpty()) {
+        if (pkValue == null || pkValue.isEmpty())
+        {
             LOGGER.debug("Skipping PK distribution recording: pkValue is null or empty for table {}.", table);
             return;
         }
@@ -417,14 +469,18 @@ public class MetricsFacade {
         long numericPK;
         int length = pkValue.size();
 
-        try {
+        try
+        {
             ByteBuffer buffer = pkValue.asReadOnlyByteBuffer();
 
-            if (length == Integer.BYTES) {
+            if (length == Integer.BYTES)
+            {
                 numericPK = Integer.toUnsignedLong(buffer.getInt());
-            } else if (length == Long.BYTES) {
+            } else if (length == Long.BYTES)
+            {
                 numericPK = buffer.getLong();
-            } else {
+            } else
+            {
                 if (!pkWarned)
                 {
                     LOGGER.warn("Unsupported PK ByteString length {} for table {}. Expected 4 or 8.", length, table);
@@ -432,7 +488,8 @@ public class MetricsFacade {
                 }
                 return;
             }
-        } catch (Exception e) {
+        } catch (Exception e)
+        {
             LOGGER.error("Failed to convert ByteString to numeric type for table {}: {}", table, e.getMessage());
             return;
         }
@@ -445,76 +502,96 @@ public class MetricsFacade {
         LOGGER.debug("Table {}: PK {} mapped to bucket index {}", table, numericPK, bucketIndex);
     }
 
-    public void recordTransactionRowCount(int rowCount) {
-        if (enabled && transactionRowCountHistogram != null) {
+    public void recordTransactionRowCount(int rowCount)
+    {
+        if (enabled && transactionRowCountHistogram != null)
+        {
             // Use observe() to add the value to the Histogram's configured buckets.
             transactionRowCountHistogram.observe(rowCount);
         }
     }
 
-    public void run() {
-        while (running.get()) {
-            try {
+    public void run()
+    {
+        while (running.get())
+        {
+            try
+            {
                 Thread.sleep(monitorReportInterval);
                 logPerformance();
-            } catch (InterruptedException e) {
+            } catch (InterruptedException e)
+            {
                 Thread.currentThread().interrupt();
                 break;
-            } catch (Throwable t) {
+            } catch (Throwable t)
+            {
                 LOGGER.warn("Error while reporting performance.", t);
             }
         }
     }
 
-    public void runFreshness() {
-        try {
+    public void runFreshness()
+    {
+        try
+        {
             Thread.sleep(monitorReportInterval);
-        } catch (InterruptedException e) {
+        } catch (InterruptedException e)
+        {
             Thread.currentThread().interrupt();
         }
-        while (running.get()) {
-            try {
+        while (running.get())
+        {
+            try
+            {
                 Thread.sleep(freshnessReportInterval);
-                try (FileWriter fw = new FileWriter(freshnessReportPath, true)) {
-                    if (freshnessVerbose) {
+                try (FileWriter fw = new FileWriter(freshnessReportPath, true))
+                {
+                    if (freshnessVerbose)
+                    {
                         List<FreshnessHistory.Record> detailedRecords = freshnessHistory.pollAll();
-                        if (!detailedRecords.isEmpty()) {
-                            for (FreshnessHistory.Record record : detailedRecords) {
+                        if (!detailedRecords.isEmpty())
+                        {
+                            for (FreshnessHistory.Record record : detailedRecords)
+                            {
                                 fw.write(record.toString() + "\n");
                             }
                             fw.flush();
                         }
-                    } else {
+                    } else
+                    {
                         long now = System.currentTimeMillis();
                         double avg = freshnessAvg.getWindowAverage();
-                        if (Double.isNaN(avg)) {
+                        if (Double.isNaN(avg))
+                        {
                             continue;
                         }
                         fw.write(now + "," + avg + "\n");
                         fw.flush();
                     }
-                } catch (IOException e) {
+                } catch (IOException e)
+                {
                     LOGGER.warn("Failed to write perf metrics: " + e.getMessage());
                 }
-            } catch (InterruptedException e) {
+            } catch (InterruptedException e)
+            {
                 Thread.currentThread().interrupt();
                 break;
-            } catch (Throwable t) {
+            } catch (Throwable t)
+            {
                 LOGGER.warn("Error while reporting performance.", t);
             }
         }
     }
 
-    // Define this as a class member variable
-    private long lastLogTimestampNano = System.nanoTime();
-
-    public void logPerformance() {
+    public void logPerformance()
+    {
         // 1. Calculate actual elapsed time since the last execution
         long currentTimestampNano = System.nanoTime();
         long elapsedNano = currentTimestampNano - lastLogTimestampNano;
 
         // 2. Prevent division by zero and handle edge cases
-        if (elapsedNano <= 0) {
+        if (elapsedNano <= 0)
+        {
             return;
         }
 
@@ -585,11 +662,13 @@ public class MetricsFacade {
 
         // 9. Append metrics to CSV for analysis and plotting
         String time = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
-        try (FileWriter fw = new FileWriter(monitorReportPath, true)) {
+        try (FileWriter fw = new FileWriter(monitorReportPath, true))
+        {
             // Format: time, rows/s, txns/s, debezium/s, serdRows/s, serdTxs/s
             fw.write(String.format("%s,%.2f,%.2f,%.2f,%.2f,%.2f,%.4f%n",
                     time, rowOips, txnOips, dbOips, serdRowsOips, serdTxsOips, seconds));
-        } catch (IOException e) {
+        } catch (IOException e)
+        {
             LOGGER.warn("Failed to write performance metrics to CSV: " + e.getMessage());
         }
     }

@@ -33,12 +33,14 @@ import java.util.function.BiFunction;
  * When the map reaches its maximum size, any new insertion or compute
  * for a new key will block until space becomes available.
  */
-public class BlockingBoundedMap<K, V> {
+public class BlockingBoundedMap<K, V>
+{
     private final int maxSize;
     private final Semaphore semaphore;
     private final ConcurrentMap<K, V> map;
 
-    public BlockingBoundedMap(int maxSize) {
+    public BlockingBoundedMap(int maxSize)
+    {
         this.maxSize = maxSize;
         this.map = new ConcurrentHashMap<>();
         this.semaphore = new Semaphore(maxSize);
@@ -48,31 +50,37 @@ public class BlockingBoundedMap<K, V> {
      * Puts a key-value pair into the map.
      * If the map is full, this call blocks until space becomes available.
      */
-    private void put(K key, V value) throws InterruptedException {
+    private void put(K key, V value) throws InterruptedException
+    {
         semaphore.acquire(); // block if full
         V prev = map.put(key, value);
-        if (prev != null) {
+        if (prev != null)
+        {
             // replaced existing value — no new space consumed
             semaphore.release();
         }
     }
 
-    public V get(K key) {
+    public V get(K key)
+    {
         return map.get(key);
     }
 
     /**
      * Removes a key from the map and releases one permit if a value was present.
      */
-    public V remove(K key) {
+    public V remove(K key)
+    {
         V val = map.remove(key);
-        if (val != null) {
+        if (val != null)
+        {
             semaphore.release();
         }
         return val;
     }
 
-    public int size() {
+    public int size()
+    {
         return map.size();
     }
 
@@ -83,37 +91,47 @@ public class BlockingBoundedMap<K, V> {
      * - If the key already exists, it does not block.
      * - If the remapping function returns null, the key is removed and capacity is released.
      */
-    public V compute(K key, BiFunction<? super K, ? super V, ? extends V> remappingFunction) {
-        for (; ; ) {
+    public V compute(K key, BiFunction<? super K, ? super V, ? extends V> remappingFunction)
+    {
+        for (; ; )
+        {
             V oldVal = map.get(key);
-            if (oldVal == null) {
-                try {
+            if (oldVal == null)
+            {
+                try
+                {
                     semaphore.acquire();
-                } catch (InterruptedException e) {
+                } catch (InterruptedException e)
+                {
                     Thread.currentThread().interrupt();
                     return null;
                 }
 
                 V newVal = remappingFunction.apply(key, null);
-                if (newVal == null) {
+                if (newVal == null)
+                {
                     semaphore.release();
                     return null;
                 }
 
                 V existing = map.putIfAbsent(key, newVal);
-                if (existing == null) {
+                if (existing == null)
+                {
                     return newVal;
-                } else {
+                } else
+                {
                     semaphore.release();
                     continue;
                 }
-            } else {
+            } else
+            {
                 return map.compute(key, remappingFunction);
             }
         }
     }
 
-    public Set<K> keySet() {
+    public Set<K> keySet()
+    {
         return map.keySet();
     }
 }

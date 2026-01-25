@@ -36,7 +36,8 @@ import java.io.IOException;
  * @author: AntiO2
  * @date: 2025/10/5 07:34
  */
-public class RotatingWriterManager {
+public class RotatingWriterManager
+{
     private final String baseDir;
     private final String topic;
     private final int maxRecordsPerFile;
@@ -46,7 +47,8 @@ public class RotatingWriterManager {
     private PhysicalWriter currentWriter;
     private String currentFileName;
 
-    public RotatingWriterManager(String topic) throws IOException {
+    public RotatingWriterManager(String topic) throws IOException
+    {
         PixelsSinkConfig sinkConfig = PixelsSinkConfigFactory.getInstance();
         this.baseDir = sinkConfig.getSinkProtoDir();
         this.topic = topic;
@@ -56,8 +58,10 @@ public class RotatingWriterManager {
         rotate();
     }
 
-    private void rotate() throws IOException {
-        if (currentWriter != null) {
+    private void rotate() throws IOException
+    {
+        if (currentWriter != null)
+        {
             currentWriter.close();
             registry.markFileCompleted(registry.getCurrentFileKey());
         }
@@ -68,16 +72,20 @@ public class RotatingWriterManager {
         currentCount = 0;
     }
 
-    public PhysicalWriter current() throws IOException {
-        if (currentCount >= maxRecordsPerFile) {
+    public PhysicalWriter current() throws IOException
+    {
+        if (currentCount >= maxRecordsPerFile)
+        {
             rotate();
         }
         currentCount++;
         return currentWriter;
     }
 
-    public void close() throws IOException {
-        if (currentWriter != null) {
+    public void close() throws IOException
+    {
+        if (currentWriter != null)
+        {
             currentWriter.close();
             registry.markFileCompleted(registry.getCurrentFileKey());
         }

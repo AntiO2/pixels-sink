@@ -23,15 +23,18 @@ package io.pixelsdb.pixels.sink.writer.retina;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
 import io.pixelsdb.pixels.sink.writer.AbstractBucketedWriter;
 
-public class RetinaBucketDispatcher extends AbstractBucketedWriter<SinkContext> {
+public class RetinaBucketDispatcher extends AbstractBucketedWriter<SinkContext>
+{
     private final TableWriterProxy tableWriterProxy;
 
-    public RetinaBucketDispatcher() {
+    public RetinaBucketDispatcher()
+    {
         this.tableWriterProxy = TableWriterProxy.getInstance();
     }
 
     @Override
-    protected void emit(RowChangeEvent event, int bucketId, SinkContext ctx) {
+    protected void emit(RowChangeEvent event, int bucketId, SinkContext ctx)
+    {
         tableWriterProxy
                 .getTableWriter(event.getTable(), event.getTableId(), bucketId)
                 .write(event, ctx);

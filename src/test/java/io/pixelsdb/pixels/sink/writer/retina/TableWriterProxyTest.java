@@ -21,7 +21,6 @@
 package io.pixelsdb.pixels.sink.writer.retina;
 
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
-import io.pixelsdb.pixels.sink.event.RowChangeEventTest;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
@@ -47,7 +46,7 @@ public class TableWriterProxyTest
     {
         TableWriterProxy tableWriterProxy = TableWriterProxy.getInstance();
 
-        for(int i = 0; i < 10 ; i++)
+        for (int i = 0; i < 10; i++)
         {
             TableWriter tableWriter = tableWriterProxy.getTableWriter(tableName, 0, 0);
         }

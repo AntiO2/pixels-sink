@@ -39,7 +39,6 @@ import java.io.IOException;
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -53,7 +52,8 @@ import java.util.concurrent.locks.ReentrantLock;
  * @author: AntiO2
  * @date: 2025/10/5 07:10
  */
-public class ProtoWriter implements PixelsSinkWriter {
+public class ProtoWriter implements PixelsSinkWriter
+{
     private final Logger LOGGER = LoggerFactory.getLogger(ProtoWriter.class);
     private final RotatingWriterManager writerManager;
     private final TableMetadataRegistry instance;
@@ -66,7 +66,8 @@ public class ProtoWriter implements PixelsSinkWriter {
     private final Map<String, TransactionContext> transTracker = new ConcurrentHashMap<>();
 
 
-    public ProtoWriter() throws IOException {
+    public ProtoWriter() throws IOException
+    {
         PixelsSinkConfig sinkConfig = PixelsSinkConfigFactory.getInstance();
 
         String dataPath = sinkConfig.getSinkProtoData();
@@ -80,16 +81,19 @@ public class ProtoWriter implements PixelsSinkWriter {
      *
      * @param transId The ID of the transaction to check.
      */
-    private void checkAndCleanupTransaction(String transId) {
+    private void checkAndCleanupTransaction(String transId)
+    {
         TransactionContext context = transTracker.get(transId);
 
-        if (context == null || !context.isEndReceived()) {
+        if (context == null || !context.isEndReceived())
+        {
             // Transaction has not received TX END or has been cleaned up already.
             return;
         }
 
         Map<String, TableCounters> tableMap = context.tableCounters;
-        if (tableMap == null || tableMap.isEmpty()) {
+        if (tableMap == null || tableMap.isEmpty())
+        {
             // Empty transaction with no tables. Clean up immediately.
             transTracker.remove(transId);
             LOGGER.info("Transaction {} (empty) successfully completed and removed from tracker.", transId);
@@ -100,14 +104,17 @@ public class ProtoWriter implements PixelsSinkWriter {
         int actualProcessedRows = 0;
 
         // Iterate through all tables to check completion status
-        for (Map.Entry<String, TableCounters> entry : tableMap.entrySet()) {
+        for (Map.Entry<String, TableCounters> entry : tableMap.entrySet())
+        {
             TableCounters counters = entry.getValue();
-            if (!counters.isComplete()) {
+            if (!counters.isComplete())
+            {
                 allComplete = false;
             }
         }
 
-        if (allComplete) {
+        if (allComplete)
+        {
             transTracker.remove(transId);
             ByteBuffer transInfo = getTransBuffer(context);
             transInfo.rewind();
@@ -116,16 +123,20 @@ public class ProtoWriter implements PixelsSinkWriter {
     }
 
     @Override
-    public boolean writeTrans(SinkProto.TransactionMetadata transactionMetadata) {
-        try {
+    public boolean writeTrans(SinkProto.TransactionMetadata transactionMetadata)
+    {
+        try
+        {
             lock.lock();
             String transId = transactionMetadata.getId();
-            if (transactionMetadata.getStatus() == SinkProto.TransactionStatus.BEGIN) {
+            if (transactionMetadata.getStatus() == SinkProto.TransactionStatus.BEGIN)
+            {
                 // 1. BEGIN: Create context if not exists (in case ROWChange arrived first).
                 TransactionContext transactionContext = transTracker.computeIfAbsent(transId, k -> new TransactionContext());
                 LOGGER.debug("Transaction {} BEGIN received.", transId);
                 transactionContext.txBegin = transactionMetadata;
-            } else if (transactionMetadata.getStatus() == SinkProto.TransactionStatus.END) {
+            } else if (transactionMetadata.getStatus() == SinkProto.TransactionStatus.END)
+            {
                 // 2. END: Finalize tracker state, merge pre-counts, and trigger cleanup.
 
                 // Get existing context or create a new one (in case BEGIN was missed).
@@ -133,7 +144,8 @@ public class ProtoWriter implements PixelsSinkWriter {
 
                 // --- Initialization Step: Set Total Counts ---
                 Map<String, TableCounters> newTableCounters = new ConcurrentHashMap<>();
-                for (SinkProto.DataCollection dataCollection : transactionMetadata.getDataCollectionsList()) {
+                for (SinkProto.DataCollection dataCollection : transactionMetadata.getDataCollectionsList())
+                {
                     String fullTable = dataCollection.getDataCollection();
                     // Create official counter with total count
                     newTableCounters.put(fullTable, new TableCounters((int) dataCollection.getEventCount()));
@@ -143,17 +155,21 @@ public class ProtoWriter implements PixelsSinkWriter {
                 context.setEndReceived(newTableCounters);
 
                 // --- Merge Step: Apply pre-received rows ---
-                for (Map.Entry<String, AtomicInteger> preEntry : context.preEndCounts.entrySet()) {
+                for (Map.Entry<String, AtomicInteger> preEntry : context.preEndCounts.entrySet())
+                {
                     String table = preEntry.getKey();
                     int accumulatedCount = preEntry.getValue().get();
                     TableCounters finalCounter = newTableCounters.get(table);
 
-                    if (finalCounter != null) {
+                    if (finalCounter != null)
+                    {
                         // Apply the accumulated count to the official counter
-                        for (int i = 0; i < accumulatedCount; i++) {
+                        for (int i = 0; i < accumulatedCount; i++)
+                        {
                             finalCounter.increment();
                         }
-                    } else {
+                    } else
+                    {
                         LOGGER.warn("Pre-received rows for table {} (count: {}) but table was not in TX END metadata. Discarding accumulated count.", table, accumulatedCount);
                     }
                 }
@@ -164,12 +180,14 @@ public class ProtoWriter implements PixelsSinkWriter {
                 checkAndCleanupTransaction(transId);
             }
             return true;
-        } finally {
+        } finally
+        {
             lock.unlock();
         }
     }
 
-    private ByteBuffer getTransBuffer(TransactionContext transactionContext) {
+    private ByteBuffer getTransBuffer(TransactionContext transactionContext)
+    {
         int total = 0;
         byte[] transDataBegin = transactionContext.txBegin.toByteArray();
         ByteBuffer beginByteBuffer = writeData(-1, transDataBegin);
@@ -179,15 +197,18 @@ public class ProtoWriter implements PixelsSinkWriter {
         ByteBuffer endByteBuffer = writeData(-1, transDataEnd);
         total += endByteBuffer.remaining();
 
-        if (debug) {
+        if (debug)
+        {
             validMetaInfo(transDataBegin);
             validMetaInfo(transDataEnd);
         }
 
         List<ByteBuffer> rowEvents = new CopyOnWriteArrayList<>();
-        for (RowChangeEvent rowChangeEvent : transactionContext.rowChangeEventList) {
+        for (RowChangeEvent rowChangeEvent : transactionContext.rowChangeEventList)
+        {
             ByteBuffer byteBuffer = write(rowChangeEvent.getRowRecord());
-            if (byteBuffer == null) {
+            if (byteBuffer == null)
+            {
                 return null;
             }
             rowEvents.add(byteBuffer);
@@ -203,7 +224,8 @@ public class ProtoWriter implements PixelsSinkWriter {
             throw new RuntimeException(e);
         }
 
-        for (ByteBuffer rowEvent : rowEvents) {
+        for (ByteBuffer rowEvent : rowEvents)
+        {
             rowEvent.rewind();
             buffer.put(rowEvent);
         }
@@ -225,7 +247,8 @@ public class ProtoWriter implements PixelsSinkWriter {
         return true;
     }
 
-    public ByteBuffer write(SinkProto.RowRecord rowRecord) {
+    public ByteBuffer write(SinkProto.RowRecord rowRecord)
+    {
         byte[] rowData = rowRecord.toByteArray();
         String tableName = rowRecord.getSource().getTable();
         String schemaName = rowRecord.getSource().getDb();
@@ -243,9 +266,11 @@ public class ProtoWriter implements PixelsSinkWriter {
 
 
         long tableId;
-        try {
+        try
+        {
             tableId = instance.getTableId(schemaName, tableName);
-        } catch (SinkException e) {
+        } catch (SinkException e)
+        {
             LOGGER.error("Error while getting schema table id.", e);
             return null;
         }
@@ -255,26 +280,32 @@ public class ProtoWriter implements PixelsSinkWriter {
     }
 
     // key: -1 means transaction, else means table id
-    private ByteBuffer writeData(int key, byte[] data) {
+    private ByteBuffer writeData(int key, byte[] data)
+    {
         ByteBuffer buf = ByteBuffer.allocate(Integer.BYTES + Integer.BYTES + data.length).order(ByteOrder.BIG_ENDIAN); // key + value len + data
         buf.putInt(key).putInt(data.length).put(data);
         buf.flip();
         return buf;
     }
 
-    private synchronized boolean writeBuffer(ByteBuffer buf) {
-        if (debug) {
+    private synchronized boolean writeBuffer(ByteBuffer buf)
+    {
+        if (debug)
+        {
             // Perform deep check before writing to physical storage
-            try {
+            try
+            {
                 debugVerifyBuffer(buf);
-            } catch (Exception e) {
+            } catch (Exception e)
+            {
                 LOGGER.error("CRITICAL: Data corruption detected in memory buffer!", e);
                 // Block the write to prevent disk pollution
                 return false;
             }
         }
         PhysicalWriter writer;
-        try {
+        try
+        {
             writer = writerManager.current();
             int size = buf.remaining();
             writer.prepare(size);
@@ -283,7 +314,8 @@ public class ProtoWriter implements PixelsSinkWriter {
             buf.get(effectiveData);
             writer.append(effectiveData);
             writer.flush();
-        } catch (IOException e) {
+        } catch (IOException e)
+        {
             LOGGER.error("Error while writing row record.", e);
             return false;
         }
@@ -291,8 +323,10 @@ public class ProtoWriter implements PixelsSinkWriter {
     }
 
     @Override
-    public boolean writeRow(RowChangeEvent rowChangeEvent) {
-        try {
+    public boolean writeRow(RowChangeEvent rowChangeEvent)
+    {
+        try
+        {
             lock.lock();
             String transId = rowChangeEvent.getTransaction().getId();
             String fullTable = rowChangeEvent.getFullTableName();
@@ -301,41 +335,116 @@ public class ProtoWriter implements PixelsSinkWriter {
             TransactionContext context = transTracker.computeIfAbsent(transId, k -> new TransactionContext());
             context.rowChangeEventList.add(rowChangeEvent);
             // 2. Check if TX END has arrived
-            if (context.isEndReceived()) {
+            if (context.isEndReceived())
+            {
                 // TX END arrived: Use official TableCounters
                 TableCounters counters = context.tableCounters.get(fullTable);
-                if (counters != null) {
+                if (counters != null)
+                {
                     // Increment the processed row count for this table
                     counters.increment();
 
                     // If this table completed, check if the entire transaction is complete.
-                    if (counters.isComplete()) {
+                    if (counters.isComplete())
+                    {
                         checkAndCleanupTransaction(transId);
                     }
-                } else {
+                } else
+                {
                     LOGGER.warn("Row received for TransId {} / Table {} but was not included in TX END metadata.", transId, fullTable);
                 }
-            } else {
+            } else
+            {
                 context.incrementPreEndCount(fullTable);
                 LOGGER.debug("Row received for TransId {} / Table {} before TX END. Accumulating count.", transId, fullTable);
             }
             return true;
-        } finally {
+        } finally
+        {
             lock.unlock();
         }
     }
 
     @Override
-    public void flush() {
+    public void flush()
+    {
 
     }
 
     @Override
-    public void close() throws IOException {
+    public void close() throws IOException
+    {
         this.writerManager.close();
     }
 
-    private static class TransactionContext {
+    /**
+     * Verifies the structure and content of the ByteBuffer before physical write.
+     * It checks [Key(4B)][Len(4B)][Data(nB)] framing and validates Protobuf integrity.
+     * * @param buf The ByteBuffer prepared for writing.
+     */
+    private void debugVerifyBuffer(ByteBuffer buf)
+    {
+        // Create a snapshot to avoid modifying the original buffer's position
+        ByteBuffer temp = buf.duplicate();
+        temp.order(ByteOrder.BIG_ENDIAN);
+        temp.rewind();
+
+        int recordCount = 0;
+//        LOGGER.info("--- [Debug Verify] Starting deep verification (Size: {} bytes) ---", temp.remaining());
+
+        while (temp.hasRemaining())
+        {
+            int startPos = temp.position();
+
+            // 1. Ensure enough bytes for the Header (Key + Len = 8 bytes)
+            if (temp.remaining() < 8)
+            {
+                throw new RuntimeException(String.format(
+                        "Header truncated at pos %d. Only %d bytes remaining.", startPos, temp.remaining()));
+            }
+
+            int key = temp.getInt();
+            int len = temp.getInt();
+
+            // 2. Boundary Check: Ensure the buffer contains the full data payload
+            if (len < 0 || temp.remaining() < len)
+            {
+                throw new RuntimeException(String.format(
+                        "Data mismatch at pos %d. Key: %d, Declared Len: %d, Available: %d",
+                        startPos, key, len, temp.remaining()));
+            }
+
+            // 3. Extract payload for Protobuf parsing
+            byte[] payload = new byte[len];
+            temp.get(payload);
+
+            try
+            {
+                if (key == -1)
+                {
+                    // Key -1: Must be valid TransactionMetadata
+                    SinkProto.TransactionMetadata.parseFrom(payload);
+                    if (debug) LOGGER.debug("Record {}: Verified Metadata at pos {}", recordCount, startPos);
+                } else
+                {
+                    // Key >= 0: Must be valid RowRecord
+                    SinkProto.RowRecord.parseFrom(payload);
+                    if (debug)
+                        LOGGER.debug("Record {}: Verified RowRecord (TableId: {}) at pos {}", recordCount, key, startPos);
+                }
+            } catch (InvalidProtocolBufferException e)
+            {
+                // This is where "invalid tag (zero)" or "invalid UTF-8" would be caught
+                LOGGER.error("[Debug Verify] Protobuf corruption detected!");
+                LOGGER.error("Record: {}, Key: {}, Offset: {}, Error: {}", recordCount, key, startPos, e.getMessage());
+                throw new RuntimeException("Pre-write Protobuf validation failed", e);
+            }
+            recordCount++;
+        }
+    }
+
+    private static class TransactionContext
+    {
         // Key: Full Table Name, Value: Row Count
         private final Map<String, AtomicInteger> preEndCounts = new ConcurrentHashMap<>();
         public List<RowChangeEvent> rowChangeEventList = new CopyOnWriteArrayList<>();
@@ -346,7 +455,8 @@ public class ProtoWriter implements PixelsSinkWriter {
         // Key: Full Table Name
         private Map<String, TableCounters> tableCounters = null;
 
-        public void setEndReceived(Map<String, TableCounters> counters) {
+        public void setEndReceived(Map<String, TableCounters> counters)
+        {
             this.tableCounters = counters;
             this.endReceived = true;
         }
@@ -354,65 +464,9 @@ public class ProtoWriter implements PixelsSinkWriter {
         /**
          * @param table Full table name
          */
-        public void incrementPreEndCount(String table) {
+        public void incrementPreEndCount(String table)
+        {
             preEndCounts.computeIfAbsent(table, k -> new AtomicInteger(0)).incrementAndGet();
-        }
-    }
-
-    /**
-     * Verifies the structure and content of the ByteBuffer before physical write.
-     * It checks [Key(4B)][Len(4B)][Data(nB)] framing and validates Protobuf integrity.
-     * * @param buf The ByteBuffer prepared for writing.
-     */
-    private void debugVerifyBuffer(ByteBuffer buf) {
-        // Create a snapshot to avoid modifying the original buffer's position
-        ByteBuffer temp = buf.duplicate();
-        temp.order(ByteOrder.BIG_ENDIAN);
-        temp.rewind();
-
-        int recordCount = 0;
-//        LOGGER.info("--- [Debug Verify] Starting deep verification (Size: {} bytes) ---", temp.remaining());
-
-        while (temp.hasRemaining()) {
-            int startPos = temp.position();
-
-            // 1. Ensure enough bytes for the Header (Key + Len = 8 bytes)
-            if (temp.remaining() < 8) {
-                throw new RuntimeException(String.format(
-                        "Header truncated at pos %d. Only %d bytes remaining.", startPos, temp.remaining()));
-            }
-
-            int key = temp.getInt();
-            int len = temp.getInt();
-
-            // 2. Boundary Check: Ensure the buffer contains the full data payload
-            if (len < 0 || temp.remaining() < len) {
-                throw new RuntimeException(String.format(
-                        "Data mismatch at pos %d. Key: %d, Declared Len: %d, Available: %d",
-                        startPos, key, len, temp.remaining()));
-            }
-
-            // 3. Extract payload for Protobuf parsing
-            byte[] payload = new byte[len];
-            temp.get(payload);
-
-            try {
-                if (key == -1) {
-                    // Key -1: Must be valid TransactionMetadata
-                    SinkProto.TransactionMetadata.parseFrom(payload);
-                    if (debug) LOGGER.debug("Record {}: Verified Metadata at pos {}", recordCount, startPos);
-                } else {
-                    // Key >= 0: Must be valid RowRecord
-                    SinkProto.RowRecord.parseFrom(payload);
-                    if (debug) LOGGER.debug("Record {}: Verified RowRecord (TableId: {}) at pos {}", recordCount, key, startPos);
-                }
-            } catch (InvalidProtocolBufferException e) {
-                // This is where "invalid tag (zero)" or "invalid UTF-8" would be caught
-                LOGGER.error("[Debug Verify] Protobuf corruption detected!");
-                LOGGER.error("Record: {}, Key: {}, Offset: {}, Error: {}", recordCount, key, startPos, e.getMessage());
-                throw new RuntimeException("Pre-write Protobuf validation failed", e);
-            }
-            recordCount++;
         }
     }
 }

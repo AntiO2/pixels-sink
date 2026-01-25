@@ -28,36 +28,46 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
-public class PollingRpcServer {
+public class PollingRpcServer
+{
 
     private static final Logger LOGGER = LoggerFactory.getLogger(PollingRpcServer.class);
     private final Server server;
     private final int port;
 
-    public PollingRpcServer(PixelsPollingServiceImpl serviceImpl, int port) {
+    public PollingRpcServer(PixelsPollingServiceImpl serviceImpl, int port)
+    {
         this.port = port;
         this.server = ServerBuilder.forPort(port)
                 .addService(serviceImpl) // 将具体的服务实现绑定到服务器
                 .build();
     }
 
-    public void start() throws IOException {
+    public void start() throws IOException
+    {
         server.start();
         LOGGER.info("gRPC Polling Server started, listening on port " + port);
     }
 
-    public void stop() {
+    public void stop()
+    {
         LOGGER.info("Attempting to shut down gRPC Polling Server...");
-        if (server != null) {
-            try {
-                if (!server.isTerminated()) {
+        if (server != null)
+        {
+            try
+            {
+                if (!server.isTerminated())
+                {
                     server.shutdown().awaitTermination(5, TimeUnit.SECONDS);
                 }
-            } catch (InterruptedException e) {
+            } catch (InterruptedException e)
+            {
                 LOGGER.error("gRPC server shutdown interrupted.", e);
                 Thread.currentThread().interrupt();
-            } finally {
-                if (!server.isTerminated()) {
+            } finally
+            {
+                if (!server.isTerminated())
+                {
                     LOGGER.warn("gRPC server did not terminate gracefully. Forcing shutdown.");
                     server.shutdownNow();
                 }
@@ -66,8 +76,10 @@ public class PollingRpcServer {
         LOGGER.info("gRPC Polling Server shut down.");
     }
 
-    public void awaitTermination() throws InterruptedException {
-        if (server != null) {
+    public void awaitTermination() throws InterruptedException
+    {
+        if (server != null)
+        {
             server.awaitTermination();
         }
     }

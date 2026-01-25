@@ -25,7 +25,8 @@ import io.pixelsdb.pixels.sink.event.RowChangeEvent;
 
 import java.io.Closeable;
 
-public interface PixelsSinkWriter extends Closeable {
+public interface PixelsSinkWriter extends Closeable
+{
     void flush();
 
     boolean writeRow(RowChangeEvent rowChangeEvent);

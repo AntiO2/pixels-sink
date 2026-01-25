@@ -37,7 +37,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * It tracks transaction completeness based on row counts provided in the TXEND metadata,
  * ensuring robust handling of out-of-order and concurrent TX BEGIN, TX END, and ROWChange events.
  */
-public class NoneWriter implements PixelsSinkWriter {
+public class NoneWriter implements PixelsSinkWriter
+{
     private static final Logger LOGGER = LoggerFactory.getLogger(NoneWriter.class);
 
     private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
@@ -54,17 +55,20 @@ public class NoneWriter implements PixelsSinkWriter {
      *
      * @param transId The ID of the transaction to check.
      */
-    private void checkAndCleanupTransaction(String transId) {
+    private void checkAndCleanupTransaction(String transId)
+    {
         TransactionContext context = transTracker.get(transId);
 
-        if (context == null) {
+        if (context == null)
+        {
             return;
         }
 
         boolean allComplete = context.sinkContext.isCompleted();
         int actualProcessedRows = context.sinkContext.getProcessedRowsNum();
 
-        if (allComplete) {
+        if (allComplete)
+        {
             // All rows expected have been processed. Remove and record metrics.
             transTracker.remove(transId);
             LOGGER.trace("Transaction {} successfully completed and removed from tracker. Total rows: {}.", transId, actualProcessedRows);
@@ -72,24 +76,28 @@ public class NoneWriter implements PixelsSinkWriter {
             // Record final transaction metrics only upon completion
             metricsFacade.recordTransaction();
             metricsFacade.recordTransactionRowCount(actualProcessedRows);
-        } else {
+        } else
+        {
             // Not complete, keep tracking
             LOGGER.debug("Transaction {} is partially complete ({} rows processed). Keeping tracker entry.", transId, actualProcessedRows);
         }
     }
 
     @Override
-    public void flush() {
+    public void flush()
+    {
         // No-op for NoneWriter
     }
 
     // --- Interface Methods ---
 
     @Override
-    public boolean writeRow(RowChangeEvent rowChangeEvent) {
+    public boolean writeRow(RowChangeEvent rowChangeEvent)
+    {
         metricsFacade.recordRowEvent();
         metricsFacade.recordRowChange(rowChangeEvent.getTable(), rowChangeEvent.getOp());
-        try {
+        try
+        {
             rowChangeEvent.initIndexKey();
             if (rowChangeEvent.getAfterKey() != null)
             {
@@ -108,22 +116,26 @@ public class NoneWriter implements PixelsSinkWriter {
             context.incrementEndCount(fullTable);
             checkAndCleanupTransaction(transId);
             context.sinkContext.getTableCounterLock().unlock();
-        } catch (SinkException e) {
+        } catch (SinkException e)
+        {
             throw new RuntimeException("Error processing row key or metrics.", e);
         }
         return true;
     }
 
     @Override
-    public boolean writeTrans(SinkProto.TransactionMetadata transactionMetadata) {
+    public boolean writeTrans(SinkProto.TransactionMetadata transactionMetadata)
+    {
         String transId = transactionMetadata.getId();
 
-        if (transactionMetadata.getStatus() == SinkProto.TransactionStatus.BEGIN) {
+        if (transactionMetadata.getStatus() == SinkProto.TransactionStatus.BEGIN)
+        {
             // 1. BEGIN: Create context if not exists (in case ROWChange arrived first).
             transTracker.computeIfAbsent(transId, k -> new TransactionContext(transId));
             LOGGER.debug("Transaction {} BEGIN received.", transId);
 
-        } else if (transactionMetadata.getStatus() == SinkProto.TransactionStatus.END) {
+        } else if (transactionMetadata.getStatus() == SinkProto.TransactionStatus.END)
+        {
             // 2. END: Finalize tracker state, merge pre-counts, and trigger cleanup.
 
             // Get existing context or create a new one (in case BEGIN was missed).
@@ -137,12 +149,14 @@ public class NoneWriter implements PixelsSinkWriter {
     }
 
     @Override
-    public void close() throws IOException {
+    public void close() throws IOException
+    {
         // No-op for NoneWriter
         LOGGER.info("Remaining unfinished transactions on close: {}", transTracker.size());
 
         // Log details of transactions that were never completed
-        if (!transTracker.isEmpty()) {
+        if (!transTracker.isEmpty())
+        {
             transTracker.forEach((transId, context) ->
             {
                 LOGGER.warn("Unfinished transaction {}", transId);
@@ -154,12 +168,14 @@ public class NoneWriter implements PixelsSinkWriter {
      * Helper class to manage the state of a single transaction, decoupling the row accumulation
      * from the final TableCounters initialization (which requires total counts from TX END).
      */
-    public static class TransactionContext {
+    public static class TransactionContext
+    {
         // Key: Full Table Name, Value: Row Count
         private SinkContext sinkContext = null;
 
 
-        TransactionContext(String txId) {
+        TransactionContext(String txId)
+        {
             this.sinkContext = new SinkContext(txId);
         }
 
@@ -167,7 +183,8 @@ public class NoneWriter implements PixelsSinkWriter {
         /**
          * @param table Full table name
          */
-        public void incrementEndCount(String table) {
+        public void incrementEndCount(String table)
+        {
             sinkContext.updateCounter(table, 1);
         }
     }

@@ -29,18 +29,25 @@ import io.pixelsdb.pixels.sink.writer.retina.RetinaWriter;
 
 import java.io.IOException;
 
-public class PixelsSinkWriterFactory {
+public class PixelsSinkWriterFactory
+{
     private static final PixelsSinkConfig config = PixelsSinkConfigFactory.getInstance();
 
     private static volatile PixelsSinkWriter writer = null;
 
 
-    static public PixelsSinkWriter getWriter() {
-        if (writer == null) {
-            synchronized (PixelsSinkWriterFactory.class) {
-                if (writer == null) {
-                    try {
-                        switch (config.getPixelsSinkMode()) {
+    static public PixelsSinkWriter getWriter()
+    {
+        if (writer == null)
+        {
+            synchronized (PixelsSinkWriterFactory.class)
+            {
+                if (writer == null)
+                {
+                    try
+                    {
+                        switch (config.getPixelsSinkMode())
+                        {
                             case CSV:
                                 writer = new CsvWriter();
                                 break;
@@ -57,7 +64,8 @@ public class PixelsSinkWriterFactory {
                                 writer = new NoneWriter();
                                 break;
                         }
-                    } catch (IOException e) {
+                    } catch (IOException e)
+                    {
                         throw new RuntimeException("Can't create writer", e);
                     }
                 }

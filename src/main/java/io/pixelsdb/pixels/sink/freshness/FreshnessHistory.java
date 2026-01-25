@@ -26,30 +26,38 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-public class FreshnessHistory {
+public class FreshnessHistory
+{
     private final ConcurrentLinkedQueue<Record> history = new ConcurrentLinkedQueue<>();
 
-    public void record(double freshnessMill) {
+    public void record(double freshnessMill)
+    {
         history.offer(new Record(
                 System.currentTimeMillis(),
                 freshnessMill,
                 null
         ));
     }
-    public void record(double freshnessMill, double queryTimeMill) {
+
+    public void record(double freshnessMill, double queryTimeMill)
+    {
         history.offer(new Record(
                 System.currentTimeMillis(),
                 freshnessMill,
                 queryTimeMill
         ));
     }
-    public List<Record> pollAll() {
-        if (history.isEmpty()) {
+
+    public List<Record> pollAll()
+    {
+        if (history.isEmpty())
+        {
             return Collections.emptyList();
         }
         List<Record> records = new ArrayList<>();
         Record record;
-        while ((record = history.poll()) != null) {
+        while ((record = history.poll()) != null)
+        {
             records.add(record);
         }
         return records;
@@ -59,10 +67,13 @@ public class FreshnessHistory {
             long timestamp,
             double freshness,
             Double queryTimeMillis
-    ) {
+    )
+    {
         @Override
-        public String toString() {
-            if (queryTimeMillis == null) {
+        public String toString()
+        {
+            if (queryTimeMillis == null)
+            {
                 return timestamp + "," + freshness;
             }
             return timestamp + "," + freshness + "," + queryTimeMillis;

@@ -29,22 +29,27 @@ import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class TransactionProcessor implements Runnable, StoppableProcessor {
+public class TransactionProcessor implements Runnable, StoppableProcessor
+{
     private static final Logger LOGGER = LoggerFactory.getLogger(TransactionProcessor.class);
     private final PixelsSinkWriter sinkWriter;
     private final AtomicBoolean running = new AtomicBoolean(true);
     private final TransactionEventProvider transactionEventProvider;
 
-    public TransactionProcessor(TransactionEventProvider transactionEventProvider) {
+    public TransactionProcessor(TransactionEventProvider transactionEventProvider)
+    {
         this.transactionEventProvider = transactionEventProvider;
         this.sinkWriter = PixelsSinkWriterFactory.getWriter();
     }
 
     @Override
-    public void run() {
-        while (running.get()) {
+    public void run()
+    {
+        while (running.get())
+        {
             SinkProto.TransactionMetadata transaction = transactionEventProvider.getTransaction();
-            if (transaction == null) {
+            if (transaction == null)
+            {
                 LOGGER.warn("Received null transaction");
                 running.set(false);
                 break;
@@ -55,7 +60,8 @@ public class TransactionProcessor implements Runnable, StoppableProcessor {
     }
 
     @Override
-    public void stopProcessor() {
+    public void stopProcessor()
+    {
         LOGGER.info("Stopping transaction monitor");
         running.set(false);
     }

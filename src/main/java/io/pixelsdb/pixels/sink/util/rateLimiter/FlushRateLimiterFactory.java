@@ -23,13 +23,18 @@ package io.pixelsdb.pixels.sink.util.rateLimiter;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 
-public class FlushRateLimiterFactory {
+public class FlushRateLimiterFactory
+{
     private static volatile FlushRateLimiter instance;
 
-    public static FlushRateLimiter getInstance() {
-        if (instance == null) {
-            synchronized (FlushRateLimiterFactory.class) {
-                if (instance == null) {
+    public static FlushRateLimiter getInstance()
+    {
+        if (instance == null)
+        {
+            synchronized (FlushRateLimiterFactory.class)
+            {
+                if (instance == null)
+                {
                     instance = createLimiter();
                 }
             }
@@ -37,20 +42,24 @@ public class FlushRateLimiterFactory {
         return instance;
     }
 
-    public static FlushRateLimiter getNewInstance() {
+    public static FlushRateLimiter getNewInstance()
+    {
         return createLimiter();
     }
 
-    private static FlushRateLimiter createLimiter() {
+    private static FlushRateLimiter createLimiter()
+    {
         PixelsSinkConfig config = PixelsSinkConfigFactory.getInstance();
 
-        if (!config.isEnableSourceRateLimit() || config.getSourceRateLimit() <= 0) {
+        if (!config.isEnableSourceRateLimit() || config.getSourceRateLimit() <= 0)
+        {
             return new NoOpFlushRateLimiter();
         }
 
         String type = config.getRateLimiterType().toLowerCase();
 
-        switch (type) {
+        switch (type)
+        {
             case "guava":
                 return new GuavaFlushRateLimiter(config);
             case "semaphore":

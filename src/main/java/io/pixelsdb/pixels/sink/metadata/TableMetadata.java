@@ -34,14 +34,16 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @Getter
-public class TableMetadata {
+public class TableMetadata
+{
     private final Table table;
     private final SinglePointIndex index;
     private final TypeDescription typeDescription;
     private final List<Column> columns;
     private final List<String> keyColumnNames;
 
-    public TableMetadata(Table table, SinglePointIndex index, List<Column> columns) throws MetadataException {
+    public TableMetadata(Table table, SinglePointIndex index, List<Column> columns) throws MetadataException
+    {
         this.table = table;
         this.index = index;
         this.columns = columns;
@@ -49,17 +51,22 @@ public class TableMetadata {
         List<String> columnNames = columns.stream().map(Column::getName).collect(Collectors.toList());
         List<String> columnTypes = columns.stream().map(Column::getType).collect(Collectors.toList());
         typeDescription = TypeDescription.createSchemaFromStrings(columnNames, columnTypes);
-        if (index != null) {
+        if (index != null)
+        {
             Map<Long, Column> columnMap = new HashMap<>();
-            for (Column column : columns) {
+            for (Column column : columns)
+            {
                 columnMap.put(column.getId(), column);
             }
 
-            for (Integer keyColumnId : index.getKeyColumns().getKeyColumnIds()) {
+            for (Integer keyColumnId : index.getKeyColumns().getKeyColumnIds())
+            {
                 Column column = columnMap.get(keyColumnId.longValue());
-                if (column != null) {
+                if (column != null)
+                {
                     keyColumnNames.add(column.getName());
-                } else {
+                } else
+                {
                     throw new MetadataException("Cant find key column id: " + keyColumnId + " in table "
                             + table.getName() + " schema id is " + table.getSchemaId());
                 }
@@ -67,19 +74,23 @@ public class TableMetadata {
         }
     }
 
-    public boolean hasPrimaryIndex() {
+    public boolean hasPrimaryIndex()
+    {
         return index != null;
     }
 
-    public long getPrimaryIndexKeyId() {
+    public long getPrimaryIndexKeyId()
+    {
         return index.getId();
     }
 
-    public long getTableId() {
+    public long getTableId()
+    {
         return table.getId();
     }
 
-    public long getSchemaId() {
+    public long getSchemaId()
+    {
         return table.getSchemaId();
     }
 }

@@ -40,7 +40,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  *
  * @author AntiO2
  */
-public class TransactionProxy {
+public class TransactionProxy
+{
     private static final Logger LOGGER = LoggerFactory.getLogger(TransactionProxy.class);
     private static volatile TransactionProxy instance;
     private final TransService transService;
@@ -59,7 +60,8 @@ public class TransactionProxy {
     private AtomicInteger beginCount = new AtomicInteger(0);
     private AtomicInteger commitCount = new AtomicInteger(0);
 
-    private TransactionProxy() {
+    private TransactionProxy()
+    {
         PixelsSinkConfig pixelsSinkConfig = PixelsSinkConfigFactory.getInstance();
         BATCH_SIZE = pixelsSinkConfig.getCommitBatchSize();
         WORKER_COUNT = pixelsSinkConfig.getCommitBatchWorkers();
@@ -80,17 +82,22 @@ public class TransactionProxy {
                     return t;
                 }
         );
-        for (int i = 0; i < WORKER_COUNT; i++) {
+        for (int i = 0; i < WORKER_COUNT; i++)
+        {
             batchCommitExecutor.submit(this::batchCommitWorker);
         }
 
         this.freshnessLevel = pixelsSinkConfig.getSinkMonitorFreshnessLevel();
     }
 
-    public static TransactionProxy Instance() {
-        if (instance == null) {
-            synchronized (TransactionProxy.class) {
-                if (instance == null) {
+    public static TransactionProxy Instance()
+    {
+        if (instance == null)
+        {
+            synchronized (TransactionProxy.class)
+            {
+                if (instance == null)
+                {
                     instance = new TransactionProxy();
                 }
             }
@@ -98,48 +105,62 @@ public class TransactionProxy {
         return instance;
     }
 
-    public static void staticClose() {
-        if (instance != null) {
+    public static void staticClose()
+    {
+        if (instance != null)
+        {
             instance.close();
         }
     }
 
-    private void requestTransactions() {
-        try {
+    private void requestTransactions()
+    {
+        try
+        {
             List<TransContext> newContexts = transService.beginTransBatch(REQUEST_BATCH_SIZE, false);
             transContextQueue.addAll(newContexts);
-        } catch (TransException e) {
+        } catch (TransException e)
+        {
             throw new RuntimeException("Batch request failed", e);
         }
     }
 
     @Deprecated
-    public TransContext getNewTransContext() {
+    public TransContext getNewTransContext()
+    {
         return getNewTransContext("None");
     }
 
-    public TransContext getNewTransContext(String txId) {
+    public TransContext getNewTransContext(String txId)
+    {
         beginCount.incrementAndGet();
-        if (!REQUEST_BATCH) {
-            try {
+        if (!REQUEST_BATCH)
+        {
+            try
+            {
                 TransContext transContext = transService.beginTrans(false);
                 LOGGER.trace("{} begin {}", txId, transContext.getTransId());
                 return transContext;
-            } catch (TransException e) {
+            } catch (TransException e)
+            {
                 return null;
             }
         }
 
         TransContext ctx = transContextQueue.poll();
-        if (ctx != null) {
+        if (ctx != null)
+        {
             return ctx;
         }
-        synchronized (batchLock) {
+        synchronized (batchLock)
+        {
             ctx = transContextQueue.poll();
-            if (ctx == null) {
+            if (ctx == null)
+            {
                 requestTransactions();
                 ctx = transContextQueue.poll();
-                if (ctx == null) {
+                if (ctx == null)
+                {
                     throw new IllegalStateException("No contexts available");
                 }
             }
@@ -147,43 +168,55 @@ public class TransactionProxy {
         }
     }
 
-    public void commitTransAsync(SinkContext transContext) {
+    public void commitTransAsync(SinkContext transContext)
+    {
         toCommitTransContextQueue.add(transContext);
     }
 
-    public void commitTransSync(SinkContext transContext) {
+    public void commitTransSync(SinkContext transContext)
+    {
         commitTrans(transContext.getPixelsTransCtx());
         metricsFacade.recordTransaction();
         long txEndTime = System.currentTimeMillis();
 
-        if (freshnessLevel.equals("txn")) {
+        if (freshnessLevel.equals("txn"))
+        {
             metricsFacade.recordFreshness(txEndTime - transContext.getStartTime());
         }
     }
 
-    public void commitTrans(TransContext ctx) {
+    public void commitTrans(TransContext ctx)
+    {
         commitCount.incrementAndGet();
-        try {
+        try
+        {
             transService.commitTrans(ctx.getTransId(), false);
-        } catch (TransException e) {
+        } catch (TransException e)
+        {
             LOGGER.error("Batch commit failed: {}", e.getMessage(), e);
         }
     }
 
-    public void rollbackTrans(TransContext ctx) {
-        try {
+    public void rollbackTrans(TransContext ctx)
+    {
+        try
+        {
             transService.rollbackTrans(ctx.getTransId(), false);
-        } catch (TransException e) {
+        } catch (TransException e)
+        {
             LOGGER.error("Rollback transaction failed: {}", e.getMessage(), e);
         }
     }
 
-    private void batchCommitWorker() {
+    private void batchCommitWorker()
+    {
         List<Long> batchTransIds = new ArrayList<>(BATCH_SIZE);
         List<TransContext> batchContexts = new ArrayList<>(BATCH_SIZE);
         List<Long> txStartTimes = new ArrayList<>(BATCH_SIZE);
-        while (true) {
-            try {
+        while (true)
+        {
+            try
+            {
                 batchContexts.clear();
                 batchTransIds.clear();
                 txStartTimes.clear();
@@ -195,15 +228,18 @@ public class TransactionProxy {
                 txStartTimes.add(firstSinkContext.getStartTime());
                 long startTime = System.nanoTime();
 
-                while (batchContexts.size() < BATCH_SIZE) {
+                while (batchContexts.size() < BATCH_SIZE)
+                {
                     long elapsedMs = (System.nanoTime() - startTime) / 1_000_000;
                     long remainingMs = MAX_WAIT_MS - elapsedMs;
-                    if (remainingMs <= 0) {
+                    if (remainingMs <= 0)
+                    {
                         break;
                     }
 
                     SinkContext ctx = toCommitTransContextQueue.poll(remainingMs, TimeUnit.MILLISECONDS);
-                    if (ctx == null) {
+                    if (ctx == null)
+                    {
                         break;
                     }
                     transContext = ctx.getPixelsTransCtx();
@@ -216,7 +252,8 @@ public class TransactionProxy {
                 metricsFacade.recordTransaction(batchTransIds.size());
                 long txEndTime = System.currentTimeMillis();
 
-                if (freshnessLevel.equals("txn")) {
+                if (freshnessLevel.equals("txn"))
+                {
                     txStartTimes.forEach(
                             txStartTime ->
                             {
@@ -224,34 +261,44 @@ public class TransactionProxy {
                             }
                     );
                 }
-                if (LOGGER.isTraceEnabled()) {
+                if (LOGGER.isTraceEnabled())
+                {
                     LOGGER.trace("[{}] Batch committed {} transactions ({} waited ms)",
                             Thread.currentThread().getName(),
                             batchTransIds.size(),
                             (System.nanoTime() - startTime) / 1_000_000);
                 }
-            } catch (InterruptedException ie) {
+            } catch (InterruptedException ie)
+            {
                 LOGGER.warn("Batch commit worker interrupted, exiting...");
                 Thread.currentThread().interrupt();
                 break;
-            } catch (TransException e) {
+            } catch (TransException e)
+            {
                 LOGGER.error("Batch commit failed: {}", e.getMessage(), e);
-            } catch (Exception e) {
+            } catch (Exception e)
+            {
                 LOGGER.error("Unexpected error in batch commit worker", e);
             }
         }
     }
 
-    public void close() {
-        synchronized (batchLock) {
-            while (true) {
+    public void close()
+    {
+        synchronized (batchLock)
+        {
+            while (true)
+            {
                 TransContext ctx = transContextQueue.poll();
-                if (ctx == null) {
+                if (ctx == null)
+                {
                     break;
                 }
-                try {
+                try
+                {
                     transService.rollbackTrans(ctx.getTransId(), false);
-                } catch (TransException e) {
+                } catch (TransException e)
+                {
                     throw new RuntimeException(e);
                 }
             }

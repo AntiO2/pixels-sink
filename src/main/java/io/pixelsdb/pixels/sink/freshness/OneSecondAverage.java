@@ -23,7 +23,8 @@ package io.pixelsdb.pixels.sink.freshness;
 import java.util.ArrayDeque;
 import java.util.Deque;
 
-public class OneSecondAverage {
+public class OneSecondAverage
+{
     /**
      * Time window in milliseconds
      */
@@ -37,14 +38,16 @@ public class OneSecondAverage {
     /**
      * Constructor with configurable window size (milliseconds)
      */
-    public OneSecondAverage(int windowMillis) {
+    public OneSecondAverage(int windowMillis)
+    {
         this.windowMillis = windowMillis;
     }
 
     /**
      * Record a new data point
      */
-    public synchronized void record(double v) {
+    public synchronized void record(double v)
+    {
         long now = System.currentTimeMillis();
         window.addLast(new TimedValue(now, v));
         evictOld(now);
@@ -53,8 +56,10 @@ public class OneSecondAverage {
     /**
      * Remove all values older than windowMillis
      */
-    private void evictOld(long now) {
-        while (!window.isEmpty() && now - window.peekFirst().timestamp > windowMillis) {
+    private void evictOld(long now)
+    {
+        while (!window.isEmpty() && now - window.peekFirst().timestamp > windowMillis)
+        {
             window.removeFirst();
         }
     }
@@ -62,16 +67,19 @@ public class OneSecondAverage {
     /**
      * Compute average of values in the time window
      */
-    public synchronized double getWindowAverage() {
+    public synchronized double getWindowAverage()
+    {
         long now = System.currentTimeMillis();
         evictOld(now);
 
-        if (window.isEmpty()) {
+        if (window.isEmpty())
+        {
             return Double.NaN;
         }
 
         double sum = 0;
-        for (TimedValue tv : window) {
+        for (TimedValue tv : window)
+        {
             sum += tv.value;
         }
         return sum / window.size();
@@ -80,6 +88,7 @@ public class OneSecondAverage {
     /**
      * Timestamped data point
      */
-    private record TimedValue(long timestamp, double value) {
+    private record TimedValue(long timestamp, double value)
+    {
     }
 }

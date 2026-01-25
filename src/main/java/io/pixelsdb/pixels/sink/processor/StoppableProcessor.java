@@ -21,6 +21,7 @@
 
 package io.pixelsdb.pixels.sink.processor;
 
-public interface StoppableProcessor {
+public interface StoppableProcessor
+{
     void stopProcessor();
 }

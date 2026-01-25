@@ -31,12 +31,14 @@ import io.pixelsdb.pixels.sink.source.SinkSource;
 
 import java.util.Properties;
 
-public class SinkKafkaSource implements SinkSource {
+public class SinkKafkaSource implements SinkSource
+{
     private MonitorThreadManager manager;
     private volatile boolean running = true;
 
     @Override
-    public void start() {
+    public void start()
+    {
         PixelsSinkConfig pixelsSinkConfig = PixelsSinkConfigFactory.getInstance();
         KafkaPropFactorySelector kafkaPropFactorySelector = new KafkaPropFactorySelector();
 
@@ -57,13 +59,15 @@ public class SinkKafkaSource implements SinkSource {
 
 
     @Override
-    public void stopProcessor() {
+    public void stopProcessor()
+    {
         manager.shutdown();
         running = false;
     }
 
     @Override
-    public boolean isRunning() {
+    public boolean isRunning()
+    {
         return running;
     }
 }

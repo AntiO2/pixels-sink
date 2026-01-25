@@ -38,18 +38,21 @@ import java.util.logging.Logger;
  * @author: AntiO2
  * @date: 2025/9/26 12:00
  */
-public class RowChangeEventStructDeserializer {
+public class RowChangeEventStructDeserializer
+{
     private static final Logger LOGGER = Logger.getLogger(RowChangeEventStructDeserializer.class.getName());
     private static final TableMetadataRegistry tableMetadataRegistry = TableMetadataRegistry.Instance();
 
-    public static RowChangeEvent convertToRowChangeEvent(SourceRecord sourceRecord) throws SinkException {
+    public static RowChangeEvent convertToRowChangeEvent(SourceRecord sourceRecord) throws SinkException
+    {
         Struct value = (Struct) sourceRecord.value();
         String op = value.getString("op");
         SinkProto.OperationType operationType = DeserializerUtil.getOperationType(op);
         return buildRowRecord(value, operationType);
     }
 
-    public static RowChangeEvent convertToRowChangeEvent(SinkProto.RowRecord rowRecord) throws SinkException {
+    public static RowChangeEvent convertToRowChangeEvent(SinkProto.RowRecord rowRecord) throws SinkException
+    {
         String schemaName = rowRecord.getSource().getDb();
         String tableName = rowRecord.getSource().getTable();
         TypeDescription typeDescription = tableMetadataRegistry.getTypeDescription(schemaName, tableName);
@@ -57,7 +60,8 @@ public class RowChangeEventStructDeserializer {
     }
 
     private static RowChangeEvent buildRowRecord(Struct value,
-                                                 SinkProto.OperationType opType) throws SinkException {
+                                                 SinkProto.OperationType opType) throws SinkException
+    {
 
         SinkProto.RowRecord.Builder builder = SinkProto.RowRecord.newBuilder();
 
@@ -65,13 +69,15 @@ public class RowChangeEventStructDeserializer {
 
         String schemaName;
         String tableName;
-        try {
+        try
+        {
             Struct source = value.getStruct("source");
             SinkProto.SourceInfo.Builder sourceInfoBuilder = parseSourceInfo(source);
             schemaName = sourceInfoBuilder.getDb(); // Notice we use the schema
             tableName = sourceInfoBuilder.getTable();
             builder.setSource(sourceInfoBuilder);
-        } catch (DataException e) {
+        } catch (DataException e)
+        {
             LOGGER.warning("Missing source field in row record");
             throw new SinkException(e);
         }
@@ -79,21 +85,25 @@ public class RowChangeEventStructDeserializer {
         TypeDescription typeDescription = tableMetadataRegistry.getTypeDescription(schemaName, tableName);
         RowDataParser rowDataParser = new RowDataParser(typeDescription);
 
-        try {
+        try
+        {
             Struct transaction = value.getStruct("transaction");
             SinkProto.TransactionInfo transactionInfo = parseTransactionInfo(transaction);
             builder.setTransaction(transactionInfo);
-        } catch (DataException e) {
+        } catch (DataException e)
+        {
             LOGGER.warning("Missing transaction field in row record");
         }
 
-        if (DeserializerUtil.hasBeforeValue(opType)) {
+        if (DeserializerUtil.hasBeforeValue(opType))
+        {
             SinkProto.RowValue.Builder beforeBuilder = builder.getBeforeBuilder();
             rowDataParser.parse(value.getStruct("before"), beforeBuilder);
             builder.setBefore(beforeBuilder);
         }
 
-        if (DeserializerUtil.hasAfterValue(opType)) {
+        if (DeserializerUtil.hasAfterValue(opType))
+        {
 
             SinkProto.RowValue.Builder afterBuilder = builder.getAfterBuilder();
             rowDataParser.parse(value.getStruct("after"), afterBuilder);
@@ -104,7 +114,8 @@ public class RowChangeEventStructDeserializer {
         return event;
     }
 
-    private static <T> SinkProto.SourceInfo.Builder parseSourceInfo(T source) {
+    private static <T> SinkProto.SourceInfo.Builder parseSourceInfo(T source)
+    {
         return SinkProto.SourceInfo.newBuilder()
                 // .setVersion(DeserializerUtil.getStringSafely(source, "version"))
                 // .setConnector(DeserializerUtil.getStringSafely(source, "connector"))
@@ -122,7 +133,8 @@ public class RowChangeEventStructDeserializer {
 //                .setXmin(DeserializerUtil.getLongSafely(source, "xmin"));
     }
 
-    private static <T> SinkProto.TransactionInfo parseTransactionInfo(T txNode) {
+    private static <T> SinkProto.TransactionInfo parseTransactionInfo(T txNode)
+    {
         return SinkProto.TransactionInfo.newBuilder()
                 .setId(DeserializerUtil.getTransIdPrefix(
                         DeserializerUtil.getStringSafely(txNode, "id")))

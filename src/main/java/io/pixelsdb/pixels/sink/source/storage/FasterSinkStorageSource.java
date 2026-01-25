@@ -35,23 +35,28 @@ import java.nio.ByteBuffer;
  * @author: AntiO2
  * @date: 2025/10/5 11:43
  */
-public class FasterSinkStorageSource extends AbstractMemorySinkStorageSource implements SinkSource {
+public class FasterSinkStorageSource extends AbstractMemorySinkStorageSource implements SinkSource
+{
     private static final Logger LOGGER = LoggerFactory.getLogger(FasterSinkStorageSource.class);
     static SchemaTableName transactionSchemaTableName = new SchemaTableName("freak", "transaction");
 
-    public FasterSinkStorageSource() {
+    public FasterSinkStorageSource()
+    {
         super();
     }
 
-    private static String readString(ByteBuffer buffer, int len) {
+    private static String readString(ByteBuffer buffer, int len)
+    {
         byte[] bytes = new byte[len];
         buffer.get(bytes);
         return new String(bytes);
     }
 
     @Override
-    ProtoType getProtoType(int i) {
-        if (i == -1) {
+    ProtoType getProtoType(int i)
+    {
+        if (i == -1)
+        {
             return ProtoType.TRANS;
         }
         return ProtoType.ROW;

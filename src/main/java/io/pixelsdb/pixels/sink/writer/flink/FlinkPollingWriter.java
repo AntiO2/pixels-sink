@@ -47,7 +47,8 @@ import java.util.concurrent.TimeUnit;
  * This class is thread-safe and integrates FlushRateLimiter to control ingress traffic.
  * It also manages the lifecycle of the gRPC server.
  */
-public class FlinkPollingWriter extends AbstractBucketedWriter<Void> implements PixelsSinkWriter {
+public class FlinkPollingWriter extends AbstractBucketedWriter<Void> implements PixelsSinkWriter
+{
 
     private static final Logger LOGGER = LoggerFactory.getLogger(FlinkPollingWriter.class);
     // Core data structure: A thread-safe map from table name to a thread-safe blocking queue.
@@ -59,11 +60,13 @@ public class FlinkPollingWriter extends AbstractBucketedWriter<Void> implements 
      * Constructor for FlinkPollingWriter.
      * Initializes the data structures, rate limiter, and starts the gRPC server.
      */
-    public FlinkPollingWriter() {
+    public FlinkPollingWriter()
+    {
         this.tableQueues = new ConcurrentHashMap<>();
 
         // --- START: New logic to initialize and start the gRPC server ---
-        try {
+        try
+        {
             // 1. Get configuration
             PixelsSinkConfig config = PixelsSinkConfigFactory.getInstance();
             int rpcPort = config.getSinkFlinkServerPort();
@@ -76,7 +79,8 @@ public class FlinkPollingWriter extends AbstractBucketedWriter<Void> implements 
             // 4. Start the server.
             this.pollingRpcServer.start();
             LOGGER.info("gRPC Polling Server successfully started and is managed by FlinkPollingWriter.");
-        } catch (IOException e) {
+        } catch (IOException e)
+        {
             // If the server fails to start, the writer cannot function.
             // Throw a RuntimeException to fail the Flink task initialization.
             LOGGER.error("Failed to start gRPC server during FlinkPollingWriter initialization.", e);
@@ -93,16 +97,20 @@ public class FlinkPollingWriter extends AbstractBucketedWriter<Void> implements 
      * @return always returns true, unless an interruption occurs.
      */
     @Override
-    public boolean writeRow(RowChangeEvent event) {
-        if (event == null) {
+    public boolean writeRow(RowChangeEvent event)
+    {
+        if (event == null)
+        {
             LOGGER.warn("Received a null RowChangeEvent, skipping.");
             return false;
         }
 
-        try {
+        try
+        {
             writeRowChangeEvent(event, null);
             return true;
-        } catch (Exception e) {
+        } catch (Exception e)
+        {
             LOGGER.error(
                     "Failed to process and write row for table: {}",
                     event.getFullTableName(),
@@ -131,19 +139,22 @@ public class FlinkPollingWriter extends AbstractBucketedWriter<Void> implements 
             int batchSize,
             long timeout,
             TimeUnit unit
-    ) throws InterruptedException {
+    ) throws InterruptedException
+    {
         List<SinkProto.RowRecord> records = new ArrayList<>(batchSize);
         TableBucketKey key = new TableBucketKey(tableName, bucketId);
 
         BlockingQueue<SinkProto.RowRecord> queue = tableQueues.get(key);
 
-        if (queue == null) {
+        if (queue == null)
+        {
             unit.sleep(timeout);
             return records;
         }
 
         SinkProto.RowRecord first = queue.poll(timeout, unit);
-        if (first == null) {
+        if (first == null)
+        {
             return records;
         }
 
@@ -161,7 +172,8 @@ public class FlinkPollingWriter extends AbstractBucketedWriter<Void> implements 
      * This implementation does not involve transactions, so this method is a no-op.
      */
     @Override
-    public boolean writeTrans(SinkProto.TransactionMetadata transactionMetadata) {
+    public boolean writeTrans(SinkProto.TransactionMetadata transactionMetadata)
+    {
         return true;
     }
 
@@ -169,7 +181,8 @@ public class FlinkPollingWriter extends AbstractBucketedWriter<Void> implements 
      * This implementation uses an in-memory queue, so data is immediately available. flush is a no-op.
      */
     @Override
-    public void flush() {
+    public void flush()
+    {
         // No-op
     }
 
@@ -177,9 +190,11 @@ public class FlinkPollingWriter extends AbstractBucketedWriter<Void> implements 
      * Cleans up resources on close. This is where we stop the gRPC server.
      */
     @Override
-    public void close() throws IOException {
+    public void close() throws IOException
+    {
         LOGGER.info("Closing FlinkPollingWriter...");
-        if (this.pollingRpcServer != null) {
+        if (this.pollingRpcServer != null)
+        {
             LOGGER.info("Attempting to shut down the gRPC Polling Server...");
             this.pollingRpcServer.stop();
             LOGGER.info("gRPC Polling Server shut down.");
@@ -190,7 +205,8 @@ public class FlinkPollingWriter extends AbstractBucketedWriter<Void> implements 
     }
 
     @Override
-    protected void emit(RowChangeEvent event, int bucketId, Void unused) {
+    protected void emit(RowChangeEvent event, int bucketId, Void unused)
+    {
         TableBucketKey key =
                 new TableBucketKey(event.getSchemaTableName(), bucketId);
 
@@ -200,13 +216,15 @@ public class FlinkPollingWriter extends AbstractBucketedWriter<Void> implements 
                         k -> new LinkedBlockingQueue<>(PixelsSinkConstants.MAX_QUEUE_SIZE)
                 );
 
-        try {
+        try
+        {
             queue.put(event.getRowRecord());
             LOGGER.debug(
                     "Enqueued row for table {}, bucket {}, queueSize={}",
                     event.getFullTableName(), bucketId, queue.size()
             );
-        } catch (InterruptedException e) {
+        } catch (InterruptedException e)
+        {
             Thread.currentThread().interrupt();
             throw new RuntimeException(
                     "Interrupted while enqueueing row for " + event.getFullTableName(),
@@ -215,6 +233,7 @@ public class FlinkPollingWriter extends AbstractBucketedWriter<Void> implements 
         }
     }
 
-    record TableBucketKey(SchemaTableName table, int bucketId) {
+    record TableBucketKey(SchemaTableName table, int bucketId)
+    {
     }
 }

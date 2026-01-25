@@ -21,16 +21,20 @@
 package io.pixelsdb.pixels.sink.writer;
 
 
-public enum PixelsSinkMode {
+public enum PixelsSinkMode
+{
     CSV,
     RETINA,
     PROTO,
     FLINK,
     NONE;
 
-    public static PixelsSinkMode fromValue(String value) {
-        for (PixelsSinkMode mode : values()) {
-            if (mode.name().equalsIgnoreCase(value)) {
+    public static PixelsSinkMode fromValue(String value)
+    {
+        for (PixelsSinkMode mode : values())
+        {
+            if (mode.name().equalsIgnoreCase(value))
+            {
                 return mode;
             }
         }

@@ -36,20 +36,25 @@ import java.util.logging.Logger;
  * @author: AntiO2
  * @date: 2025/9/26 10:45
  */
-public class TableEventStorageProvider<T> extends TableEventProvider<T> {
+public class TableEventStorageProvider<T> extends TableEventProvider<T>
+{
     private final Logger LOGGER = Logger.getLogger(TableEventStorageProvider.class.getName());
 
-    protected TableEventStorageProvider() {
+    protected TableEventStorageProvider()
+    {
         super();
     }
 
     @Override
-    RowChangeEvent convertToTargetRecord(T record) {
+    RowChangeEvent convertToTargetRecord(T record)
+    {
         ByteBuffer sourceRecord = (ByteBuffer) record;
-        try {
+        try
+        {
             SinkProto.RowRecord rowRecord = SinkProto.RowRecord.parseFrom(sourceRecord);
             return RowChangeEventStructDeserializer.convertToRowChangeEvent(rowRecord);
-        } catch (InvalidProtocolBufferException | SinkException e) {
+        } catch (InvalidProtocolBufferException | SinkException e)
+        {
             LOGGER.warning(e.getMessage());
             return null;
         }

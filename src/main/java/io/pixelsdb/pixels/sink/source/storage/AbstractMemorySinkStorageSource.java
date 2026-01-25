@@ -38,7 +38,8 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
 
-public abstract class AbstractMemorySinkStorageSource extends AbstractSinkStorageSource {
+public abstract class AbstractMemorySinkStorageSource extends AbstractSinkStorageSource
+{
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractMemorySinkStorageSource.class);
 
     // All preloaded records, order preserved
@@ -46,29 +47,35 @@ public abstract class AbstractMemorySinkStorageSource extends AbstractSinkStorag
     private final List<Pair<Integer, ByteBuffer>> preloadedRecords = new ArrayList<>();
 
     @Override
-    public void start() {
+    public void start()
+    {
         this.running.set(true);
         this.transactionProcessorThread.start();
         this.transactionProviderThread.start();
-        try {
+        try
+        {
             /* =====================================================
              * 1. Initialization phase: preload all ByteBuffers
              * ===================================================== */
-            for (String file : files) {
+            for (String file : files)
+            {
                 Storage.Scheme scheme = Storage.Scheme.fromPath(file);
                 LOGGER.info("Preloading file {}", file);
 
                 PhysicalReader reader = PhysicalReaderUtil.newPhysicalReader(scheme, file);
                 readers.add(reader);
 
-                while (true) {
+                while (true)
+                {
                     int key;
                     int valueLen;
 
-                    try {
+                    try
+                    {
                         key = reader.readInt(ByteOrder.BIG_ENDIAN);
                         valueLen = reader.readInt(ByteOrder.BIG_ENDIAN);
-                    } catch (IOException eof) {
+                    } catch (IOException eof)
+                    {
                         // Reached end of file
                         break;
                     }
@@ -89,8 +96,10 @@ public abstract class AbstractMemorySinkStorageSource extends AbstractSinkStorag
              * Queue initialization, consumer startup, and feeding
              * are done together in this phase
              * ===================================================== */
-            do {
-                for (Pair<Integer, ByteBuffer> record : preloadedRecords) {
+            do
+            {
+                for (Pair<Integer, ByteBuffer> record : preloadedRecords)
+                {
                     int key = record.getLeft();
                     ByteBuffer src = record.getRight();
                     ByteBuffer copy = ByteBuffer.allocate(src.remaining());
@@ -114,7 +123,8 @@ public abstract class AbstractMemorySinkStorageSource extends AbstractSinkStorag
                     });
 
                     ProtoType protoType = getProtoType(key);
-                    if (protoType == ProtoType.ROW) {
+                    if (protoType == ProtoType.ROW)
+                    {
                         sourceRateLimiter.acquire(1);
                     }
 
@@ -126,11 +136,14 @@ public abstract class AbstractMemorySinkStorageSource extends AbstractSinkStorag
                 }
                 ++loopId;
             } while (storageLoopEnabled && isRunning());
-        } catch (IOException | IndexOutOfBoundsException e) {
+        } catch (IOException | IndexOutOfBoundsException e)
+        {
             throw new RuntimeException(e);
-        } catch (InterruptedException e) {
+        } catch (InterruptedException e)
+        {
             Thread.currentThread().interrupt();
-        } finally {
+        } finally
+        {
             clean();
         }
     }

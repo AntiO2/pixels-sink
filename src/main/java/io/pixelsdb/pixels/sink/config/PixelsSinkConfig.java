@@ -32,7 +32,8 @@ import java.io.IOException;
 import java.util.List;
 
 @Getter
-public class PixelsSinkConfig {
+public class PixelsSinkConfig
+{
     private final ConfigFactory config;
 
     @ConfigKey(value = "transaction.timeout", defaultValue = TransactionConfig.DEFAULT_TRANSACTION_TIME_OUT)
@@ -227,22 +228,26 @@ public class PixelsSinkConfig {
     @ConfigKey(value = "trino.parallel", defaultValue = "1")
     private int trinoParallel;
 
-    public PixelsSinkConfig(String configFilePath) throws IOException {
+    public PixelsSinkConfig(String configFilePath) throws IOException
+    {
         this.config = ConfigFactory.Instance();
         this.config.loadProperties(configFilePath);
         init();
     }
 
-    public PixelsSinkConfig(ConfigFactory config) {
+    public PixelsSinkConfig(ConfigFactory config)
+    {
         this.config = config;
         init();
     }
 
-    public String[] getIncludeTables() {
+    public String[] getIncludeTables()
+    {
         return includeTablesRaw.isEmpty() ? new String[0] : includeTablesRaw.split(",");
     }
 
-    private void init() {
+    private void init()
+    {
         ConfigLoader.load(this.config.extractPropertiesByPrefix("", false), this);
 
         this.enableSourceRateLimit = this.sourceRateLimit >= 0;

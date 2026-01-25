@@ -38,7 +38,8 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class RetinaServiceProxy {
+public class RetinaServiceProxy
+{
     private static final Logger LOGGER = LoggerFactory.getLogger(RetinaServiceProxy.class);
     @Getter
     private static final PixelsSinkMode pixelsSinkMode = PixelsSinkMode.RETINA;
@@ -50,35 +51,47 @@ public class RetinaServiceProxy {
     private final int vNodeId;
     private RetinaService.StreamHandler retinaStream = null;
 
-    public RetinaServiceProxy(int bucketId) {
-        if (bucketId == -1) {
+    public RetinaServiceProxy(int bucketId)
+    {
+        if (bucketId == -1)
+        {
             this.retinaService = RetinaService.Instance();
-        } else {
+        } else
+        {
             this.retinaService = RetinaUtils.getRetinaServiceFromBucketId(bucketId);
         }
 
 
-        if (config.getRetinaWriteMode() == RetinaWriteMode.STREAM) {
+        if (config.getRetinaWriteMode() == RetinaWriteMode.STREAM)
+        {
             retinaStream = retinaService.startUpdateStream();
-        } else {
+        } else
+        {
             retinaStream = null;
         }
 
         this.vNodeId = BucketCache.getInstance().getRetinaNodeInfoByBucketId(bucketId).getVirtualNodeId();
     }
 
-    public boolean writeTrans(String schemaName, List<RetinaProto.TableUpdateData> tableUpdateData) {
-        if (config.getRetinaWriteMode() == RetinaWriteMode.STUB) {
-            try {
+    public boolean writeTrans(String schemaName, List<RetinaProto.TableUpdateData> tableUpdateData)
+    {
+        if (config.getRetinaWriteMode() == RetinaWriteMode.STUB)
+        {
+            try
+            {
                 retinaService.updateRecord(schemaName, vNodeId, tableUpdateData);
-            } catch (RetinaException e) {
+            } catch (RetinaException e)
+            {
                 e.printStackTrace();
                 return false;
             }
-        } else {
-            try {
+        } else
+        {
+            try
+            {
                 retinaStream.updateRecord(schemaName, vNodeId, tableUpdateData);
-            } catch (RetinaException e) {
+            } catch (RetinaException e)
+            {
                 e.printStackTrace();
                 return false;
             }
@@ -87,38 +100,51 @@ public class RetinaServiceProxy {
     }
 
     public CompletableFuture<RetinaProto.UpdateRecordResponse> writeBatchAsync
-            (String schemaName, List<RetinaProto.TableUpdateData> tableUpdateData) {
-        if (config.getRetinaWriteMode() == RetinaWriteMode.STUB) {
-            try {
+            (String schemaName, List<RetinaProto.TableUpdateData> tableUpdateData)
+    {
+        if (config.getRetinaWriteMode() == RetinaWriteMode.STUB)
+        {
+            try
+            {
                 retinaService.updateRecord(schemaName, vNodeId, tableUpdateData);
-            } catch (RetinaException e) {
+            } catch (RetinaException e)
+            {
                 e.printStackTrace();
             }
             return null;
-        } else {
-            try {
+        } else
+        {
+            try
+            {
                 return retinaStream.updateRecord(schemaName, vNodeId, tableUpdateData);
-            } catch (RetinaException e) {
+            } catch (RetinaException e)
+            {
                 e.printStackTrace();
             }
             return null;
         }
     }
 
-    public void close() throws IOException {
+    public void close() throws IOException
+    {
         isClosed.compareAndSet(false, true);
-        if (config.getRetinaWriteMode() == RetinaWriteMode.STREAM) {
+        if (config.getRetinaWriteMode() == RetinaWriteMode.STREAM)
+        {
             retinaStream.close();
         }
     }
 
-    public enum RetinaWriteMode {
+    public enum RetinaWriteMode
+    {
         STREAM,
         STUB;
 
-        public static RetinaWriteMode fromValue(String value) {
-            for (RetinaWriteMode mode : values()) {
-                if (mode.name().equalsIgnoreCase(value)) {
+        public static RetinaWriteMode fromValue(String value)
+        {
+            for (RetinaWriteMode mode : values())
+            {
+                if (mode.name().equalsIgnoreCase(value))
+                {
                     return mode;
                 }
             }
