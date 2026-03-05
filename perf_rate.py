@@ -19,44 +19,44 @@ from datetime import datetime, date
 #     "100k": "result1k2/test_rate_1n16_1c_batch50.csv",
 # }
 
-# csv_files = {
-#     "64": {
-#         "rate": "result_ablation/rate_64size.csv",
-#         # "fresh": "result_ablation/fresh_64size.csv",
-#     },
-#     "128": {
-#         "rate": "result_ablation/rate_128size.csv",
-#         # "fresh": "result_ablation/fresh_128size.csv",
-#     },
-#     "256": {
-#         "rate": "result_ablation/rate_256size.csv",
-#         # "fresh": "result_ablation/fresh_256size.csv",
-#     },
-#     "512": {
-#         "rate": "result_ablation/rate_512size.csv",
-#         # "fresh": "result_ablation/fresh_512size.csv",
-#     },
-#     "1024": {
-#         "rate":  "result_ablation/rate_1024_2size.csv",
-#         "fresh": "result_ablation/fresh_1024_2size.csv",
-#     },
-#     "2048": {
-#         "rate": "result_ablation/rate_2048size.csv",
-#         # "fresh": "result_ablation/fresh_2048size.csv",
-#     },
-#     "4096": {
-#         "rate": "result_ablation/rate_4096size.csv",
-#         # "fresh": "result_ablation/fresh_4096size.csv",
-#     },
-#     "8192": {
-#         "rate": "result_ablation/rate_8192size.csv",
-#         # "fresh": "result_ablation/fresh_8192size.csv",
-#     },
-#     "16384": {
-#         "rate":  "result_ablation/rate_16384size.csv",
-#         "fresh": "result_ablation/fresh_16384size.csv",
-#     },
-# }
+csv_files = {
+    "64": {
+        "rate": "result_ablation/rate_64size.csv",
+        # "fresh": "result_ablation/fresh_64size.csv",
+    },
+    "128": {
+        "rate": "result_ablation/rate_128size.csv",
+        # "fresh": "result_ablation/fresh_128size.csv",
+    },
+    "256": {
+        "rate": "result_ablation/rate_256size.csv",
+        # "fresh": "result_ablation/fresh_256size.csv",
+    },
+    "512": {
+        "rate": "result_ablation/rate_512size.csv",
+        # "fresh": "result_ablation/fresh_512size.csv",
+    },
+    "1024": {
+        "rate":  "result_ablation/rate_1024_2size.csv",
+        "fresh": "result_ablation/fresh_1024_2size.csv",
+    },
+    "2048": {
+        "rate": "result_ablation/rate_2048size.csv",
+        # "fresh": "result_ablation/fresh_2048size.csv",
+    },
+    "4096": {
+        "rate": "result_ablation/rate_4096size.csv",
+        # "fresh": "result_ablation/fresh_4096size.csv",
+    },
+    "8192": {
+        "rate": "result_ablation/rate_8192size.csv",
+        # "fresh": "result_ablation/fresh_8192size.csv",
+    },
+    "16384": {
+        "rate":  "result_ablation/rate_16384size.csv",
+        "fresh": "result_ablation/fresh_16384size.csv",
+    },
+}
 
 csv_files = {
     "200": {
@@ -64,11 +64,51 @@ csv_files = {
         "freshness": "result_res/fresh_200k.csv"
     }
 }
+
+csv_files = {
+    "64": {
+        "rate": "result1k2_2/ablation/rate_64size.csv",
+        "fresh": "result1k2_2/ablation/fresh_64size.csv",
+    },
+    "128": {
+        "rate": "result1k2_2/ablation/rate_128size.csv",
+        "fresh": "result1k2_2/ablation/fresh_128size.csv",
+    },
+    "256": {
+        "rate": "result1k2_2/ablation/rate_256size.csv",
+        "fresh": "result1k2_2/ablation/fresh_256size.csv",
+    },
+    "512": {
+        "rate": "result1k2_2/ablation/rate_512size.csv",
+        "fresh": "result1k2_2/ablation/fresh_512size.csv",
+    },
+    "1024": {
+        "rate": "result1k2_2/ablation/rate_1024size.csv",
+        "fresh": "result1k2_2/ablation/fresh_1024size.csv",
+    },
+    "2048": {
+        "rate": "result1k2_2/ablation/rate_2048size.csv",
+        "fresh": "result1k2_2/ablation/fresh_2048.size.csv", # 注意：ls 结果此处有 .size
+    },
+    "4096": {
+        "rate": "result1k2_2/ablation/rate_4096size.csv",
+        "fresh": "result1k2_2/ablation/fresh_4096.size.csv", # 注意：ls 结果此处有 .size
+    },
+    "8192": {
+        "rate": "result1k2_2/ablation/rate_8192size_2.csv",
+        "fresh": "result1k2_2/ablation/fresh_8192.size.csv", # 注意：ls 结果此处有 .size
+    },
+    "16384": {
+        "rate": "result1k2_2/ablation/rate_16384size_2.csv",
+        "fresh": "result1k2_2/ablation/fresh_16384size.csv",
+    },
+}
+
 COL_NAMES = ["time", "rows", "txns", "debezium", "serdRows", "serdTxs", "lastTime"]
 PLOT_COL = "rows"
 
-MAX_SECONDS = 2500
-SKIP_SECONDS = 0
+MAX_SECONDS = 1800
+SKIP_SECONDS = 100
 BIN_SECONDS = 2
 
 ##########################################

@@ -55,6 +55,7 @@ tmp/
 freshness*.png
 rate*.png
 resulti7i/
+result1k2_2/
 cluster*.png
 pixels-sink.out
 /*.png

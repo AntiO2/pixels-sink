@@ -19,10 +19,17 @@ file_groups = {
     "240s": "fresh_240s.csv",
 }
 
+
+data_dir = "result1k2_feb"
+file_groups = {
+    "512": "fresh_512tile.csv",
+    "4096": "fresh_4096tile.csv"
+}
+
 # 过滤参数
-SKIP_SECONDS = 0      # 缩短跳过时间，确保 static 数据不被滤除
-MAX_SECONDS = 3600    # 增加上限
-MAX_FRESHNESS = 50000 # 提高上限
+SKIP_SECONDS = 0      
+MAX_SECONDS = 1200   
+MAX_FRESHNESS = 50000 
 
 ##########################################
 # 2. 数据加载与处理

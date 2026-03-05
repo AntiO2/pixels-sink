@@ -207,8 +207,11 @@ public class PixelsSinkConfig
     @ConfigKey(value = "sink.monitor.freshness.embed.snapshot", defaultValue = "false")
     private boolean sinkMonitorFreshnessEmbedSnapshot;
 
-    @ConfigKey(value = "sink.monitor.freshness.embed.tablelist", defaultValue = "false")
+    @ConfigKey(value = "sink.monitor.freshness.embed.tablelist", defaultValue = "")
     private List<String> sinkMonitorFreshnessEmbedTableList;
+
+    @ConfigKey(value = "sink.monitor.freshness.embed.delay", defaultValue = "0")
+    private Integer sinkMonitorFreshnessEmbedDelay;
 
     @ConfigKey(value = "sink.monitor.freshness.verbose", defaultValue = "false")
     private boolean sinkMonitorFreshnessVerbose;

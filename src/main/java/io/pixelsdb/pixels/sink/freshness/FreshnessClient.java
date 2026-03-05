@@ -274,6 +274,10 @@ public class FreshnessClient
             }
 
             LOGGER.debug("Randomly selected table for this cycle: {}", tableName);
+            if (config.getSinkMonitorFreshnessEmbedDelay() > 0)
+            {
+                Thread.sleep(config.getSinkMonitorFreshnessEmbedDelay());
+            }
             // Timestamp when the query is sent (t_send)
             long tSendMillis = System.currentTimeMillis();
             if (config.isSinkMonitorFreshnessEmbedSnapshot())
@@ -288,7 +292,11 @@ public class FreshnessClient
             String tSendMillisStr = DateUtil.convertDateToString(new Date(tSendMillis));
             // Query to find the latest timestamp in the table
             // Assumes 'freshness_ts' is a long-type epoch timestamp (milliseconds)
-            String query = String.format("SELECT max(freshness_ts) FROM %s WHERE freshness_ts < TIMESTAMP '%s'", tableName, tSendMillisStr);
+            String query = String.format(
+                    "SELECT max(freshness_ts) FROM \"%s\" WHERE freshness_ts < TIMESTAMP '%s'",
+                    tableName,
+                    tSendMillisStr
+            );
 
             try (Statement statement = conn.createStatement();
                  ResultSet rs = statement.executeQuery(query))

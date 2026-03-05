@@ -40,6 +40,14 @@ csv_labels = {
     # "16Nodes_2": "rate_16n168c_180k.csv",
     "16Nodes": "rate_16n168c_500k.csv"
 }
+
+csv_labels = {
+    "1Node" : "rate_200k.csv",
+    "2Nodes": "0130_rate_2node.csv",
+    "4Nodes": "0130_rate_4node.csv",
+    "8Nodes": "0130_rate_8node.csv",
+    # "16Nodes": "rate_16n168c_500k.csv"
+}
 LOG_BASE_DIR = "collected-logs"
 # Added "interval_sec" to handle the precise delta time from Java logs
 COL_NAMES_NEW = ["time", "rows", "txns", "debezium", "serdRows", "serdTxs", "interval_sec"]
