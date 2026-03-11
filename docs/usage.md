@@ -13,6 +13,12 @@ mvn -q -DskipTests exec:java \
   -Dexec.args="-c conf/pixels-sink.pg.properties"
 ```
 
+**Run with scripts**
+
+```bash
+./pixels-sink
+```
+
 **Run from an IDE**
 - Set the main class to `io.pixelsdb.pixels.sink.PixelsSinkApp`
 - Add program args: `-c conf/pixels-sink.pg.properties`
@@ -30,5 +36,5 @@ mvn -q -DskipTests exec:java \
 
 **Example Configs**
 - `conf/pixels-sink.pg.properties` for Postgres + Kafka
-- `conf/pixels-sink.aws.properties` for AWS environments
+- `conf/pixels-sink.aws.properties` for AWS environments, using retina
 - `conf/pixels-sink.flink.properties` for Flink sink

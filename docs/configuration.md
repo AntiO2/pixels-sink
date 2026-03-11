@@ -6,35 +6,47 @@ Pixels Sink is configured via a Java properties file. Pass the path with `-c`.
 
 Values are loaded by `PixelsSinkConfig` and mapped from keys in the properties file.
 
-**Core Keys**
+## Core Keys
 
 | Key | Default | Notes |
 | --- | --- | --- |
-| `sink.datasource` | `kafka` | Source type: `engine`, `kafka`, or `storage`. |
-| `sink.mode` | `csv` | Sink type: `retina`, `csv`, `proto`, `flink`, or `none`. |
+| `sink.datasource` | `engine` | Source type: `engine`, `kafka`, or `storage`. |
+| `sink.mode` | `retina` | Sink type: `retina`, `csv`, `proto`, `flink`, or `none`. |
 | `sink.datasource.rate.limit` | `-1` | Rate limit for source ingestion. `-1` disables. |
 | `sink.datasource.rate.limit.type` | `semaphore` | Rate limiter type used by `FlushRateLimiterFactory`. 'guava' or 'semaphore'|
 
+### Notes on `sink.datasource`
+
+- `engine` reads CDC logs directly from Debezium Engine. 
+- `storage` reads CDC logs from files dumped by `sink.proto` output; schema reference: [sink.proto](https://github.com/pixelsdb/pixels/blob/master/proto/sink.proto). 
+- `kafka` reads from a set of Kafka topics; this mode is deprecated and not actively tested.
+
+### Notes on `sink.mode`
+
+- `retina` connects to one or more Retina services via RPC and sends `UpdateRecord` or `StreamUpdateRecord` requests defined in [retina.proto](https://github.com/pixelsdb/pixels/blob/master/proto/retina.proto). 
+- `csv` is mainly for debugging. 
+- `proto` converts row change events and transaction metadata into `sink.proto` format, writes them in order to one or more files, and registers file paths in ETCD. These files can be read by `sink.datasource=storage`. This provides the highest CDC read efficiency and is used in paper experiments. 
+- `flink` starts a server for external programs to pull data via RPC and continue ingestion, for example [pixels-lance](https://github.com/AntiO2/pixels-lance) or [pixels-flink](https://github.com/AntiO2/pixels-flink). 
+- `none` writes no output and is useful for testing or observing source-side metrics.
 
 ## Source and Sink
 
-**Transaction**
+### Transaction
 
-Only support **Retina** Sink Mode
+Only supported in **Retina** sink mode.
 
+| Key | Default | Notes |
+| --- | --- | --- |
 | `sink.trans.batch.size` | `100` | Batch size for transaction processing. |
 | `sink.trans.mode` | `batch` | Transaction mode: `single`, `record`, or `batch`. |
 | `transaction.timeout` | `300` | Transaction timeout in seconds. |
 
-Notes on `sink.trans.mode`:
-- `single`: each Retina request writes exactly one transaction.
-- `batch`: a single Retina request may carry multiple transactions.
-- `single` and `batch` both support cross-table transactions.
-- `record`: cross-table transactions are disabled; only single-table transactions are processed.
+Notes on `sink.trans.mode`: 
+- `single` means each Retina request writes exactly one transaction. 
+- `batch` means a single Retina request may carry multiple transactions. 
+- `single` and `batch` both support cross-table transactions. `record` disables cross-table transactions and only processes single-table transactions.
 
-
-
-**Debezium Engine Source**
+### Debezium Engine Source
 
 | Key | Default | Notes |
 | --- | --- | --- |
@@ -42,7 +54,7 @@ Notes on `sink.trans.mode`:
 | `debezium.connector.class` | none | Connector class, e.g. PostgreSQL connector. |
 | `debezium.*` | none | Standard Debezium engine properties. |
 
-**Retina Sink**
+### Retina Sink
 
 | Key | Default | Notes |
 | --- | --- | --- |
@@ -63,14 +75,14 @@ Notes on `sink.trans.mode`:
 | `sink.commit.batch.delay` | `200` | Commit batch delay in ms. |
 
 
-**CSV Sink**
+### CSV Sink
 
 | Key | Default | Notes |
 | --- | --- | --- |
 | `sink.csv.path` | `./data` | Output directory. |
 | `sink.csv.enable_header` | `false` | Write header row. |
 
-**Proto Sink and Storage Source**
+### Proto Sink and Storage Source
 
 | Key | Default | Notes |
 | --- | --- | --- |
@@ -79,16 +91,16 @@ Notes on `sink.trans.mode`:
 | `sink.proto.maxRecords` | `100000` | Max records per file. |
 | `sink.storage.loop` | `false` | Whether to loop over stored files. |
 
-**Flink Sink**
+### Flink Sink
 
 | Key | Default | Notes |
 | --- | --- | --- |
 | `sink.flink.server.port` | `9091` | Polling server port. |
 
 
-**Kafka Source**
+### Kafka Source
 
-*Kafka source is deprecated*
+Kafka source is deprecated.
 
 | Key | Default | Notes |
 | --- | --- | --- |
@@ -126,13 +138,15 @@ Notes on `sink.trans.mode`:
 | `sink.monitor.freshness.interval` | `1000` | Freshness report interval in ms. |
 | `sink.monitor.freshness.file` | `/tmp/sinkFreshness.csv` | Freshness report output file. |
 | `sink.monitor.freshness.level` | `row` | `row`, `txn`, or `embed`. |
-| `sink.monitor.freshness.embed.warmup` | `10` | Warmup seconds for embedded freshness. |
+| `sink.monitor.freshness.embed.warmup` | `10` | Warmup seconds for embedded freshness query. |
 | `sink.monitor.freshness.embed.static` | `false` | Whether to keep a static snapshot. |
 | `sink.monitor.freshness.embed.snapshot` | `false` | Whether to take a snapshot. |
 | `sink.monitor.freshness.embed.tablelist` | empty | Tables to include for embedded mode. |
-| `sink.monitor.freshness.embed.delay` | `0` | Delay seconds for embedded freshness. |
+| `sink.monitor.freshness.embed.delay` | `0` | Delay seconds for embedded freshness query. |
 | `sink.monitor.freshness.verbose` | `false` | Verbose freshness logging. |
 | `sink.monitor.freshness.timestamp` | `false` | Include timestamps. |
+
+Note: In the Retina paper experiments, `sink.monitor.freshness.level=embed` is used to query freshness from Trino. This requires the last column of each table to be `freshness_ts`.
 
 **Freshness Trino Settings**
 
@@ -142,5 +156,3 @@ Notes on `sink.trans.mode`:
 | `trino.user` | required for Trino-based freshness | Username. |
 | `trino.password` | required for Trino-based freshness | Password. |
 | `trino.parallel` | `1` | Parallel query count. |
-
-

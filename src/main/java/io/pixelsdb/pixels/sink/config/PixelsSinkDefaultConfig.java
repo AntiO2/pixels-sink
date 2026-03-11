@@ -22,11 +22,11 @@ package io.pixelsdb.pixels.sink.config;
 
 public class PixelsSinkDefaultConfig
 {
-    public static final String DATA_SOURCE = "kafka";
+    public static final String DATA_SOURCE = "engine";
     public static final String PROPERTIES_PATH = "pixels-sink.properties";
     public static final String CSV_SINK_PATH = "./data";
 
-    public static final String SINK_MODE = "csv";
+    public static final String SINK_MODE = "retina";
 
     public static final int SINK_CSV_RECORD_FLUSH = 1000;
 
