@@ -47,6 +47,7 @@ resources/*.xml
 *.so
 *.o
 .vscode
+.idea
 
 data/
 tmp/
