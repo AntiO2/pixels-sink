@@ -142,10 +142,12 @@ public class FreshnessClient
 
         Properties properties = new Properties();
         properties.setProperty("user", trinoUser);
-        String catalogName = "pixels";
-        String sessionPropValue = String.format("%s.query_snapshot_timestamp:%d", catalogName, queryTimestamp);
-
-        properties.setProperty("sessionProperties", sessionPropValue);
+        if (config.isSinkMonitorFreshnessEmbedSnapshot())
+        {
+            String catalogName = "pixels";
+            String sessionPropValue = String.format("%s.query_snapshot_timestamp:%d", catalogName, queryTimestamp);
+            properties.setProperty("sessionProperties", sessionPropValue);
+        }
         return DriverManager.getConnection(trinoJdbcUrl, properties);
     }
 
@@ -228,7 +230,7 @@ public class FreshnessClient
 
     private void submitQueryTask()
     {
-        if (monitoredTables.isEmpty())
+        if (monitoredTables.isEmpty() && !config.isSinkMonitorFreshnessEmbedStatic())
         {
             LOGGER.debug("No tables configured for freshness monitoring. Skipping submission cycle.");
             return;

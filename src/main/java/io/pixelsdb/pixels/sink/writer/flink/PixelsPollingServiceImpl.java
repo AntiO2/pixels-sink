@@ -26,6 +26,7 @@ import io.pixelsdb.pixels.sink.PixelsPollingServiceGrpc;
 import io.pixelsdb.pixels.sink.SinkProto;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
+import io.pixelsdb.pixels.sink.freshness.FreshnessClient;
 import io.pixelsdb.pixels.sink.util.MetricsFacade;
 import io.pixelsdb.pixels.sink.util.rateLimiter.FlushRateLimiter;
 import io.pixelsdb.pixels.sink.util.rateLimiter.FlushRateLimiterFactory;
@@ -44,6 +45,7 @@ public class PixelsPollingServiceImpl extends PixelsPollingServiceGrpc.PixelsPol
     private final long pollTimeoutMs;
     private final FlushRateLimiter flushRateLimiter;
     private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
+    private final String freshnessLevel;
 
     public PixelsPollingServiceImpl(FlinkPollingWriter writer)
     {
@@ -56,6 +58,7 @@ public class PixelsPollingServiceImpl extends PixelsPollingServiceGrpc.PixelsPol
         this.pollBatchSize = config.getCommitBatchSize();
         this.pollTimeoutMs = config.getTimeoutMs();
         this.flushRateLimiter = FlushRateLimiterFactory.getInstance();
+        this.freshnessLevel = config.getSinkMonitorFreshnessLevel();
         LOGGER.info("PixelsPollingServiceImpl initialized. Using 'sink.commit.batch.size' for pollBatchSize ({}) " +
                         "and 'sink.timeout.ms' for pollTimeoutMs ({}).",
                 this.pollBatchSize, this.pollTimeoutMs);
@@ -99,6 +102,11 @@ public class PixelsPollingServiceImpl extends PixelsPollingServiceGrpc.PixelsPol
                 metricsFacade.recordRowEvent(records.size());
                 metricsFacade.recordTransaction();
                 this.flushRateLimiter.acquire(records.size());
+
+                if (freshnessLevel.equals("embed"))
+                {
+                    FreshnessClient.getInstance().addMonitoredTable(request.getTableName());
+                }
             }
 
             responseObserver.onNext(responseBuilder.build());

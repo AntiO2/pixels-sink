@@ -40,10 +40,16 @@ csv_files = {
 #     "Query Selected Table, Trans Mode": "tmp/i7i_2k_batchtest_dec_freshness_2.csv"
 # }
 
-MAX_SECONDS = 1000           # Capture data for the first N seconds
+
+csv_files = {
+    "200": "result_lance/fresh_bucket1_batch1000.csv",
+    "300": "result_lance/fresh_bucket4_batch1000.csv"
+}
+
+MAX_SECONDS = 30000           # Capture data for the first N seconds
 SKIP_SECONDS = 10            # Skip the first N seconds (adjustable)
-BIN_SECONDS = 3            # Average window (seconds)
-MAX_FRESHNESS = 500       # Filter out useless data during initial warmup
+BIN_SECONDS = 10            # Average window (seconds)
+MAX_FRESHNESS = 500000       # Filter out useless data during initial warmup
 
 ##########################################
 # Data Loading and Processing

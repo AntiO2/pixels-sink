@@ -161,7 +161,7 @@ public class FlinkPollingWriter extends AbstractBucketedWriter<Void> implements 
         records.add(first);
         queue.drainTo(records, batchSize - 1);
 
-        LOGGER.info(
+        LOGGER.debug(
                 "Polled {} records for table {}, bucket {}",
                 records.size(), tableName, bucketId
         );

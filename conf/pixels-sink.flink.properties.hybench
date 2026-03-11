@@ -4,23 +4,23 @@ sink.datasource=storage
 sink.datasource.rate.limit=50000
 # Sink Config: retina | csv | proto | flink | none
 sink.mode=flink
-sink.commit.batch.size=20
+sink.commit.batch.size=200
 ## batch or single or record, batch is recommend. record is faster, but doesn't have ACID feature
 sink.trans.mode=batch
 sink.monitor.report.enable=true
-sink.monitor.report.file=/home/ubuntu/pixels-sink/result_lance/rate_test.csv
-sink.monitor.freshness.file=/home/ubuntu/pixels-sink/result_lance/fresh_test.csv
+sink.monitor.report.file=/home/ubuntu/pixels-sink/result_lance/rate_bucket4_batch1000.csv
+sink.monitor.freshness.file=/home/ubuntu/pixels-sink/result_lance/fresh_bucket4_batch1000.csv
 # trino for freshness query
 trino.url=jdbc:trino://realtime-pixels-coordinator:8080/lance/default
 trino.user=pixels
 trino.password=password
 trino.parallel=1
 # row or txn or embed
-sink.monitor.freshness.level=embed
+sink.monitor.freshness.level=embed_dis
 sink.monitor.freshness.embed.warmup=10
 sink.monitor.freshness.embed.static=false
 sink.monitor.freshness.embed.snapshot=false
-sink.monitor.freshness.embed.tablelist=stock
+sink.monitor.freshness.embed.tablelist=loantrans
 sink.monitor.freshness.verbose=true
 sink.monitor.freshness.timestamp=true
 sink.storage.loop=true
@@ -33,8 +33,8 @@ sink.flush.batch.size=10
 sink.max.retries=3
 
 ## Proto Config
-# sink.proto.data=hybench1000_4
-sink.proto.data=CH10K_2
+sink.proto.data=hybench1000_4
+# sink.proto.data=CH10K_2
 ## Flink Config
 sink.flink.server.port=9091
 
