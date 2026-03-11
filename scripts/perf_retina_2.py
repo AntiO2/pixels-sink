@@ -33,7 +33,7 @@ def analyze_retina_performance_fixed_labels(folder_path):
         cap = file.split('_')[-1].replace('.csv', '')
         df = pd.read_csv(file)
         
-        # 1. 窗口过滤
+        # 1. Window filter
         mask = (df['rel_sec'] >= 300) & (df['rel_sec'] <= 660)
         work_df = df[mask].copy()
         if work_df.empty: continue
@@ -41,15 +41,15 @@ def analyze_retina_performance_fixed_labels(folder_path):
         x = work_df['rel_sec'].values
         y_bytes = work_df['L1_Pure_Retina'].values * (1024**3)
         
-        # 2. 峰谷检测
+        # 2. Peak/valley detection
         peaks, _ = find_peaks(y_bytes, distance=5, prominence=1024*1024) 
         valleys, _ = find_peaks(-y_bytes, distance=5, prominence=1024*1024)
         
         if len(valleys) > 1 and len(peaks) > 1:
-            # A. 谷底拟合
+            # A. Valley fit
             a_val, b_val = np.polyfit(x[valleys], y_bytes[valleys], 1)
             
-            # B. 上升斜率计算
+            # B. Rising slope calculation
             rise_slopes = []
             for v_idx in valleys:
                 sub_peaks = peaks[peaks > v_idx]
@@ -60,20 +60,20 @@ def analyze_retina_performance_fixed_labels(folder_path):
                     if dt > 0: rise_slopes.append(dy / dt)
             avg_rise_rate = np.mean(rise_slopes) if rise_slopes else 0
             
-            # --- 绘图部分 ---
+            # --- Plot section ---
             line, = plt.plot(x, y_bytes, alpha=0.6, label=f'Cap {cap}', linewidth=1.5)
             color = line.get_color()
             
-            # 标记选中的用于标注的谷底（取序列中间的一个谷底）
+            # Mark selected valley for annotation (middle one)
             target_v_idx = len(valleys) // 2
             v_x = x[valleys[target_v_idx]]
             v_y = y_bytes[valleys[target_v_idx]]
             
-            # 绘制谷底趋势线
+            # Draw valley trend line
             plt.plot(x, a_val * x + b_val, color=color, linestyle='--', alpha=0.5)
             
-            # 3. 改进的标注逻辑：使用 annotate 增加指向箭头
-            # 使用 idx * 0.15 GiB 的偏移来防止文字重叠
+            # 3. Improved annotation with arrow
+            # Use idx * 0.15 GiB offset to avoid overlap
             offset_y = (idx + 1) * (0.1 * 1024**3) 
             
             label_text = (f"Cap {cap}\n"
@@ -82,8 +82,8 @@ def analyze_retina_performance_fixed_labels(folder_path):
             
             plt.annotate(
                 label_text,
-                xy=(v_x, v_y), # 箭头指向的具体谷底坐标
-                xytext=(0, 40 + idx*30), # 文字相对于点的偏移 (像素)
+                xy=(v_x, v_y), # Arrow points to valley coordinates
+                xytext=(0, 40 + idx*30), # Text offset from point (pixels)
                 textcoords='offset points',
                 ha='center',
                 fontsize=9,
@@ -95,7 +95,7 @@ def analyze_retina_performance_fixed_labels(folder_path):
             
             stats_table.append([cap, avg_rise_rate, a_val])
 
-    # 格式化坐标轴
+    # Format axes
     plt.gca().get_yaxis().set_major_formatter(
         plt.FuncFormatter(lambda x, p: format(int(x), ','))
     )

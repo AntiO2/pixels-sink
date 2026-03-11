@@ -106,15 +106,15 @@ csv_files = {
     },
     "2048": {
         "rate": "result1k2_2/ablation/rate_2048size.csv",
-        "fresh": "result1k2_2/ablation/fresh_2048.size.csv", # 注意：ls 结果此处有 .size
+        "fresh": "result1k2_2/ablation/fresh_2048.size.csv", # Note: ls output includes .size here
     },
     "4096": {
         "rate": "result1k2_2/ablation/rate_4096size.csv",
-        "fresh": "result1k2_2/ablation/fresh_4096.size.csv", # 注意：ls 结果此处有 .size
+        "fresh": "result1k2_2/ablation/fresh_4096.size.csv", # Note: ls output includes .size here
     },
     "8192": {
         "rate": "result1k2_2/ablation/rate_8192size_2.csv",
-        "fresh": "result1k2_2/ablation/fresh_8192.size.csv", # 注意：ls 结果此处有 .size
+        "fresh": "result1k2_2/ablation/fresh_8192.size.csv", # Note: ls output includes .size here
     },
     "16384": {
         "rate": "result1k2_2/ablation/rate_16384size_2.csv",
@@ -179,24 +179,24 @@ for label, files in csv_files.items():
 fresh_val_data = {}
 
 for label, files in csv_files.items():
-    # 兼容 freshness 和 fresh 两种配置键名
+    # Support both freshness and fresh keys
     fresh_path = files.get("freshness") or files.get("fresh")
     if fresh_path is None or not os.path.exists(fresh_path):
         continue
 
-    # 根据你的说明：第二列是 freshness (新鲜度)，第三列是 query_time
+    # As specified: col2 is freshness, col3 is query_time
     df = pd.read_csv(
         fresh_path,
         header=None,
         names=["ts", "freshness_val", "query_time"]
     )
 
-    # 转换第二列数据
+    # Convert column 2
     df["freshness_val"] = pd.to_numeric(df["freshness_val"], errors="coerce")
     df = df.dropna(subset=["freshness_val"])
 
     if not df.empty:
-        # 存储第二列的新鲜度数据
+        # Store freshness values from column 2
         fresh_val_data[label] = df["freshness_val"]
 
 ##########################################
@@ -259,14 +259,14 @@ plt.close()
 # Plot 3: Freshness Boxplot (Standalone)
 ##########################################
 
-# 仅绘制存在新鲜度数据的标签
+# Plot only labels with freshness data
 fresh_labels = [l for l in sorted_labels if l in fresh_val_data]
 
 if fresh_labels:
     fig, ax2 = plt.subplots(figsize=(10, 6))
     
     f_x_indices = np.arange(len(fresh_labels))
-    # 提取第二列的新鲜度数值
+    # Extract freshness values from column 2
     fresh_boxes = [fresh_val_data[k] for k in fresh_labels]
     fresh_means = [fresh_val_data[k].mean() for k in fresh_labels]
 
@@ -278,7 +278,7 @@ if fresh_labels:
         showmeans=True
     )
     for patch in box_fresh["boxes"]:
-        patch.set_facecolor("salmon") # 使用不同颜色区分新鲜度
+        patch.set_facecolor("salmon") # Use different color for freshness
         patch.set_alpha(0.7)
     
     ax2.plot(f_x_indices, fresh_means, color="red", marker="D", linestyle="-", linewidth=2, label="Freshness Mean")
@@ -300,24 +300,24 @@ if fresh_labels:
 # Export: Preprocessed Rate Data (Transposed)
 ##########################################
 
-# 1. 按照 int 顺序排序标签
+# 1. Sort labels by int order
 sorted_export_labels = sorted(rate_box_data.keys(), key=lambda x: int(x))
 
-# 2. 提取数据列
+# 2. Extract data columns
 export_series = []
 for label in sorted_export_labels:
     s = rate_box_data[label].reset_index(drop=True)
     s.name = label
     export_series.append(s)
 
-# 3. 合并
+# 3. Merge
 df_rate_transposed = pd.concat(export_series, axis=1)
 
-# 4. 保存
+# 4. Save
 export_filename = "rate_preprocessed_transposed.csv"
 df_rate_transposed.to_csv(export_filename, index=False)
 
-print(f"\n✅ 任务完成：")
-print(f"1. 吞吐量趋势图 -> rate_over_time.png")
-print(f"2. 吞吐量箱线图 -> boxplot_throughput.png")
-print(f"3. 新鲜度(第二列)箱线图 -> boxplot_freshness_value.png")
+print(f"\nTask completed：")
+print(f"1. Throughput trend plot -> rate_over_time.png")
+print(f"2. Throughput boxplot -> boxplot_throughput.png")
+print(f"3. Freshness (col2) boxplot -> boxplot_freshness_value.png")

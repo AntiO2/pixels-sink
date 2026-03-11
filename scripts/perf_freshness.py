@@ -73,16 +73,16 @@ MAX_FRESHNESS = 500000       # Filter out useless data during initial warmup
 # Data Loading and Processing
 ##########################################
 data = {}
-data_raw_filtered = {} # 新增：用于存储未被 resample 的原始过滤数据
+data_raw_filtered = {} # New: store filtered raw data before resample
 
 for label, path in csv_files.items():
     df_full = pd.read_csv(path, header=None)
     
     df = pd.DataFrame()
     df["ts"] = pd.to_datetime(df_full.iloc[:, 0], unit="ms")
-    df["freshness"] = df_full.iloc[:, 1] # 始终取第 2 列
+    df["freshness"] = df_full.iloc[:, 1] # Always take the 2nd column
 
-    # 1. 基础过滤逻辑
+    # 1. Basic filter logic
     t0 = df["ts"].iloc[0]
     df["sec"] = (df["ts"] - t0).dt.total_seconds()
     
@@ -91,31 +91,31 @@ for label, path in csv_files.items():
            (df["freshness"] <= MAX_FRESHNESS)
     df = df[mask].copy()
 
-    # 对齐时间轴起点为 0
+    # Align time axis start to 0
     if not df.empty:
         t_new0 = df["ts"].iloc[0]
         df["sec"] = (df["ts"] - t_new0).dt.total_seconds()
 
-        # 存储原始过滤后的数据，用于 CDF 绘图
+        # Store filtered raw data for CDF plot
         data_raw_filtered[label] = df["freshness"].copy()
 
-        # 2. Resample 仅用于 Plot 1 (Time Series)
+        # 2. Resample only for Plot 1 (Time Series)
         df_bin = df.resample(f"{BIN_SECONDS}s", on="ts").mean().reset_index()
         df_bin["bin_sec"] = (df_bin["ts"] - df_bin["ts"].iloc[0]).dt.total_seconds()
         data[label] = df_bin
 
 ##########################################
-# Plot 1: (保持不变) Smoothed Time Series
+# Plot 1: (unchanged) Smoothed Time Series
 ##########################################
-# ... (此处省略 Plot 1 的代码，逻辑与你之前的一致) ...
+# ... (Plot 1 code omitted; same logic as before) ...
 
 ##########################################
-# Plot 2: Inverted CDF (使用原始数据 data_raw_filtered)
+# Plot 2: Inverted CDF (use raw data_raw_filtered)
 ##########################################
 plt.figure(figsize=(10, 5))
 
 for label, raw_vals in data_raw_filtered.items():
-    # 使用未经过 resample 的原始数据点
+    # Use raw points without resample
     vals = np.sort(raw_vals.dropna())
     prob = np.linspace(0, 1, len(vals))
 
@@ -124,7 +124,7 @@ for label, raw_vals in data_raw_filtered.items():
 plt.xticks(np.arange(0, 1.1, 0.1))
 plt.xlim(0, 1)
 plt.xlabel("CDF (Probability)")
-plt.ylabel("Freshness (ms, Raw Data)") # 更新 Label 强调是原始数据
+plt.ylabel("Freshness (ms, Raw Data)") # Update label to emphasize raw data
 plt.title(
     f"Inverted Freshness CDF\n(Raw Data Points, Skip {SKIP_SECONDS}s)"
 )
@@ -132,7 +132,7 @@ plt.title(
 plt.grid(True, which="both", ls="-", alpha=0.3)
 plt.legend()
 plt.tight_layout()
-plt.savefig("freshness_cdf_raw_fixed_ticks.png") # 建议改名以区分
+plt.savefig("freshness_cdf_raw_fixed_ticks.png") # Suggested rename for clarity
 plt.close()
 
 ##########################################
@@ -141,32 +141,32 @@ plt.close()
 raw_series_list = []
 
 for label, path in csv_files.items():
-    # 1. 读取所有列
+    # 1. Read all columns
     df_raw = pd.read_csv(path, header=None)
     
-    # 2. 核心兼容逻辑：始终取第 2 列（索引为 1）作为 freshness
+    # 2. Compatibility: always use column 2 (index 1) as freshness
     df_processed = pd.DataFrame()
     df_processed["ts"] = pd.to_datetime(df_raw.iloc[:, 0], unit="ms")
     
-    # 关键修改：iloc[:, 1] 确保取的是中间那一列 (freshness)
-    # 即使后面有第三列 (query time)，也会被忽略
+    # Key change: iloc[:, 1] ensures the middle column (freshness)
+    # Even if a 3rd column (query time) exists, it is ignored
     df_processed["freshness"] = df_raw.iloc[:, 1] 
     
-    # 3. 计算相对时间轴
+    # 3. Compute relative time axis
     t0 = df_processed["ts"].iloc[0]
     df_processed["sec"] = (df_processed["ts"] - t0).dt.total_seconds()
     
-    # 4. 执行过滤逻辑
+    # 4. Apply filter logic
     mask = (df_processed["sec"] >= SKIP_SECONDS) & \
            (df_processed["sec"] <= MAX_SECONDS) & \
            (df_processed["freshness"] <= MAX_FRESHNESS)
     
-    # 5. 提取并重命名，用于横向合并
+    # 5. Extract and rename for horizontal merge
     filtered_series = df_processed.loc[mask, "freshness"].reset_index(drop=True)
     filtered_series.name = label
     raw_series_list.append(filtered_series)
 
-# 6. 横向合并并导出
+# 6. Merge horizontally and export
 if raw_series_list:
     df_export = pd.concat(raw_series_list, axis=1)
     export_filename = "freshness_raw_filtered.csv"

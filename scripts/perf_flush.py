@@ -20,12 +20,12 @@ import pandas as pd
 import os
 
 ##########################################
-# 配置参数
+# Config parameters
 ##########################################
-MAX_SECONDS = 600  # 设定截取的最大时间（秒）
+MAX_SECONDS = 600  # Max window in seconds
 
 def preprocess_flush_data():
-    # 定义策略文件映射
+    # Define strategy file mapping
     strategies = {
         "High": "result_ablation/flush/fresh_low.csv",
         "Mid":  "result_ablation/flush/fresh_mid.csv",
@@ -39,29 +39,29 @@ def preprocess_flush_data():
             print(f"Warning: {path} not found.")
             continue
             
-        # 读取数据
+        # Read data
         df = pd.read_csv(path, header=None, names=["ts", "freshness", "query_time"])
         
-        # 1. 计算相对时间（秒）
-        # 假设 ts 是毫秒单位，如果是秒则不需要 / 1000
-        # 我们以每个文件的第一行作为 T=0
+        # 1. Compute relative time (seconds)
+        # Assume ts is milliseconds; if seconds, no /1000
+        # Use first row of each file as T=0
         start_ts = df["ts"].iloc[0]
         df["rel_sec"] = (df["ts"] - start_ts) / 1000.0
         
-        # 2. 根据 MAX_SECONDS 过滤
+        # 2. Filter by MAX_SECONDS
         df_filtered = df[df["rel_sec"] <= MAX_SECONDS].copy()
         
-        # 3. 提取需要的列并合并
-        # reset_index 确保不同策略的数据行能对齐（从第0行开始）
+        # 3. Extract needed columns and merge
+        # reset_index aligns rows across strategies (start at row 0)
         temp_df = pd.DataFrame({
             f"{label}_fresh": df_filtered["freshness"].reset_index(drop=True),
             f"{label}_query": df_filtered["query_time"].reset_index(drop=True)
         })
         
-        # 使用 axis=1 横向拼接
+        # Concatenate horizontally with axis=1
         combined_df = pd.concat([combined_df, temp_df], axis=1)
 
-    # 创建输出目录
+    # Create output directory
     os.makedirs("tmp", exist_ok=True)
     
     output_path = "tmp/flush_ablation_combined.csv"

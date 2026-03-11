@@ -24,17 +24,17 @@ import os
 import numpy as np
 
 ##########################################
-# 1. 配置参数
+# 1. Config parameters
 ##########################################
 SET_NAME = "retina_realtime-pixels-retina_8192tile_3"
 LOG_FILE = "collected-retina-logs/" + SET_NAME + ".out"
 OUTPUT_BASE = "collected-retina-logs/tile/" + SET_NAME
 RESAMPLE_INTERVAL = '10s' 
 GI_FACTOR = 1024**3
-MAX_SECONDS = 2400  # 设定截取的最大时间（秒）
+MAX_SECONDS = 2400  # Max window in seconds
 
 def parse_and_plot(log_path, output_name, interval='10s'):
-    # --- 2. 正则表达式配置 ---
+    # --- 2. Regex configuration ---
     rdb_re = re.compile(
         r"(?P<time>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},(?P<ms>\d{3})).*?\[RocksDB Metrics\].*?"
         r"Total=.*? \((?P<rdb_total>\d+) Bytes\).*?"
@@ -50,13 +50,13 @@ def parse_and_plot(log_path, output_name, interval='10s'):
     )
 
     rows = []
-    print(f"[*] 正在读取并解析日志: {log_path}")
+    print(f"[*] Parsing log: {log_path}")
 
     if not os.path.exists(log_path):
-        print(f"[!] 错误: 找不到文件 {log_path}")
+        print(f"[!] Error: file not found {log_path}")
         return
 
-    # --- 3. 解析逻辑 ---
+    # --- 3. Parsing logic ---
     with open(log_path, 'r', encoding='utf-8') as f:
         for line in f:
             rm = rdb_re.search(line)
@@ -81,10 +81,10 @@ def parse_and_plot(log_path, output_name, interval='10s'):
                 })
 
     if not rows:
-        print("[!] 错误: 未能在日志中匹配到任何数据。")
+        print("[!] Error: no matching data found in log.")
         return
 
-    # --- 4. 数据预处理 ---
+    # --- 4. Data preprocessing ---
     df = pd.DataFrame(rows)
     df['time'] = pd.to_datetime(df['time'])
     df = df.set_index('time').sort_index()
@@ -96,27 +96,27 @@ def parse_and_plot(log_path, output_name, interval='10s'):
 
     df = df.ffill().fillna(0.0)
 
-    # 重采样
+    # Resample
     df_res = df.resample(interval, label='right', closed='right').mean()
 
-    # 去掉最后一个可能不完整的桶
+    # Drop last possibly incomplete bucket
     if len(df_res) > 1:
         df_res = df_res.iloc[:-1]
 
-    # 插入 T=0 原点
+    # Insert T=0 origin point
     start_time = df_res.index[0] - pd.Timedelta(interval)
     df_zero = pd.DataFrame(0.0, index=[start_time], columns=df_res.columns)
     df_zero['cpu_proc'] = df_res['cpu_proc'].iloc[0]
     df_res = pd.concat([df_zero, df_res])
 
-    # 线性插值
+    # Linear interpolation
     df_res = df_res.interpolate(method='linear').fillna(0.0)
     df_res['rel_sec'] = (df_res.index - df_res.index[0]).total_seconds()
 
-    # 【核心改动】：在此处截断时间
+    # [Key change]: truncate time here
     df_res = df_res[df_res['rel_sec'] <= MAX_SECONDS]
 
-    # --- 5. 计算指标 ---
+    # --- 5. Compute metrics ---
     df_res['L1_Pure_Retina'] = df_res['ret_pure'] / GI_FACTOR
     df_res['L2_Overhead'] = (df_res['ret_tracked'] - df_res['ret_pure']).clip(lower=0) / GI_FACTOR
     df_res['L3_Other_OffHeap'] = (df_res['ret_allocated'] - df_res['ret_tracked'] - df_res['rdb_total']).clip(lower=0) / GI_FACTOR
@@ -126,11 +126,11 @@ def parse_and_plot(log_path, output_name, interval='10s'):
     df_res.index.name = 'time'
     df_res.to_csv(f"{output_name}.csv", index_label='time')
 
-    # --- 6. 绘图 ---
-    plt.style.use('seaborn-v0_8-whitegrid') # 使用更美观的样式
+    # --- 6. Plot ---
+    plt.style.use('seaborn-v0_8-whitegrid') # Use a cleaner style
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 12), sharex=True)
     
-    # A. 上图：内存堆叠图 + CPU 曲线
+    # A. Top plot: memory stack + CPU curve
     colors = ['#2ca02c', '#98df8a', '#bcbd22', '#ff7f0e', '#1f77b4']
     labels = ['Retina (Pure Data)', 'Monitor Overhead', 'Other Off-Heap (S3/etc.)', 'RocksDB Native', 'JVM Heap']
 
@@ -142,9 +142,9 @@ def parse_and_plot(log_path, output_name, interval='10s'):
                   df_res['L5_JVM'],
                   labels=labels, colors=colors, alpha=0.8)
 
-    # 叠加 CPU (右侧轴)
+    # Overlay CPU (right axis)
     ax1_cpu = ax1.twinx()
-    # 使用平滑处理让 CPU 曲线更好看
+    # Smooth CPU curve for nicer look
     cpu_smooth = df_res['cpu_proc'].ewm(span=3).mean() 
     ax1_cpu.plot(df_res['rel_sec'], cpu_smooth, color='#d62728', linestyle='--', linewidth=1.5, label='CPU Process % (Smooth)')
     ax1_cpu.set_ylabel("CPU Usage (%)", color='#d62728', fontsize=12, fontweight='bold')
@@ -163,7 +163,7 @@ def parse_and_plot(log_path, output_name, interval='10s'):
     ax1.set_ylim(0, None)
     ax1.set_xlim(0, MAX_SECONDS)
 
-    # B. 下图：Object 数量
+    # B. Bottom plot: Object count
     ax2.plot(df_res['rel_sec'], df_res['ret_objects'], color='#9467bd', linewidth=2, label='Retina Objects')
     ax2.fill_between(df_res['rel_sec'], df_res['ret_objects'], color='#9467bd', alpha=0.1)
     ax2.set_xlabel("Time from Start (seconds)", fontsize=12, fontweight='bold')
@@ -175,7 +175,7 @@ def parse_and_plot(log_path, output_name, interval='10s'):
 
     plt.tight_layout()
     plt.savefig(f"{output_name}.png", dpi=300)
-    print(f"[+] 脚本运行成功！最大截取时间为 {MAX_SECONDS}s。")
+    print(f"[+] Script completed. Max window: {MAX_SECONDS}s。")
     plt.show()
 
 if __name__ == "__main__":

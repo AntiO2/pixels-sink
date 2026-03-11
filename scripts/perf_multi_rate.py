@@ -82,10 +82,10 @@ data = {}
 
 def export_scalability_matrix(data_dict, output_file="scalability_results.csv"):
     """
-    将处理后的 data 对象转换为按列排列的 CSV (1Node, 2Nodes, 4Nodes...)
+    Convert processed data into a column-wise CSV (1Node, 2Nodes, 4Nodes...)
     """
-    # 1. 自动识别并排序节点维度 (1, 2, 4, 8, 16)
-    # 通过正则表达式从 label 中提取数字
+    # 1. Auto-detect and sort node counts (1, 2, 4, 8, 16)
+    # Extract numbers from labels via regex
     def get_node_count(label):
         import re
         nums = re.findall(r'\d+', label)
@@ -93,32 +93,32 @@ def export_scalability_matrix(data_dict, output_file="scalability_results.csv"):
 
     sorted_labels = sorted(data_dict.keys(), key=get_node_count)
     
-    # 2. 对齐各实验的样本行数 (取各组数据的最小行数，保证矩阵对齐)
+    # 2. Align sample counts (use min length to align matrix)
     min_len = min([len(data_dict[label][PLOT_COL]) for label in sorted_labels])
-    print(f"\n[Export] 对齐样本行数: {min_len}")
+    print(f"\n[Export] Aligned sample count: {min_len}")
 
-    # 3. 构造结果矩阵
+    # 3. Build result matrix
     matrix_data = {}
     for label in sorted_labels:
-        # 获取该实验下的吞吐量序列
+        # Get throughput series for this experiment
         series = data_dict[label][PLOT_COL].dropna().values
-        # 只截取 min_len 长度
+        # Truncate to min_len
         matrix_data[label] = series[:min_len].astype(int)
 
-    # 4. 转换为 DataFrame 并导出
+    # 4. Convert to DataFrame and export
     df_result = pd.DataFrame(matrix_data)
     
-    # 按照您要求的格式重命名列头 (1node, 2node...)
+    # Rename columns to requested format (1node, 2node...)
     rename_map = {lbl: f"{get_node_count(lbl)}node" for lbl in sorted_labels}
     df_result = df_result.rename(columns=rename_map)
 
-    # 导出
+    # Export
     df_result.to_csv(output_file, index=False)
     
-    print(f"--- 性能数据矩阵 (前5行) ---")
+    print(f"--- Performance data matrix (first 5 rows) ---")
     print(df_result.head(5))
     print(f"---------------------------")
-    print(f"CSV 文件已生成: {output_file}")
+    print(f"CSV file generated: {output_file}")
 
 for label, filename in csv_labels.items():
     print(f"Processing Experiment: {label}")
@@ -224,12 +224,12 @@ plt.xlim(0, MAX_SECONDS)
 plt.xticks(np.arange(0, MAX_SECONDS + 1, 300))
 plt.ylim(bottom=0) 
 
-# --- 关键修改：取消科学计数法 ---
-# style='plain' 强制使用常规数字格式
-# axis='y' 指定只针对 y 轴
+# --- Key change: disable scientific notation ---
+# style='plain' forces plain number formatting
+# axis='y' applies only to the y-axis
 plt.ticklabel_format(style='plain', axis='y')
 
-# 如果数值非常大，还可以配合使用 ScalarFormatter 确保不出现偏移量
+# For very large values, use ScalarFormatter to avoid offset
 # plt.gca().yaxis.set_major_formatter(ticker.ScalarFormatter(useOffset=False))
 
 plt.xlabel("Time (sec)")
@@ -267,7 +267,7 @@ if not data:
 # Plot 1: Time Series
 plt.figure(figsize=(12, 6))
 for label, df in data.items():
-    # 绘图依然使用原始数据，保证趋势准确
+    # Plot uses raw data to keep trends accurate
     plt.plot(df["bin_sec"], df[PLOT_COL], marker='o', markersize=4, label=label)
 
 # --- X-axis Scaling ---
@@ -276,19 +276,19 @@ plt.xticks(np.arange(0, MAX_SECONDS + 1, 300))
 
 # --- Y-axis Scaling: 1, 2, 3, 4 (Units of 100k) ---
 
-# 1. 强制 Y 轴从 0 开始
+# 1. Force Y axis to start at 0
 plt.ylim(bottom=0)
 
-# 2. 定义格式化函数：将数值 (如 200000) 转换为标签 "2"
+# 2. Define formatter (e.g., 200000 -> label "2")
 def units_of_100k(x, pos):
     return f'{int(x / 100000)}' if x != 0 else '0'
 
-# 3. 设置主要刻度：每隔 100,000 一个刻度
+# 3. Set major ticks every 100,000
 plt.gca().yaxis.set_major_locator(ticker.MultipleLocator(100000))
-# 4. 应用格式化
+# 4. Apply formatter
 plt.gca().yaxis.set_major_formatter(ticker.FuncFormatter(units_of_100k))
 
-# 修改 Y 轴标签，注明单位
+# Update Y-axis label with units
 plt.ylabel(f"Total Cluster {PLOT_COL} (x 100k Ops/s)")
 plt.xlabel("Time (sec)")
 plt.title(f"Cluster Aggregate Throughput ({PLOT_COL})")
@@ -302,34 +302,34 @@ plt.savefig(f"cluster_rate_{PLOT_COL}_time_units.png")
 ##########################################
 plt.figure(figsize=(10, 6))
 
-# 1. 提取并解析节点数
+# 1. Extract and parse node counts
 node_results = []
 for label, df in data.items():
-    # 从 label (如 "16 Nodes") 中提取数字 16
+    # Extract number from label (e.g., "16 Nodes")
     node_num = int(''.join(filter(str.isdigit, label)))
-    # 使用你过滤并重采样后的数据列
+    # Use your filtered and resampled data column
     series = df[PLOT_COL].dropna()
     node_results.append((node_num, series.values))
 
-# 2. 排序确保连线正确
+# 2. Sort to ensure correct line connections
 node_results.sort(key=lambda x: x[0])
 sorted_nodes = [x[0] for x in node_results]
 sorted_values = [x[1] for x in node_results]
 means = [np.mean(v) for v in sorted_values]
 
-# 3. 绘图
+# 3. Plot
 box = plt.boxplot(sorted_values, positions=sorted_nodes, widths=np.array(sorted_nodes) * 0.2)
 
-# 绘制均值趋势线
+# Plot mean trend line
 plt.plot(sorted_nodes, means, marker='o', markersize=8, linestyle='-', 
          linewidth=2, label='Mean Throughput (Filtered)', color='#1f77b4')
 
-# 4. 坐标轴与美化 (使用 log2 比例展示扩展性)
+# 4. Axes and styling (use log2 to show scalability)
 plt.xscale('log', base=2)
 plt.xticks(sorted_nodes, labels=[f"{n}N" for n in sorted_nodes])
-# plt.yscale('log') # 吞吐量通常用 log 轴看线性增长斜率
+# plt.yscale('log') # Throughput often uses log axis to see linear growth slope
 
-# 格式化 Y 轴（取消科学计数法，或者使用你之前的 100k 逻辑）
+# Format Y axis (disable sci notation or use 100k logic)
 plt.gca().yaxis.set_major_formatter(ticker.ScalarFormatter())
 plt.ticklabel_format(style='plain', axis='y')
 
