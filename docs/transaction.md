@@ -1,6 +1,6 @@
-# 事务处理机制
+# Transaction Handling
 
-假设同一表上，保证按照事务顺序读取RowRecord
+Assume row records for the same table are read in transaction order.
 
 ```mermaid
 sequenceDiagram
@@ -8,23 +8,22 @@ sequenceDiagram
     participant CO as TransactionCoordinator
     participant T1 as TableConsumer-Nation
     participant T2 as TableConsumer-Region
-%% 事务 TX1 生命周期
+%% Transaction TX1 lifecycle
     TC ->> CO: TX1: BEGIN
     T1 ->> CO: (TX1): update nation row1
     TC ->> CO: TX1: END
-    Note over CO: 收到 END 后等待所有事件完成
-%% TX1 的延迟事件处理
+    Note over CO: After END, wait for all events to finish
+%% Delayed events for TX1
     T2 ->> CO: (TX1): update region row2
-    CO -->> CO: 验证 TX1 完整性
-    CO -->> CO: 提交TX1
-%% 事务 TX2 生命周期（注意事件到达顺序问题）
+    CO -->> CO: Validate TX1 completeness
+    CO -->> CO: Commit TX1
+%% Transaction TX2 lifecycle (out-of-order arrival)
     T1 ->> CO: (TX2): update nation row2
-    Note over CO: 发现 TX2 未注册，缓存事件
+    Note over CO: TX2 not registered yet, cache event
     TC ->> CO: TX2: BEGIN
-    CO -->> CO: 处理缓存的 TX2 事件
+    CO -->> CO: Process cached TX2 events
     T2 ->> CO: (TX2): update region row2
     TC ->> CO: TX2: END
-    CO -->> CO: 验证 TX2 完整性
-    CO -->> CO: 提交 TX2
+    CO -->> CO: Validate TX2 completeness
+    CO -->> CO: Commit TX2
 ```
-

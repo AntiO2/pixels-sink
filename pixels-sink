@@ -8,12 +8,15 @@ SINK_DIR=$(dirname "$SOURCE_PATH")
 # Environment variable
 # export PIXELS_HOME="/home/ubuntu/opt/pixels"
 
-# Application properties file
+# Application properties file (default)
 #PROPERTIES_FILE="${SINK_DIR}/conf/pixels-sink.pg.properties"
 #PROPERTIES_FILE="${SINK_DIR}/conf/pixels-sink.ch.properties"
-PROPERTIES_FILE="${SINK_DIR}/conf/pixels-sink.aws.properties"
-PROPERTIES_FILE="${SINK_DIR}/conf/pixels-sink.flink.properties"
-PROPERTIES_FILE="${SINK_DIR}/conf/pixels-sink.flink.properties.hybench"
+DEFAULT_PROPERTIES_FILE="${SINK_DIR}/conf/pixels-sink.aws.properties"
+DEFAULT_PROPERTIES_FILE="${SINK_DIR}/conf/pixels-sink.flink.properties"
+DEFAULT_PROPERTIES_FILE="${SINK_DIR}/conf/pixels-sink.flink.properties.hybench"
+
+# Optional first argument overrides the default config path
+PROPERTIES_FILE="${1:-$DEFAULT_PROPERTIES_FILE}"
 
 # JVM config file
 JVM_CONFIG_FILE="${SINK_DIR}/conf/jvm.conf"
