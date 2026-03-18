@@ -38,3 +38,7 @@ mvn -q -DskipTests exec:java \
 - `conf/pixels-sink.pg.properties` for Postgres + Kafka
 - `conf/pixels-sink.aws.properties` for AWS environments, using retina
 - `conf/pixels-sink.flink.properties` for Flink sink
+
+**JVM Configuration**
+
+The startup script reads `conf/jvm.conf` for JVM options (heap size, GC flags, etc.). Edit this file to tune memory and GC settings for your environment. The defaults allocate 8 GB minimum and 60 GB maximum heap with G1GC.
