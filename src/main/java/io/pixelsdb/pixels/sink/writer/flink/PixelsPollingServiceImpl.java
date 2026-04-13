@@ -30,7 +30,6 @@ import io.pixelsdb.pixels.sink.freshness.FreshnessClient;
 import io.pixelsdb.pixels.sink.util.MetricsFacade;
 import io.pixelsdb.pixels.sink.util.rateLimiter.FlushRateLimiter;
 import io.pixelsdb.pixels.sink.util.rateLimiter.FlushRateLimiterFactory;
-import io.pixelsdb.pixels.sink.freshness.FreshnessClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -70,7 +69,10 @@ public class PixelsPollingServiceImpl extends PixelsPollingServiceGrpc.PixelsPol
     {
         SchemaTableName schemaTableName = new SchemaTableName(request.getSchemaName(), request.getTableName());
         LOGGER.debug("Received poll request for table '{}'", schemaTableName);
-        FreshnessClient.getInstance().addMonitoredTable(request.getTableName());
+        if (freshnessLevel.equals("embed"))
+        {
+            FreshnessClient.getInstance().addMonitoredTable(request.getTableName());
+        }
         List<SinkProto.RowRecord> records = new ArrayList<>(pollBatchSize);
 
         try
@@ -104,11 +106,6 @@ public class PixelsPollingServiceImpl extends PixelsPollingServiceGrpc.PixelsPol
                 metricsFacade.recordRowEvent(records.size());
                 metricsFacade.recordTransaction();
                 this.flushRateLimiter.acquire(records.size());
-
-                if (freshnessLevel.equals("embed"))
-                {
-                    FreshnessClient.getInstance().addMonitoredTable(request.getTableName());
-                }
             }
 
             responseObserver.onNext(responseBuilder.build());
