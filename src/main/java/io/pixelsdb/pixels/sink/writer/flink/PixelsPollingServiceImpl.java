@@ -69,6 +69,10 @@ public class PixelsPollingServiceImpl extends PixelsPollingServiceGrpc.PixelsPol
     {
         SchemaTableName schemaTableName = new SchemaTableName(request.getSchemaName(), request.getTableName());
         LOGGER.debug("Received poll request for table '{}'", schemaTableName);
+        if (freshnessLevel.equals("embed"))
+        {
+            FreshnessClient.getInstance().addMonitoredTable(request.getTableName());
+        }
         List<SinkProto.RowRecord> records = new ArrayList<>(pollBatchSize);
 
         try
@@ -102,11 +106,6 @@ public class PixelsPollingServiceImpl extends PixelsPollingServiceGrpc.PixelsPol
                 metricsFacade.recordRowEvent(records.size());
                 metricsFacade.recordTransaction();
                 this.flushRateLimiter.acquire(records.size());
-
-                if (freshnessLevel.equals("embed"))
-                {
-                    FreshnessClient.getInstance().addMonitoredTable(request.getTableName());
-                }
             }
 
             responseObserver.onNext(responseBuilder.build());
