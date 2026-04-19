@@ -52,7 +52,7 @@ public class TestFreshnessClient
     public static void setUp() throws IOException
     {
         // Initialization as per the user's template
-        PixelsSinkConfigFactory.initialize("/home/ubuntu/pixels-sink/conf/pixels-sink.aws.properties");
+        PixelsSinkConfigFactory.initialize("/home/ubuntu/disk1/opt/pixels-sink/conf/pixels-sink.hudi.properties");
     }
 
     @Test
@@ -72,7 +72,7 @@ public class TestFreshnessClient
     {
         FreshnessClient freshnessClient = FreshnessClient.getInstance();
         Connection connection = freshnessClient.createNewConnection(123456L);
-        String query = String.format("SELECT max(freshness_ts) FROM customer");
+        String query = String.format("SELECT max(freshness_ts) FROM company");
         Statement statement = connection.createStatement();
         ResultSet resultSet = statement.executeQuery(query);
         resultSet.next();
@@ -83,7 +83,7 @@ public class TestFreshnessClient
     {
         FreshnessClient freshnessClient = FreshnessClient.getInstance();
         Connection connection = freshnessClient.createNewConnection(12345689100L);
-        String query = "SELECT max(freshness_ts) FROM loantrans";
+        String query = "SELECT max(freshness_ts) FROM nation";
         String csvFileName = "loantrans_query_results.csv";
         int iterations = 1000;
         try (PrintWriter writer = new PrintWriter(new FileWriter(csvFileName)))

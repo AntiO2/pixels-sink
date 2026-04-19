@@ -1,17 +1,17 @@
 # engine | kafka | storage
 sink.datasource=storage
 # -1 means no limit, Only implement in retina sink mode yet
-sink.datasource.rate.limit=50000
+sink.datasource.rate.limit=2000
 # Sink Config: retina | csv | proto | flink | none
 sink.mode=flink
-sink.commit.batch.size=20
+sink.commit.batch.size=100
 ## batch or single or record, batch is recommend. record is faster, but doesn't have ACID feature
 sink.trans.mode=batch
 sink.monitor.report.enable=true
-sink.monitor.report.file=/home/ubuntu/pixels-sink/result_lance/rate_test.csv
-sink.monitor.freshness.file=/home/ubuntu/pixels-sink/result_lance/fresh_test.csv
+sink.monitor.report.file=/home/ubuntu/pixels-sink/result_delta/rate_test.csv
+sink.monitor.freshness.file=/home/ubuntu/pixels-sink/result_delta/fresh_batch10k.csv
 # trino for freshness query
-trino.url=jdbc:trino://realtime-pixels-coordinator:8080/lance/default
+trino.url=jdbc:trino://realtime-pixels-coordinator:8080/delta_lake/chbenchmark_w10000
 trino.user=pixels
 trino.password=password
 trino.parallel=1

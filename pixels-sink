@@ -31,7 +31,7 @@ SINK_DIR=$(dirname "$SOURCE_PATH")
 #PROPERTIES_FILE="${SINK_DIR}/conf/pixels-sink.pg.properties"
 #PROPERTIES_FILE="${SINK_DIR}/conf/pixels-sink.ch.properties"
 DEFAULT_PROPERTIES_FILE="${SINK_DIR}/conf/pixels-sink.aws.properties"
-DEFAULT_PROPERTIES_FILE="${SINK_DIR}/conf/pixels-sink.flink.properties"
+DEFAULT_PROPERTIES_FILE="${SINK_DIR}/conf/pixels-sink.flink.properties.chbench"
 DEFAULT_PROPERTIES_FILE="${SINK_DIR}/conf/pixels-sink.flink.properties.hybench"
 
 # Optional first argument overrides the default config path

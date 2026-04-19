@@ -183,6 +183,9 @@ public class EtcdFileRegistry
         } catch (JsonProcessingException e)
         {
             throw new RuntimeException(e);
+        } catch (IOException e)
+        {
+            throw new RuntimeException(e);
         }
 
         LOGGER.info("Marked file [{}] as completed", fileName);

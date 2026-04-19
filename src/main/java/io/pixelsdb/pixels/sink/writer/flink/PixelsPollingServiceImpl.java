@@ -57,7 +57,7 @@ public class PixelsPollingServiceImpl extends PixelsPollingServiceGrpc.PixelsPol
         PixelsSinkConfig config = PixelsSinkConfigFactory.getInstance();
         this.pollBatchSize = config.getCommitBatchSize();
         this.pollTimeoutMs = config.getTimeoutMs();
-        this.flushRateLimiter = FlushRateLimiterFactory.getInstance();
+        this.flushRateLimiter = FlushRateLimiterFactory.getNewInstance();
         this.freshnessLevel = config.getSinkMonitorFreshnessLevel();
         LOGGER.info("PixelsPollingServiceImpl initialized. Using 'sink.commit.batch.size' for pollBatchSize ({}) " +
                         "and 'sink.timeout.ms' for pollTimeoutMs ({}).",
@@ -101,7 +101,7 @@ public class PixelsPollingServiceImpl extends PixelsPollingServiceGrpc.PixelsPol
                 responseBuilder.addAllRecords(records);
                 metricsFacade.recordRowEvent(records.size());
                 metricsFacade.recordTransaction();
-                this.flushRateLimiter.acquire(records.size());
+//                this.flushRateLimiter.acquire(records.size());
 
                 if (freshnessLevel.equals("embed"))
                 {
