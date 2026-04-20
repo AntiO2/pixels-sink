@@ -48,11 +48,54 @@ Notes on `sink.trans.mode`:
 
 ### Debezium Engine Source
 
+All `debezium.*` keys are forwarded directly to the Debezium Engine. Pixels Sink only reads `debezium.topic.prefix` internally; all other `debezium.*` properties are standard Debezium connector configuration.
+
+**Core Debezium keys**
+
 | Key | Default | Notes |
 | --- | --- | --- |
 | `debezium.name` | none | Engine name. |
-| `debezium.connector.class` | none | Connector class, e.g. PostgreSQL connector. |
-| `debezium.*` | none | Standard Debezium engine properties. |
+| `debezium.connector.class` | none | Connector class, e.g. `io.debezium.connector.postgresql.PostgresConnector`. |
+| `debezium.topic.prefix` | none | Prefix for all topic names produced by this engine. Must match `topic.prefix` when using Kafka source. |
+| `debezium.provide.transaction.metadata` | `false` | Set to `true` to emit transaction BEGIN/END events required by Pixels Sink transaction tracking. |
+
+**Offset storage keys**
+
+| Key | Default | Notes |
+| --- | --- | --- |
+| `debezium.offset.storage` | none | Class for persisting Debezium source offsets. Use `org.apache.kafka.connect.storage.FileOffsetBackingStore` for file-based storage. |
+| `debezium.offset.storage.file.filename` | none | File path for `FileOffsetBackingStore`. |
+| `debezium.offset.flush.interval.ms` | `60000` | How often (ms) to flush offsets to the backing store. |
+
+**Schema history keys**
+
+| Key | Default | Notes |
+| --- | --- | --- |
+| `debezium.schema.history.internal` | none | Class for persisting schema history. Use `io.debezium.storage.file.history.FileSchemaHistory` for file-based storage. |
+| `debezium.schema.history.internal.file.filename` | none | File path for `FileSchemaHistory`. |
+
+**Database connection keys (PostgreSQL example)**
+
+| Key | Default | Notes |
+| --- | --- | --- |
+| `debezium.database.hostname` | none | Database host. |
+| `debezium.database.port` | none | Database port. |
+| `debezium.database.user` | none | Database user. |
+| `debezium.database.password` | none | Database password. |
+| `debezium.database.dbname` | none | Database name. |
+| `debezium.plugin.name` | none | Logical decoding plugin. Use `pgoutput` for PostgreSQL 10+. |
+| `debezium.schema.include.list` | none | Comma-separated list of schemas to capture (e.g. `public`). |
+| `debezium.snapshot.mode` | none | Snapshot strategy. Set to `never` to skip initial snapshot. |
+
+**Message converter and transform keys**
+
+| Key | Default | Notes |
+| --- | --- | --- |
+| `debezium.key.converter` | none | Converter for record keys, e.g. `org.apache.kafka.connect.json.JsonConverter`. |
+| `debezium.value.converter` | none | Converter for record values, e.g. `org.apache.kafka.connect.json.JsonConverter`. |
+| `debezium.transforms` | none | Comma-separated list of Single Message Transforms (SMT) to apply. |
+| `debezium.transforms.<name>.type` | none | Class of the named SMT, e.g. `org.apache.kafka.connect.transforms.RegexRouter`. |
+| `debezium.transforms.<name>.*` | none | Additional properties for the named SMT. |
 
 ### Retina Sink
 
@@ -117,7 +160,9 @@ Kafka source is deprecated.
 | `transaction.topic.group_id` | `transaction_consumer` | Consumer group for transaction topic. |
 | `sink.registry.url` | required | Avro Schema registry endpoint. |
 
-**Reserved Configuration**
+### Reserved Configuration
+
+These keys are reserved for internal use or development and are not needed in normal deployments.
 
 | Key | Default | Notes |
 | --- | --- | --- |
@@ -126,7 +171,7 @@ Kafka source is deprecated.
 | `sink.rpc.enable` | `false` | Enable RPC simulation (for development). |
 | `sink.rpc.mock.delay` | `0` | Artificial delay in ms. |
 
-**Monitoring and Metrics**
+### Monitoring and Metrics
 
 | Key | Default | Notes |
 | --- | --- | --- |
