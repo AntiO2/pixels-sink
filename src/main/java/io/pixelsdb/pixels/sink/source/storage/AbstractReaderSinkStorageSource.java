@@ -23,7 +23,6 @@ package io.pixelsdb.pixels.sink.source.storage;
 import io.pixelsdb.pixels.common.physical.PhysicalReader;
 import io.pixelsdb.pixels.common.physical.PhysicalReaderUtil;
 import io.pixelsdb.pixels.common.physical.Storage;
-import io.pixelsdb.pixels.core.utils.Pair;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConstants;
 import io.pixelsdb.pixels.sink.provider.ProtoType;
 import org.slf4j.Logger;
@@ -43,11 +42,18 @@ public abstract class AbstractReaderSinkStorageSource extends AbstractSinkStorag
     @Override
     public void start()
     {
+        recoveryManager.initializeForSourceStart();
+        StorageSourceOffset replayStartOffset = recoveryManager.getReplayStartOffset();
+        if (replayStartOffset != null)
+        {
+            this.loopId = replayStartOffset.getEpoch();
+        }
         this.running.set(true);
         this.transactionProcessorThread.start();
         this.transactionProviderThread.start();
-        for (String file : files)
+        for (int fileId = 0; fileId < files.size(); fileId++)
         {
+            String file = files.get(fileId);
             Storage.Scheme scheme = Storage.Scheme.fromPath(file);
             LOGGER.info("Start read from file {}", file);
             PhysicalReader reader;
@@ -60,65 +66,76 @@ public abstract class AbstractReaderSinkStorageSource extends AbstractSinkStorag
             }
             readers.add(reader);
         }
-        do
+        try
         {
-            for (PhysicalReader reader : readers)
+            do
             {
-                LOGGER.info("Start Read {}", reader.getPath());
-                long offset = 0;
-                while (true)
+                for (int fileId = 0; fileId < readers.size(); fileId++)
                 {
-                    try
+                    PhysicalReader reader = readers.get(fileId);
+                    LOGGER.info("Start Read {}", reader.getPath());
+                    long offset = 0;
+                    while (true)
                     {
-                        int key, valueLen;
-                        reader.seek(offset);
                         try
                         {
-                            key = reader.readInt(ByteOrder.BIG_ENDIAN);
-                            valueLen = reader.readInt(ByteOrder.BIG_ENDIAN);
+                            int key;
+                            int valueLen;
+                            long recordOffset = offset;
+                            reader.seek(offset);
+                            try
+                            {
+                                key = reader.readInt(ByteOrder.BIG_ENDIAN);
+                                valueLen = reader.readInt(ByteOrder.BIG_ENDIAN);
+                            } catch (IOException e)
+                            {
+                                break;
+                            }
+
+                            ProtoType protoType = getProtoType(key);
+                            StorageSourceOffset currentOffset = new StorageSourceOffset(fileId, recordOffset, loopId, protoType);
+                            offset += Integer.BYTES * 2L;
+                            CompletableFuture<ByteBuffer> valueFuture = reader.readAsync(offset, valueLen)
+                                    .thenApply(this::copyToHeap)
+                                    .thenApply(buf -> buf.order(ByteOrder.BIG_ENDIAN));
+                            offset += valueLen;
+                            if (replayStartOffset != null && currentOffset.compareTo(replayStartOffset) < 0)
+                            {
+                                continue;
+                            }
+
+                            BlockingQueue<StorageSourceRecord<CompletableFuture<ByteBuffer>>> queue =
+                                    queueMap.computeIfAbsent(key,
+                                            k -> new LinkedBlockingQueue<>(PixelsSinkConstants.MAX_QUEUE_SIZE));
+                            if (protoType.equals(ProtoType.ROW))
+                            {
+                                sourceRateLimiter.acquire(1);
+                            }
+                            queue.put(new StorageSourceRecord<>(key, valueFuture, currentOffset));
+                            consumerThreads.computeIfAbsent(key, k ->
+                            {
+                                Thread t = new Thread(() -> consumeQueue(k, queue, protoType));
+                                t.setName("consumer-" + key);
+                                t.start();
+                                return t;
+                            });
+                        } catch (InterruptedException e)
+                        {
+                            Thread.currentThread().interrupt();
+                            return;
                         } catch (IOException e)
                         {
-                            // EOF
+                            LOGGER.warn("Failed to read source file {}", reader.getPath(), e);
                             break;
                         }
-
-                        ProtoType protoType = getProtoType(key);
-                        offset += Integer.BYTES * 2;
-                        CompletableFuture<ByteBuffer> valueFuture = reader.readAsync(offset, valueLen)
-                                .thenApply(this::copyToHeap)
-                                .thenApply(buf -> buf.order(ByteOrder.BIG_ENDIAN));
-                        // move offset for next record
-                        offset += valueLen;
-
-
-                        // Get or create queue
-                        BlockingQueue<Pair<CompletableFuture<ByteBuffer>, Integer>> queue =
-                                queueMap.computeIfAbsent(key,
-                                        k -> new LinkedBlockingQueue<>(PixelsSinkConstants.MAX_QUEUE_SIZE));
-
-                        // Put future in queue
-                        if (protoType.equals(ProtoType.ROW))
-                        {
-                            sourceRateLimiter.acquire(1);
-                        }
-                        queue.put(new Pair<>(valueFuture, loopId));
-                        // Start consumer thread if not exists
-                        consumerThreads.computeIfAbsent(key, k ->
-                        {
-                            Thread t = new Thread(() -> consumeQueue(k, queue, protoType));
-                            t.setName("consumer-" + key);
-                            t.start();
-                            return t;
-                        });
-                    } catch (IOException | InterruptedException e)
-                    {
-                        break;
                     }
                 }
+                ++loopId;
             }
-            ++loopId;
-        } while (storageLoopEnabled && isRunning());
-
-        clean();
+            while (storageLoopEnabled && isRunning());
+        } finally
+        {
+            clean();
+        }
     }
 }

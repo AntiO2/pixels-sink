@@ -27,6 +27,7 @@ import io.pixelsdb.pixels.sink.event.RowChangeEvent;
 import io.pixelsdb.pixels.sink.exception.SinkException;
 import io.pixelsdb.pixels.sink.util.MetricsFacade;
 import io.pixelsdb.pixels.sink.writer.PixelsSinkWriter;
+import io.pixelsdb.pixels.sink.writer.retina.recovery.RecoveryManager;
 import org.apache.commons.lang3.RandomUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,12 +47,16 @@ public class RetinaWriter implements PixelsSinkWriter
     private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
     private final SinkContextManager sinkContextManager;
     private final TransactionMode transactionMode;
+    private final RecoveryManager recoveryManager;
+    private final boolean debugProgressEnabled;
 
     public RetinaWriter()
     {
         PixelsSinkConfig config = PixelsSinkConfigFactory.getInstance();
         this.sinkContextManager = SinkContextManager.getInstance();
         this.transactionMode = config.getTransactionMode();
+        this.recoveryManager = RecoveryManager.getInstance();
+        this.debugProgressEnabled = config.isDebugProgressEnabled();
     }
 
     @Override
@@ -87,6 +92,10 @@ public class RetinaWriter implements PixelsSinkWriter
             if (event == null)
             {
                 return false;
+            }
+            if (!recoveryManager.shouldReplayRow(event))
+            {
+                return true;
             }
 
             metricsFacade.recordRowChange(event.getTable(), event.getOp());
@@ -126,6 +135,10 @@ public class RetinaWriter implements PixelsSinkWriter
 
     private void handleTxBegin(SinkProto.TransactionMetadata txBegin) throws SinkException
     {
+        if (debugProgressEnabled)
+        {
+            LOGGER.info("Transaction begin: sourceTxId={}", txBegin.getId());
+        }
         // startTrans(txBegin.getId()).get();
         try
         {
@@ -145,6 +158,10 @@ public class RetinaWriter implements PixelsSinkWriter
 
     private void handleTxEnd(SinkProto.TransactionMetadata txEnd)
     {
+        if (debugProgressEnabled)
+        {
+            LOGGER.info("Transaction end: sourceTxId={}, eventCount={}", txEnd.getId(), txEnd.getEventCount());
+        }
         sinkContextManager.processTxCommit(txEnd);
     }
 

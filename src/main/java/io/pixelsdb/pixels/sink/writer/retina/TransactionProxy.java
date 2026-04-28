@@ -26,6 +26,7 @@ import io.pixelsdb.pixels.common.transaction.TransService;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.util.MetricsFacade;
+import io.pixelsdb.pixels.sink.writer.retina.recovery.RecoveryManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,11 +52,13 @@ public class TransactionProxy
     private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
     private final BlockingQueue<SinkContext> toCommitTransContextQueue;
     private final String freshnessLevel;
+    private final RecoveryManager recoveryManager;
     private final int BATCH_SIZE;
     private final int REQUEST_BATCH_SIZE;
     private final boolean REQUEST_BATCH;
     private final int WORKER_COUNT;
     private final int MAX_WAIT_MS;
+    private volatile boolean recoveredPreallocatedContextsLoaded = false;
 
     private AtomicInteger beginCount = new AtomicInteger(0);
     private AtomicInteger commitCount = new AtomicInteger(0);
@@ -72,6 +75,7 @@ public class TransactionProxy
         this.transService = TransService.Instance();
         this.transContextQueue = new ConcurrentLinkedDeque<>();
         this.toCommitTransContextQueue = new LinkedBlockingQueue<>();
+        this.recoveryManager = RecoveryManager.getInstance();
         this.batchCommitExecutor = Executors.newFixedThreadPool(
                 WORKER_COUNT,
                 r ->
@@ -88,6 +92,46 @@ public class TransactionProxy
         }
 
         this.freshnessLevel = pixelsSinkConfig.getSinkMonitorFreshnessLevel();
+    }
+
+    TransactionProxy(
+            TransService transService,
+            RecoveryManager recoveryManager,
+            boolean requestBatch,
+            int requestBatchSize,
+            int batchSize,
+            int workerCount,
+            int maxWaitMs,
+            String freshnessLevel,
+            boolean startWorkers)
+    {
+        this.transService = transService;
+        this.transContextQueue = new ConcurrentLinkedDeque<>();
+        this.toCommitTransContextQueue = new LinkedBlockingQueue<>();
+        this.recoveryManager = recoveryManager;
+        this.REQUEST_BATCH = requestBatch;
+        this.REQUEST_BATCH_SIZE = requestBatchSize;
+        this.BATCH_SIZE = batchSize;
+        this.WORKER_COUNT = workerCount;
+        this.MAX_WAIT_MS = maxWaitMs;
+        this.freshnessLevel = freshnessLevel;
+        this.batchCommitExecutor = Executors.newFixedThreadPool(
+                Math.max(1, workerCount),
+                r ->
+                {
+                    Thread t = new Thread(r);
+                    t.setName("commit-trans-batch-thread");
+                    t.setDaemon(true);
+                    return t;
+                }
+        );
+        if (startWorkers)
+        {
+            for (int i = 0; i < workerCount; i++)
+            {
+                batchCommitExecutor.submit(this::batchCommitWorker);
+            }
+        }
     }
 
     public static TransactionProxy Instance()
@@ -118,6 +162,7 @@ public class TransactionProxy
         try
         {
             List<TransContext> newContexts = transService.beginTransBatch(REQUEST_BATCH_SIZE, false);
+            recoveryManager.recordPreallocatedTransContexts(newContexts);
             transContextQueue.addAll(newContexts);
         } catch (TransException e)
         {
@@ -147,6 +192,7 @@ public class TransactionProxy
             }
         }
 
+        loadRecoveredPreallocatedContextsIfNeeded();
         TransContext ctx = transContextQueue.poll();
         if (ctx != null)
         {
@@ -168,6 +214,17 @@ public class TransactionProxy
         }
     }
 
+    public TransContext getExistingTransContext(long transId)
+    {
+        try
+        {
+            return transService.getTransContext(transId);
+        } catch (TransException e)
+        {
+            throw new RuntimeException("Failed to restore transaction context " + transId, e);
+        }
+    }
+
     public void commitTransAsync(SinkContext transContext)
     {
         toCommitTransContextQueue.add(transContext);
@@ -176,6 +233,7 @@ public class TransactionProxy
     public void commitTransSync(SinkContext transContext)
     {
         commitTrans(transContext.getPixelsTransCtx());
+        recoveryManager.markCommitted(transContext.getSourceTxId());
         metricsFacade.recordTransaction();
         long txEndTime = System.currentTimeMillis();
 
@@ -220,12 +278,14 @@ public class TransactionProxy
                 batchContexts.clear();
                 batchTransIds.clear();
                 txStartTimes.clear();
+                List<SinkContext> sinkContexts = new ArrayList<>(BATCH_SIZE);
 
                 SinkContext firstSinkContext = toCommitTransContextQueue.take();
                 TransContext transContext = firstSinkContext.getPixelsTransCtx();
                 batchContexts.add(transContext);
                 batchTransIds.add(transContext.getTransId());
                 txStartTimes.add(firstSinkContext.getStartTime());
+                sinkContexts.add(firstSinkContext);
                 long startTime = System.nanoTime();
 
                 while (batchContexts.size() < BATCH_SIZE)
@@ -246,9 +306,11 @@ public class TransactionProxy
                     batchContexts.add(transContext);
                     batchTransIds.add(transContext.getTransId());
                     txStartTimes.add(ctx.getStartTime());
+                    sinkContexts.add(ctx);
                 }
 
                 transService.commitTransBatch(batchTransIds, false);
+                sinkContexts.forEach(ctx -> recoveryManager.markCommitted(ctx.getSourceTxId()));
                 metricsFacade.recordTransaction(batchTransIds.size());
                 long txEndTime = System.currentTimeMillis();
 
@@ -297,11 +359,34 @@ public class TransactionProxy
                 try
                 {
                     transService.rollbackTrans(ctx.getTransId(), false);
+                    recoveryManager.removePreallocatedTransContext(ctx.getTransId());
                 } catch (TransException e)
                 {
                     throw new RuntimeException(e);
                 }
             }
+        }
+    }
+
+    private void loadRecoveredPreallocatedContextsIfNeeded()
+    {
+        if (!REQUEST_BATCH || recoveredPreallocatedContextsLoaded)
+        {
+            return;
+        }
+        synchronized (batchLock)
+        {
+            if (recoveredPreallocatedContextsLoaded)
+            {
+                return;
+            }
+            List<TransContext> recoveredContexts = recoveryManager.loadReusablePreallocatedTransContexts();
+            if (!recoveredContexts.isEmpty())
+            {
+                LOGGER.info("Loaded {} recovered preallocated transactions", recoveredContexts.size());
+                transContextQueue.addAll(recoveredContexts);
+            }
+            recoveredPreallocatedContextsLoaded = true;
         }
     }
 }
