@@ -91,6 +91,45 @@ Notes on `sink.trans.mode`:
 | `sink.proto.maxRecords` | `100000` | Max records per file. |
 | `sink.storage.loop` | `false` | Whether to loop over stored files. |
 
+### Recovery
+
+Recovery is currently implemented for:
+
+- `sink.datasource=storage`
+- `sink.mode=retina`
+- `sink.trans.mode=batch`
+
+The current recovery path is designed around the `TableCrossTxWriter` write path.
+
+| Key | Default | Notes |
+| --- | --- | --- |
+| `sink.recovery.enable` | `false` | Enable local sink recovery metadata and recovery-aware processing. |
+| `sink.recovery.mode` | `bootstrap` | Startup mode: `bootstrap` or `recovery`. |
+| `sink.recovery.bootstrap.force_overwrite` | `false` | Only valid in `bootstrap` mode. Clears existing recovery state before starting from the beginning. |
+| `sink.recovery.dir` | `./sink-recovery` | Reserved top-level recovery directory. Current implementation mainly uses `sink.recovery.rocksdb.dir`. |
+| `sink.recovery.rocksdb.dir` | `./sink-recovery/rocksdb` | RocksDB directory for transaction bindings, active transaction order, and commit markers. |
+| `sink.recovery.insert_as_update` | `true` | In recovery mode, rewrite `INSERT` as `UPDATE` with `before = after` to support idempotent replay. |
+| `sink.recovery.fail_on_corruption` | `true` | Reserved for stricter recovery-store corruption handling. Not fully wired yet. |
+
+### Notes on recovery mode
+
+- `bootstrap` starts reading from the beginning of the storage source.
+- `recovery` loads recovery metadata and replays from the earliest active transaction `beginOffset`.
+- In `bootstrap` mode, if recovery state already exists and `sink.recovery.bootstrap.force_overwrite=false`, startup fails.
+- In `bootstrap` mode, if `sink.recovery.bootstrap.force_overwrite=true`, the existing recovery store is cleared before startup.
+- `sink.recovery.bootstrap.force_overwrite` must not be used with `sink.recovery.mode=recovery`.
+- Recovery currently assumes that `TransServer` can return the original transaction context via `getTransContext(pixelsTransId)`.
+
+### Notes on recovery metadata
+
+The recovery store keeps:
+
+- `dataSourceTxId -> pixelsTransId / timestamp / lease / beginOffset / lastSafeOffset / state`
+- an ordered view of active transactions by `beginOffset`
+- commit markers used to suppress duplicate commits
+
+`lastSafeOffset` is advanced on successful `TableCrossTxWriter` flush or batch completion, not on every row event.
+
 ### Flink Sink
 
 | Key | Default | Notes |

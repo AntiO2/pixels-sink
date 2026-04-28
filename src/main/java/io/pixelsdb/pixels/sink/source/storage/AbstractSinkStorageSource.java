@@ -21,7 +21,6 @@
 package io.pixelsdb.pixels.sink.source.storage;
 
 import io.pixelsdb.pixels.common.physical.PhysicalReader;
-import io.pixelsdb.pixels.core.utils.Pair;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.metadata.TableMetadataRegistry;
@@ -34,6 +33,7 @@ import io.pixelsdb.pixels.sink.util.EtcdFileRegistry;
 import io.pixelsdb.pixels.sink.util.MetricsFacade;
 import io.pixelsdb.pixels.sink.util.rateLimiter.FlushRateLimiter;
 import io.pixelsdb.pixels.sink.util.rateLimiter.FlushRateLimiterFactory;
+import io.pixelsdb.pixels.sink.writer.retina.recovery.RecoveryManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,18 +59,19 @@ public abstract class AbstractSinkStorageSource implements SinkSource
     protected final List<String> files;
     protected final CompletableFuture<ByteBuffer> POISON_PILL = new CompletableFuture<>();
     protected final Map<Integer, Thread> consumerThreads = new ConcurrentHashMap<>();
-    protected final Map<Integer, BlockingQueue<Pair<CompletableFuture<ByteBuffer>, Integer>>> queueMap = new ConcurrentHashMap<>();
+    protected final Map<Integer, BlockingQueue<StorageSourceRecord<CompletableFuture<ByteBuffer>>>> queueMap = new ConcurrentHashMap<>();
     protected final boolean storageLoopEnabled;
     protected final FlushRateLimiter sourceRateLimiter;
     private final TableMetadataRegistry tableMetadataRegistry = TableMetadataRegistry.Instance();
     private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
-    private final TableProviderAndProcessorPipelineManager<Pair<ByteBuffer, Integer>> tablePipelineManager = new TableProviderAndProcessorPipelineManager<>();
-    protected TransactionEventStorageLoopProvider<Pair<ByteBuffer, Integer>> transactionEventProvider;
+    private final TableProviderAndProcessorPipelineManager<StorageSourceRecord<ByteBuffer>> tablePipelineManager = new TableProviderAndProcessorPipelineManager<>();
+    protected TransactionEventStorageLoopProvider<StorageSourceRecord<ByteBuffer>> transactionEventProvider;
     protected TransactionProcessor transactionProcessor;
     protected Thread transactionProviderThread;
     protected Thread transactionProcessorThread;
     protected int loopId = 0;
     protected List<PhysicalReader> readers = new ArrayList<>();
+    protected final RecoveryManager recoveryManager;
 
     protected AbstractSinkStorageSource()
     {
@@ -87,6 +88,7 @@ public abstract class AbstractSinkStorageSource implements SinkSource
         this.transactionProcessor = new TransactionProcessor(transactionEventProvider);
         this.transactionProcessorThread = new Thread(transactionProcessor, "debezium-processor");
         this.sourceRateLimiter = FlushRateLimiterFactory.getNewInstance();
+        this.recoveryManager = RecoveryManager.getInstance();
     }
 
     abstract ProtoType getProtoType(int i);
@@ -97,7 +99,7 @@ public abstract class AbstractSinkStorageSource implements SinkSource
         {
             try
             {
-                q.put(new Pair<>(POISON_PILL, loopId));
+                q.put(new StorageSourceRecord<>(-1, POISON_PILL, new StorageSourceOffset(-1, -1, loopId, ProtoType.ROW)));
             } catch (InterruptedException e)
             {
                 Thread.currentThread().interrupt();
@@ -127,30 +129,30 @@ public abstract class AbstractSinkStorageSource implements SinkSource
         }
     }
 
-    protected void handleTransactionSourceRecord(ByteBuffer record, Integer loopId)
+    protected void handleTransactionSourceRecord(StorageSourceRecord<ByteBuffer> record)
     {
-        transactionEventProvider.putTransRawEvent(new Pair<>(record, loopId));
+        transactionEventProvider.putTransRawEvent(record);
     }
 
-    protected void consumeQueue(int key, BlockingQueue<Pair<CompletableFuture<ByteBuffer>, Integer>> queue, ProtoType protoType)
+    protected void consumeQueue(int key, BlockingQueue<StorageSourceRecord<CompletableFuture<ByteBuffer>>> queue, ProtoType protoType)
     {
         try
         {
             while (true)
             {
-                Pair<CompletableFuture<ByteBuffer>, Integer> pair = queue.take();
-                CompletableFuture<ByteBuffer> value = pair.getLeft();
-                int loopId = pair.getRight();
+                StorageSourceRecord<CompletableFuture<ByteBuffer>> record = queue.take();
+                CompletableFuture<ByteBuffer> value = record.getPayload();
                 if (value == POISON_PILL)
                 {
                     break;
                 }
                 ByteBuffer valueBuffer = value.get();
+                StorageSourceRecord<ByteBuffer> decodedRecord = new StorageSourceRecord<>(record.getSourceKey(), valueBuffer, record.getOffset());
                 metricsFacade.recordDebeziumEvent();
                 switch (protoType)
                 {
-                    case ROW -> handleRowChangeSourceRecord(key, valueBuffer, loopId);
-                    case TRANS -> handleTransactionSourceRecord(valueBuffer, loopId);
+                    case ROW -> handleRowChangeSourceRecord(record.getSourceKey(), decodedRecord);
+                    case TRANS -> handleTransactionSourceRecord(decodedRecord);
                 }
             }
         } catch (InterruptedException e)
@@ -171,9 +173,9 @@ public abstract class AbstractSinkStorageSource implements SinkSource
         return heapBuffer;
     }
 
-    protected void handleRowChangeSourceRecord(int key, ByteBuffer dataBuffer, int loopId)
+    protected void handleRowChangeSourceRecord(int key, StorageSourceRecord<ByteBuffer> record)
     {
-        tablePipelineManager.routeRecord(key, new Pair<>(dataBuffer, loopId));
+        tablePipelineManager.routeRecord(key, record);
     }
 
     @Override

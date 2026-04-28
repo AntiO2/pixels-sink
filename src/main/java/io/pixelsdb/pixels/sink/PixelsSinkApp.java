@@ -31,6 +31,7 @@ import io.pixelsdb.pixels.sink.writer.PixelsSinkWriter;
 import io.pixelsdb.pixels.sink.writer.PixelsSinkWriterFactory;
 import io.pixelsdb.pixels.sink.writer.retina.SinkContextManager;
 import io.pixelsdb.pixels.sink.writer.retina.TransactionProxy;
+import io.pixelsdb.pixels.sink.writer.retina.recovery.RecoveryManager;
 import io.prometheus.client.exporter.HTTPServer;
 import io.prometheus.client.hotspot.DefaultExports;
 import org.slf4j.Logger;
@@ -76,6 +77,7 @@ public class PixelsSinkApp
                     throw new RuntimeException(e);
                 }
             }
+            RecoveryManager.closeInstance();
 
         }));
 

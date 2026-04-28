@@ -23,7 +23,6 @@ package io.pixelsdb.pixels.sink.source.storage;
 import io.pixelsdb.pixels.common.physical.PhysicalReader;
 import io.pixelsdb.pixels.common.physical.PhysicalReaderUtil;
 import io.pixelsdb.pixels.common.physical.Storage;
-import io.pixelsdb.pixels.core.utils.Pair;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConstants;
 import io.pixelsdb.pixels.sink.provider.ProtoType;
 import org.slf4j.Logger;
@@ -44,11 +43,17 @@ public abstract class AbstractMemorySinkStorageSource extends AbstractSinkStorag
 
     // All preloaded records, order preserved
     // key + value buffer
-    private final List<Pair<Integer, ByteBuffer>> preloadedRecords = new ArrayList<>();
+    private final List<StorageSourceRecord<ByteBuffer>> preloadedRecords = new ArrayList<>();
 
     @Override
     public void start()
     {
+        recoveryManager.initializeForSourceStart();
+        StorageSourceOffset replayStartOffset = recoveryManager.getReplayStartOffset();
+        if (replayStartOffset != null)
+        {
+            this.loopId = replayStartOffset.getEpoch();
+        }
         this.running.set(true);
         this.transactionProcessorThread.start();
         this.transactionProviderThread.start();
@@ -57,21 +62,25 @@ public abstract class AbstractMemorySinkStorageSource extends AbstractSinkStorag
             /* =====================================================
              * 1. Initialization phase: preload all ByteBuffers
              * ===================================================== */
-            for (String file : files)
+            for (int fileId = 0; fileId < files.size(); fileId++)
             {
+                String file = files.get(fileId);
                 Storage.Scheme scheme = Storage.Scheme.fromPath(file);
                 LOGGER.info("Preloading file {}", file);
 
                 PhysicalReader reader = PhysicalReaderUtil.newPhysicalReader(scheme, file);
                 readers.add(reader);
+                long offset = 0;
 
                 while (true)
                 {
                     int key;
                     int valueLen;
+                    long recordOffset;
 
                     try
                     {
+                        recordOffset = offset;
                         key = reader.readInt(ByteOrder.BIG_ENDIAN);
                         valueLen = reader.readInt(ByteOrder.BIG_ENDIAN);
                     } catch (IOException eof)
@@ -81,11 +90,17 @@ public abstract class AbstractMemorySinkStorageSource extends AbstractSinkStorag
                     }
                     // Synchronous read and copy to heap buffer
                     ByteBuffer valueBuffer = reader.readFully(valueLen);
-                    // Store into a single global array
-                    ByteBuffer cleanBuffer = valueBuffer.duplicate();
-                    cleanBuffer.rewind();
-                    cleanBuffer.limit(cleanBuffer.position() + valueLen);
-                    preloadedRecords.add(new Pair<>(key, cleanBuffer));
+                    ByteBuffer duplicateValueBuffer = valueBuffer.duplicate();
+                    duplicateValueBuffer.rewind();
+                    ByteBuffer cleanBuffer = ByteBuffer.allocate(valueLen);
+                    cleanBuffer.put(duplicateValueBuffer);
+                    cleanBuffer.flip();
+                    offset += Integer.BYTES * 2L + valueLen;
+                    preloadedRecords.add(new StorageSourceRecord<>(
+                            key,
+                            cleanBuffer,
+                            new StorageSourceOffset(fileId, recordOffset, 0, getProtoType(key))
+                    ));
                 }
             }
 
@@ -98,15 +113,31 @@ public abstract class AbstractMemorySinkStorageSource extends AbstractSinkStorag
              * ===================================================== */
             do
             {
-                for (Pair<Integer, ByteBuffer> record : preloadedRecords)
+                for (StorageSourceRecord<ByteBuffer> record : preloadedRecords)
                 {
-                    int key = record.getLeft();
-                    ByteBuffer src = record.getRight();
-                    ByteBuffer copy = ByteBuffer.allocate(src.remaining());
-                    copy.put(src.duplicate().rewind());
+                    ByteBuffer src = record.getPayload();
+                    StorageSourceOffset offset = record.getOffset();
+                    if (replayStartOffset != null && offset.getEpoch() == 0)
+                    {
+                        StorageSourceOffset currentLoopOffset = new StorageSourceOffset(
+                                offset.getFileId(),
+                                offset.getByteOffset(),
+                                loopId,
+                                offset.getRecordType()
+                        );
+                        if (currentLoopOffset.compareTo(replayStartOffset) < 0)
+                        {
+                            continue;
+                        }
+                    }
+                    int key = record.getSourceKey();
+                    ByteBuffer duplicate = src.duplicate();
+                    duplicate.rewind();
+                    ByteBuffer copy = ByteBuffer.allocate(duplicate.remaining());
+                    copy.put(duplicate);
                     copy.flip();
                     // Lazily create queue
-                    BlockingQueue<Pair<CompletableFuture<ByteBuffer>, Integer>> queue =
+                    BlockingQueue<StorageSourceRecord<CompletableFuture<ByteBuffer>>> queue =
                             queueMap.computeIfAbsent(
                                     key,
                                     k -> new LinkedBlockingQueue<>(PixelsSinkConstants.MAX_QUEUE_SIZE)
@@ -129,10 +160,14 @@ public abstract class AbstractMemorySinkStorageSource extends AbstractSinkStorag
                     }
 
                     // Use completed future to keep consumer logic unchanged
-                    CompletableFuture<ByteBuffer> future =
-                            CompletableFuture.completedFuture(copy);
-
-                    queue.put(new Pair<>(future, loopId));
+                    CompletableFuture<ByteBuffer> future = CompletableFuture.completedFuture(copy);
+                    StorageSourceOffset currentOffset = new StorageSourceOffset(
+                            offset.getFileId(),
+                            offset.getByteOffset(),
+                            loopId,
+                            offset.getRecordType()
+                    );
+                    queue.put(new StorageSourceRecord<>(key, future, currentOffset));
                 }
                 ++loopId;
             } while (storageLoopEnabled && isRunning());
@@ -147,4 +182,5 @@ public abstract class AbstractMemorySinkStorageSource extends AbstractSinkStorag
             clean();
         }
     }
+
 }

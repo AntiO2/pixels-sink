@@ -26,6 +26,7 @@ import io.pixelsdb.pixels.common.transaction.TransService;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.util.MetricsFacade;
+import io.pixelsdb.pixels.sink.writer.retina.recovery.RecoveryManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,6 +52,7 @@ public class TransactionProxy
     private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
     private final BlockingQueue<SinkContext> toCommitTransContextQueue;
     private final String freshnessLevel;
+    private final RecoveryManager recoveryManager;
     private final int BATCH_SIZE;
     private final int REQUEST_BATCH_SIZE;
     private final boolean REQUEST_BATCH;
@@ -72,6 +74,7 @@ public class TransactionProxy
         this.transService = TransService.Instance();
         this.transContextQueue = new ConcurrentLinkedDeque<>();
         this.toCommitTransContextQueue = new LinkedBlockingQueue<>();
+        this.recoveryManager = RecoveryManager.getInstance();
         this.batchCommitExecutor = Executors.newFixedThreadPool(
                 WORKER_COUNT,
                 r ->
@@ -168,6 +171,17 @@ public class TransactionProxy
         }
     }
 
+    public TransContext getExistingTransContext(long transId)
+    {
+        try
+        {
+            return transService.getTransContext(transId);
+        } catch (TransException e)
+        {
+            throw new RuntimeException("Failed to restore transaction context " + transId, e);
+        }
+    }
+
     public void commitTransAsync(SinkContext transContext)
     {
         toCommitTransContextQueue.add(transContext);
@@ -176,6 +190,7 @@ public class TransactionProxy
     public void commitTransSync(SinkContext transContext)
     {
         commitTrans(transContext.getPixelsTransCtx());
+        recoveryManager.markCommitted(transContext.getSourceTxId());
         metricsFacade.recordTransaction();
         long txEndTime = System.currentTimeMillis();
 
@@ -220,12 +235,14 @@ public class TransactionProxy
                 batchContexts.clear();
                 batchTransIds.clear();
                 txStartTimes.clear();
+                List<SinkContext> sinkContexts = new ArrayList<>(BATCH_SIZE);
 
                 SinkContext firstSinkContext = toCommitTransContextQueue.take();
                 TransContext transContext = firstSinkContext.getPixelsTransCtx();
                 batchContexts.add(transContext);
                 batchTransIds.add(transContext.getTransId());
                 txStartTimes.add(firstSinkContext.getStartTime());
+                sinkContexts.add(firstSinkContext);
                 long startTime = System.nanoTime();
 
                 while (batchContexts.size() < BATCH_SIZE)
@@ -246,9 +263,11 @@ public class TransactionProxy
                     batchContexts.add(transContext);
                     batchTransIds.add(transContext.getTransId());
                     txStartTimes.add(ctx.getStartTime());
+                    sinkContexts.add(ctx);
                 }
 
                 transService.commitTransBatch(batchTransIds, false);
+                sinkContexts.forEach(ctx -> recoveryManager.markCommitted(ctx.getSourceTxId()));
                 metricsFacade.recordTransaction(batchTransIds.size());
                 long txEndTime = System.currentTimeMillis();
 

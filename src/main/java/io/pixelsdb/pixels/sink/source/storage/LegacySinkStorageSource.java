@@ -187,8 +187,8 @@ public class LegacySinkStorageSource extends AbstractReaderSinkStorageSource imp
                 metricsFacade.recordDebeziumEvent();
                 switch (protoType)
                 {
-                    case ROW -> handleRowChangeSourceRecord(0, valueBuffer, 0);
-                    case TRANS -> handleTransactionSourceRecord(valueBuffer, 0);
+                    case ROW -> handleRowChangeSourceRecord(key, valueBuffer);
+                    case TRANS -> transactionEventProvider.putTransRawEvent(valueBuffer);
                 }
             }
         } catch (InterruptedException e)
