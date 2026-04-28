@@ -30,6 +30,7 @@ import io.pixelsdb.pixels.sink.SinkProto;
 import io.pixelsdb.pixels.sink.exception.SinkException;
 import io.pixelsdb.pixels.sink.metadata.TableMetadata;
 import io.pixelsdb.pixels.sink.metadata.TableMetadataRegistry;
+import io.pixelsdb.pixels.sink.source.storage.StorageSourceOffset;
 import io.pixelsdb.pixels.sink.util.MetricsFacade;
 import io.prometheus.client.Summary;
 import lombok.Getter;
@@ -75,6 +76,9 @@ public class RowChangeEvent
 
     @Getter
     private SchemaTableName schemaTableName;
+    @Setter
+    @Getter
+    private StorageSourceOffset sourceOffset;
 
     public RowChangeEvent(SinkProto.RowRecord rowRecord) throws SinkException
     {

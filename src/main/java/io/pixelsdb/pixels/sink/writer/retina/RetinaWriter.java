@@ -27,6 +27,7 @@ import io.pixelsdb.pixels.sink.event.RowChangeEvent;
 import io.pixelsdb.pixels.sink.exception.SinkException;
 import io.pixelsdb.pixels.sink.util.MetricsFacade;
 import io.pixelsdb.pixels.sink.writer.PixelsSinkWriter;
+import io.pixelsdb.pixels.sink.writer.retina.recovery.RecoveryManager;
 import org.apache.commons.lang3.RandomUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,12 +47,14 @@ public class RetinaWriter implements PixelsSinkWriter
     private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
     private final SinkContextManager sinkContextManager;
     private final TransactionMode transactionMode;
+    private final RecoveryManager recoveryManager;
 
     public RetinaWriter()
     {
         PixelsSinkConfig config = PixelsSinkConfigFactory.getInstance();
         this.sinkContextManager = SinkContextManager.getInstance();
         this.transactionMode = config.getTransactionMode();
+        this.recoveryManager = RecoveryManager.getInstance();
     }
 
     @Override
@@ -87,6 +90,10 @@ public class RetinaWriter implements PixelsSinkWriter
             if (event == null)
             {
                 return false;
+            }
+            if (!recoveryManager.shouldReplayRow(event))
+            {
+                return true;
             }
 
             metricsFacade.recordRowChange(event.getTable(), event.getOp());

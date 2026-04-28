@@ -21,14 +21,15 @@
 package io.pixelsdb.pixels.sink.provider;
 
 import com.google.protobuf.InvalidProtocolBufferException;
-import io.pixelsdb.pixels.core.utils.Pair;
 import io.pixelsdb.pixels.sink.SinkProto;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
 import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
 import io.pixelsdb.pixels.sink.event.deserializer.RowChangeEventStructDeserializer;
 import io.pixelsdb.pixels.sink.exception.SinkException;
+import io.pixelsdb.pixels.sink.source.storage.StorageSourceRecord;
 import io.pixelsdb.pixels.sink.util.DataTransform;
+import io.pixelsdb.pixels.sink.writer.retina.recovery.RecoveryManager;
 
 import java.nio.ByteBuffer;
 import java.util.logging.Logger;
@@ -57,10 +58,9 @@ public class TableEventStorageLoopProvider<T> extends TableEventProvider<T>
     @Override
     RowChangeEvent convertToTargetRecord(T record)
     {
-        Pair<ByteBuffer, Integer> pairRecord = (Pair<ByteBuffer, Integer>) record;
-        ByteBuffer sourceRecord = pairRecord.getLeft();
+        StorageSourceRecord<ByteBuffer> sourceStorageRecord = (StorageSourceRecord<ByteBuffer>) record;
+        ByteBuffer sourceRecord = sourceStorageRecord.getPayload().duplicate();
         sourceRecord.rewind();
-        Integer loopId = pairRecord.getRight();
         try
         {
             SinkProto.RowRecord rowRecord = SinkProto.RowRecord.parseFrom(sourceRecord);
@@ -78,9 +78,12 @@ public class TableEventStorageLoopProvider<T> extends TableEventProvider<T>
 
             SinkProto.TransactionInfo.Builder transactionBuilder = rowRecordBuilder.getTransactionBuilder();
             String id = transactionBuilder.getId();
-            transactionBuilder.setId(id + "_" + loopId);
+            transactionBuilder.setId(id + "_" + sourceStorageRecord.getOffset().getEpoch());
             rowRecordBuilder.setTransaction(transactionBuilder);
-            return RowChangeEventStructDeserializer.convertToRowChangeEvent(rowRecordBuilder.build());
+            RowChangeEvent event = RowChangeEventStructDeserializer.convertToRowChangeEvent(rowRecordBuilder.build());
+            event.setSourceOffset(sourceStorageRecord.getOffset());
+            RecoveryManager.getInstance().observeRowEvent(event);
+            return event;
         } catch (InvalidProtocolBufferException | SinkException e)
         {
             LOGGER.warning(e.getMessage());

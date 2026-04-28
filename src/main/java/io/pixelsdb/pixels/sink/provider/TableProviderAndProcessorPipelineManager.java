@@ -22,8 +22,8 @@ package io.pixelsdb.pixels.sink.provider;
 
 
 import io.pixelsdb.pixels.common.metadata.SchemaTableName;
-import io.pixelsdb.pixels.core.utils.Pair;
 import io.pixelsdb.pixels.sink.processor.TableProcessor;
+import io.pixelsdb.pixels.sink.source.storage.StorageSourceRecord;
 import org.apache.kafka.connect.source.SourceRecord;
 
 import java.nio.ByteBuffer;
@@ -68,7 +68,7 @@ public class TableProviderAndProcessorPipelineManager<SOURCE_RECORD_T>
     private TableEventProvider<SOURCE_RECORD_T> createProvider(SOURCE_RECORD_T record)
     {
         Class<?> recordType = record.getClass();
-        if (recordType == Pair.class)
+        if (recordType == StorageSourceRecord.class)
         {
             return new TableEventStorageLoopProvider<>();
         }

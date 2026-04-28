@@ -24,14 +24,18 @@ package io.pixelsdb.pixels.sink.writer.retina;
 import io.pixelsdb.pixels.retina.RetinaProto;
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
 import io.pixelsdb.pixels.sink.exception.SinkException;
+import io.pixelsdb.pixels.sink.source.storage.StorageSourceOffset;
+import io.pixelsdb.pixels.sink.writer.retina.recovery.RecoveryManager;
 import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -48,12 +52,14 @@ public class TableCrossTxWriter extends TableWriter
     private final Logger LOGGER = LoggerFactory.getLogger(TableCrossTxWriter.class);
     private final int flushBatchSize;
     private final InFlightControlManager inFlightControlManager;
+    private final RecoveryManager recoveryManager;
 
     public TableCrossTxWriter(String t, int bucketId)
     {
         super(t, bucketId);
         flushBatchSize = config.getFlushBatchSize();
         inFlightControlManager = InFlightControlManager.getInstance();
+        recoveryManager = RecoveryManager.getInstance();
     }
 
     /**
@@ -68,11 +74,13 @@ public class TableCrossTxWriter extends TableWriter
             List<RowChangeEvent> smallBatch = null;
             List<String> txIds = new ArrayList<>();
             List<String> fullTableName = new ArrayList<>();
+            Map<String, StorageSourceOffset> safeOffsets = new HashMap<>();
             List<RetinaProto.TableUpdateData.Builder> tableUpdateDataBuilderList = new LinkedList<>();
             List<Integer> tableUpdateCount = new ArrayList<>();
             for (RowChangeEvent event : batch)
             {
                 String currTxId = event.getTransaction().getId();
+                updateSafeOffset(safeOffsets, currTxId, event.getSourceOffset());
                 if (!currTxId.equals(txId))
                 {
                     if (smallBatch != null && !smallBatch.isEmpty())
@@ -98,7 +106,7 @@ public class TableCrossTxWriter extends TableWriter
                 RetinaProto.TableUpdateData.Builder builder = buildTableUpdateDataFromBatch(txId, smallBatch);
                 if (builder != null)
                 {
-                    tableUpdateDataBuilderList.add(buildTableUpdateDataFromBatch(txId, smallBatch));
+                    tableUpdateDataBuilderList.add(builder);
                     tableUpdateCount.add(smallBatch.size());
                 }
             }
@@ -137,6 +145,7 @@ public class TableCrossTxWriter extends TableWriter
                             {
                                 metricsFacade.recordFreshness(txEndTime - txStartTime);
                             }
+                            safeOffsets.forEach(recoveryManager::advanceLastSafeOffset);
                             updateCtxCounters(txIds, fullTableName, tableUpdateCount);
                         }
                     }
@@ -167,6 +176,10 @@ public class TableCrossTxWriter extends TableWriter
             metricsFacade.recordRowEvent(tableUpdateCount.get(i));
             String writeTxId = txIds.get(i);
             SinkContext sinkContext = SinkContextManager.getInstance().getSinkContext(writeTxId);
+            if (sinkContext == null)
+            {
+                continue;
+            }
 
             try
             {
@@ -224,6 +237,16 @@ public class TableCrossTxWriter extends TableWriter
             throw new RuntimeException("Flush failed for table " + tableName, e);
         }
         return builder;
+    }
+
+    private void updateSafeOffset(Map<String, StorageSourceOffset> safeOffsets, String txId, StorageSourceOffset offset)
+    {
+        if (offset == null)
+        {
+            return;
+        }
+        safeOffsets.merge(txId, offset, (current, candidate) ->
+                current.compareTo(candidate) >= 0 ? current : candidate);
     }
 
     @Override

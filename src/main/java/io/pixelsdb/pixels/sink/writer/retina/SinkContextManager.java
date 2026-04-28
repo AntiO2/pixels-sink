@@ -29,6 +29,7 @@ import io.pixelsdb.pixels.sink.exception.SinkException;
 import io.pixelsdb.pixels.sink.freshness.FreshnessClient;
 import io.pixelsdb.pixels.sink.util.BlockingBoundedMap;
 import io.pixelsdb.pixels.sink.util.DataTransform;
+import io.pixelsdb.pixels.sink.writer.retina.recovery.RecoveryManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,6 +51,7 @@ public class SinkContextManager
     private final CommitMethod commitMethod;
     private final String freshnessLevel;
     private final RetinaBucketDispatcher retinaBucketDispatcher;
+    private final RecoveryManager recoveryManager;
 
     private SinkContextManager()
     {
@@ -64,6 +66,7 @@ public class SinkContextManager
         this.freshnessLevel = config.getSinkMonitorFreshnessLevel();
         this.retinaBucketDispatcher = new RetinaBucketDispatcher();
         this.activeTxContexts = new BlockingBoundedMap<>(config.getRetinaTransLimit());
+        this.recoveryManager = RecoveryManager.getInstance();
     }
 
     public static SinkContextManager getInstance()
@@ -91,6 +94,7 @@ public class SinkContextManager
                 LOGGER.trace("Allocate new tx {}\torder:{}", sourceTxId, event.getTransaction().getTotalOrder());
                 SinkContext newSinkContext = new SinkContext(sourceTxId);
                 newSinkContext.bufferOrphanedEvent(event);
+                recoveryManager.observeRowEvent(event);
                 return newSinkContext;
             } else
             {
@@ -120,7 +124,9 @@ public class SinkContextManager
     protected void startTransSync(String sourceTxId)
     {
         LOGGER.trace("Start trans {}", sourceTxId);
-        TransContext pixelsTransContext = transactionProxy.getNewTransContext(sourceTxId);
+        TransContext pixelsTransContext = recoveryManager.restoreTransContext(sourceTxId, transactionProxy::getExistingTransContext)
+                .orElseGet(() -> transactionProxy.getNewTransContext(sourceTxId));
+        recoveryManager.recordNewBinding(sourceTxId, pixelsTransContext);
         activeTxContexts.compute(
                 sourceTxId,
                 (k, oldCtx) ->
@@ -170,6 +176,10 @@ public class SinkContextManager
         {
             ctx.tableCounterLock.lock();
             ctx.setEndTx(txEnd);
+            if (recoveryManager.shouldTrackCommitProgress(txId))
+            {
+                recoveryManager.markCommitting(txId);
+            }
             long startTs = System.currentTimeMillis();
             if (ctx.isCompleted())
             {
@@ -185,6 +195,11 @@ public class SinkContextManager
     {
         String txId = ctx.getSourceTxId();
         removeSinkContext(txId);
+        if (recoveryManager.shouldSuppressCommit(txId))
+        {
+            LOGGER.trace("Skip duplicate commit for recovered transaction {}", txId);
+            return;
+        }
         boolean failed = ctx.isFailed();
         if (!failed)
         {
@@ -243,6 +258,10 @@ public class SinkContextManager
         if (ctx != null)
         {
             event.setTimeStamp(ctx.getTimestamp());
+        }
+        if (ctx != null && recoveryManager.shouldRewriteInsert(ctx.getSourceTxId()))
+        {
+            event = DataTransform.transformInsertToRecoveryUpdate(event);
         }
         retinaBucketDispatcher.writeRowChangeEvent(event, ctx);
     }
