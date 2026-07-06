@@ -103,7 +103,7 @@ The current recovery path is designed around the `TableCrossTxWriter` write path
 
 | Key | Default | Notes |
 | --- | --- | --- |
-| `sink.recovery.enable` | `false` | Enable local sink recovery metadata and recovery-aware processing. |
+| `sink.recovery.enable` | `false` | Global switch for local sink recovery. Set to `false` to bypass RocksDB recovery metadata, recovery source seek, row replay rewriting, and commit suppression. |
 | `sink.recovery.mode` | `bootstrap` | Startup mode: `bootstrap` or `recovery`. |
 | `sink.recovery.bootstrap.force_overwrite` | `false` | Only valid in `bootstrap` mode. Clears existing recovery state before starting from the beginning. |
 | `sink.recovery.dir` | `./sink-recovery` | Reserved top-level recovery directory. Current implementation mainly uses `sink.recovery.rocksdb.dir`. |

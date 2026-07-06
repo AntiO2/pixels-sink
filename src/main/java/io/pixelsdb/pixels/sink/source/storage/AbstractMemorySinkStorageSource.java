@@ -54,11 +54,15 @@ public abstract class AbstractMemorySinkStorageSource extends AbstractSinkStorag
         boolean debugProgressEnabled = config.isDebugProgressEnabled();
         long debugProgressInterval = Math.max(1L, config.getDebugProgressInterval());
         long sourceDebugCounter = 0L;
-        recoveryManager.initializeForSourceStart();
-        StorageSourceOffset replayStartOffset = recoveryManager.getReplayStartOffset();
-        if (replayStartOffset != null)
+        StorageSourceOffset replayStartOffset = null;
+        if (recoveryManager.isEnabled())
         {
-            this.loopId = replayStartOffset.getEpoch();
+            recoveryManager.initializeForSourceStart();
+            replayStartOffset = recoveryManager.getReplayStartOffset();
+            if (replayStartOffset != null)
+            {
+                this.loopId = replayStartOffset.getEpoch();
+            }
         }
         this.running.set(true);
         this.transactionProcessorThread.start();
