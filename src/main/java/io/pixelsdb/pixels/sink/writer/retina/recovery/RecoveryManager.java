@@ -355,7 +355,7 @@ public class RecoveryManager
     {
         try
         {
-            long safeGcTimestamp = transService.getSafeGcTimestamp();
+            long safeGcTimestamp = transService.getSafeVisibilityFoldingTimestamp(true);
             return store.findReplayIndexAtOrBefore(safeGcTimestamp)
                     .map(TimestampReplayIndexEntry::getSourceOffset)
                     .orElse(null);
