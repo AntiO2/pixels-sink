@@ -21,8 +21,9 @@
 package io.pixelsdb.pixels.sink.provider;
 
 import com.google.protobuf.InvalidProtocolBufferException;
-import io.pixelsdb.pixels.core.utils.Pair;
 import io.pixelsdb.pixels.sink.SinkProto;
+import io.pixelsdb.pixels.sink.source.storage.StorageSourceRecord;
+import io.pixelsdb.pixels.sink.writer.retina.recovery.RecoveryManager;
 
 import java.nio.ByteBuffer;
 
@@ -31,14 +32,17 @@ public class TransactionEventStorageLoopProvider<T> extends TransactionEventProv
     @Override
     SinkProto.TransactionMetadata convertToTargetRecord(T record)
     {
-        Pair<ByteBuffer, Integer> buffer = (Pair<ByteBuffer, Integer>) record;
+        StorageSourceRecord<ByteBuffer> buffer = (StorageSourceRecord<ByteBuffer>) record;
         try
         {
-            SinkProto.TransactionMetadata tx = SinkProto.TransactionMetadata.parseFrom(buffer.getLeft());
-            Integer loopId = buffer.getRight();
+            ByteBuffer payload = buffer.getPayload().duplicate();
+            payload.rewind();
+            SinkProto.TransactionMetadata tx = SinkProto.TransactionMetadata.parseFrom(payload);
             SinkProto.TransactionMetadata.Builder builder = tx.toBuilder();
-            builder.setId(builder.getId() + "_" + loopId);
-            return builder.build();
+            builder.setId(builder.getId() + "_" + buffer.getOffset().getEpoch());
+            SinkProto.TransactionMetadata transactionMetadata = builder.build();
+            RecoveryManager.getInstance().observeTransactionMetadata(transactionMetadata, buffer.getOffset());
+            return transactionMetadata;
         } catch (InvalidProtocolBufferException e)
         {
             throw new RuntimeException(e);

@@ -196,6 +196,33 @@ public class PixelsSinkConfig
     @ConfigKey(value = "sink.storage.loop", defaultValue = "false")
     private boolean sinkStorageLoop;
 
+    @ConfigKey(value = "sink.recovery.enable", defaultValue = "false")
+    private boolean recoveryEnabled;
+
+    @ConfigKey(value = "sink.recovery.mode", defaultValue = "bootstrap")
+    private String recoveryMode;
+
+    @ConfigKey(value = "sink.recovery.bootstrap.force_overwrite", defaultValue = "false")
+    private boolean recoveryBootstrapForceOverwrite;
+
+    @ConfigKey(value = "sink.recovery.dir", defaultValue = "./sink-recovery")
+    private String recoveryDir;
+
+    @ConfigKey(value = "sink.recovery.rocksdb.dir", defaultValue = "./sink-recovery/rocksdb")
+    private String recoveryRocksdbDir;
+
+    @ConfigKey(value = "sink.recovery.insert_as_update", defaultValue = "true")
+    private boolean recoveryInsertAsUpdate;
+
+    @ConfigKey(value = "sink.recovery.fail_on_corruption", defaultValue = "true")
+    private boolean recoveryFailOnCorruption;
+
+    @ConfigKey(value = "sink.debug.progress.enable", defaultValue = "false")
+    private boolean debugProgressEnabled;
+
+    @ConfigKey(value = "sink.debug.progress.interval", defaultValue = "1000")
+    private long debugProgressInterval;
+
     @ConfigKey(value = "sink.monitor.freshness.level", defaultValue = "row") // row or txn or embed
     private String sinkMonitorFreshnessLevel;
     @ConfigKey(value = "sink.monitor.freshness.embed.warmup", defaultValue = "10")

@@ -22,6 +22,8 @@ package io.pixelsdb.pixels.sink.processor;
 
 
 import io.pixelsdb.pixels.sink.event.RowChangeEvent;
+import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
+import io.pixelsdb.pixels.sink.config.factory.PixelsSinkConfigFactory;
 import io.pixelsdb.pixels.sink.provider.TableEventProvider;
 import io.pixelsdb.pixels.sink.util.MetricsFacade;
 import io.pixelsdb.pixels.sink.writer.PixelsSinkWriter;
@@ -30,6 +32,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * @package: io.pixelsdb.pixels.sink.processor
@@ -44,6 +47,9 @@ public class TableProcessor implements StoppableProcessor, Runnable
     private final PixelsSinkWriter pixelsSinkWriter;
     private final TableEventProvider<?> tableEventProvider;
     private final MetricsFacade metricsFacade = MetricsFacade.getInstance();
+    private final boolean debugProgressEnabled;
+    private final long debugProgressInterval;
+    private final AtomicLong processedRows = new AtomicLong();
     private Thread processorThread;
     private boolean tableAdded = false;
 
@@ -51,6 +57,9 @@ public class TableProcessor implements StoppableProcessor, Runnable
     {
         this.pixelsSinkWriter = PixelsSinkWriterFactory.getWriter();
         this.tableEventProvider = tableEventProvider;
+        PixelsSinkConfig config = PixelsSinkConfigFactory.getInstance();
+        this.debugProgressEnabled = config.isDebugProgressEnabled();
+        this.debugProgressInterval = Math.max(1L, config.getDebugProgressInterval());
     }
 
     @Override
@@ -69,7 +78,19 @@ public class TableProcessor implements StoppableProcessor, Runnable
             {
                 continue;
             }
-            pixelsSinkWriter.writeRow(event);
+            boolean written = pixelsSinkWriter.writeRow(event);
+            if (debugProgressEnabled && written)
+            {
+                long current = processedRows.incrementAndGet();
+                if (current == 1 || current % debugProgressInterval == 0)
+                {
+                    LOGGER.info("Row processing progress: processed={}, txId={}, op={}, sourceOffset={}",
+                            current,
+                            event.getTransaction() == null ? "none" : event.getTransaction().getId(),
+                            event.getOp(),
+                            event.getSourceOffset());
+                }
+            }
         }
         LOGGER.info("Processor thread exited");
     }

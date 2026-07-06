@@ -23,6 +23,8 @@ package io.pixelsdb.pixels.sink.util;
 import com.google.protobuf.ByteString;
 import io.pixelsdb.pixels.retina.RetinaProto;
 import io.pixelsdb.pixels.sink.SinkProto;
+import io.pixelsdb.pixels.sink.event.RowChangeEvent;
+import io.pixelsdb.pixels.sink.exception.SinkException;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -179,5 +181,25 @@ public class DataTransform
     {
         String[] parts = topic.split("\\.");
         return parts[parts.length - 1];
+    }
+
+    public static RowChangeEvent transformInsertToRecoveryUpdate(RowChangeEvent event) throws SinkException
+    {
+        if (event == null || !event.isInsert())
+        {
+            return event;
+        }
+        SinkProto.RowRecord.Builder builder = event.getRowRecord().toBuilder();
+        if (!builder.hasAfter())
+        {
+            return event;
+        }
+        builder.setOp(SinkProto.OperationType.UPDATE);
+        builder.setBefore(builder.getAfter());
+        RowChangeEvent transformed = new RowChangeEvent(builder.build(), event.getSchema());
+        transformed.setTimeStamp(event.getTimeStamp());
+        transformed.setSourceOffset(event.getSourceOffset());
+        transformed.initIndexKey();
+        return transformed;
     }
 }

@@ -22,6 +22,7 @@ package io.pixelsdb.pixels.sink.config.factory;
 
 import io.pixelsdb.pixels.common.utils.ConfigFactory;
 import io.pixelsdb.pixels.sink.config.PixelsSinkConfig;
+import io.pixelsdb.pixels.sink.writer.retina.recovery.RecoveryManager;
 
 import java.io.IOException;
 
@@ -63,6 +64,7 @@ public class PixelsSinkConfigFactory
 
     public static synchronized void reset()
     {
+        RecoveryManager.closeInstance();
         instance = null;
         configFilePath = null;
     }
